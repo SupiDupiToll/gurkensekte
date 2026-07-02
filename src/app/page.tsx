@@ -47,8 +47,8 @@ export default function HomePage() {
         </h1>
         <p className="text-lg md:text-xl text-gurken-400 max-w-2xl mx-auto mb-10 leading-relaxed px-2">
           Du hast den ersten Schritt zur Erleuchtung getan. Die heilige Gurke
-          hat dich gerufen. Tritt ein in die Gemeinschaft der
-          Auserwählten &mdash; wo die Salatsaison niemals endet.
+          hat dich gerufen. Tritt ein in die Gemeinschaft der Auserwählten
+          &mdash; wo die Salatsaison niemals endet.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
@@ -104,20 +104,19 @@ export default function HomePage() {
                 🥒 Gürkchen 🥒
               </h3>
               <p className="text-gurken-300/80 leading-relaxed">
-                Gürkchen, der Einzige seiner Art, wurde im Frühjahr
-                1987 unter dem Licht eines vollen Salatmonds im Gurkenbeet eines
-                bayerischen Kleingartens geboren. Schon als junge Gewächshaus-Gurke
-                zeigte er übernatürliche Fähigkeiten: Er konnte
-                Einmachgläser mit einem Blick versiegeln und wusste immer,
-                wann der Dill reif war.
+                Gürkchen, der Einzige seiner Art, wurde im Frühjahr 1987 unter
+                dem Licht eines vollen Salatmonds im Gurkenbeet eines
+                bayerischen Kleingartens geboren. Schon als junge
+                Gewächshaus-Gurke zeigte er übernatürliche Fähigkeiten: Er
+                konnte Einmachgläser mit einem Blick versiegeln und wusste
+                immer, wann der Dill reif war.
               </p>
               <p className="text-gurken-300/80 leading-relaxed">
-                Nach Jahren der Meditation im Kühlregal eines
-                Discounters erlangte er die Erleuchtung und gründete die
-                Gurken Sekte. Sein Ziel: die Befreiung der Menschheit durch die
-                heilige Gurke. Seine Lehren sind im Manifest der Gurke
-                niedergeschrieben, einem Werk von unermesslicher
-                Salat-Weisheit.
+                Nach Jahren der Meditation im Kühlregal eines Discounters
+                erlangte er die Erleuchtung und gründete die Gurken Sekte. Sein
+                Ziel: die Befreiung der Menschheit durch die heilige Gurke.
+                Seine Lehren sind im Manifest der Gurke niedergeschrieben, einem
+                Werk von unermesslicher Salat-Weisheit.
               </p>
               <p className="text-gurken-400 font-bold italic">
                 &bdquo;Es gibt keine Probleme, nur Gurken, die noch nicht
@@ -139,12 +138,12 @@ export default function HomePage() {
 
         <div className="grid gap-4 md:gap-5 grid-cols-1 md:grid-cols-2">
           {quotes.map((quote, i) => (
-            <div
-              key={i}
-              className="card p-5 hover:translate-y-[-2px]"
-            >
+            <div key={i} className="card p-5 hover:translate-y-[-2px]">
               <div className="flex items-start gap-3">
-                <WigglingCucumber size="text-2xl" className="mt-0.5 flex-shrink-0" />
+                <WigglingCucumber
+                  size="text-2xl"
+                  className="mt-0.5 flex-shrink-0"
+                />
                 <div>
                   <p className="text-gurken-200 font-medium mb-2 italic leading-relaxed">
                     &bdquo;{quote.text}&rdquo;
@@ -173,15 +172,12 @@ export default function HomePage() {
           🥒 Bist du bereit für die Erleuchtung? 🥒
         </h2>
         <p className="text-gurken-400 mb-8 max-w-xl mx-auto leading-relaxed px-2">
-          Tausende haben bereits den Weg zur Gurke gefunden. Warte nicht,
-          bis die Salatsaison vorbei ist!
+          Tausende haben bereits den Weg zur Gurke gefunden. Warte nicht, bis
+          die Salatsaison vorbei ist!
         </p>
-        <Link
-          href="/spenden"
-          className="btn-cta btn-cta-primary"
-        >
+        <Link href="/mitglieder" className="btn-cta btn-cta-primary">
           <Heart size={20} weight="fill" />
-          Jetzt Gurke spenden 🥒
+          Jetzt der GurkenSekte beitreten 🥒
         </Link>
       </section>
     </div>
