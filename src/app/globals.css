@@ -86,3 +86,144 @@ body {
   background: #22c55e;
   color: #052e16;
 }
+
+/* ── Hexclave Auth Form ── Modern Glass Look ── */
+
+.stack-scope input:where(:not([type="checkbox"]):not([type="radio"])),
+.stack-scope .stack-scope input {
+  height: 3rem;
+  border-radius: 0.75rem;
+  border-width: 1.5px;
+  padding: 0 1rem;
+  font-size: 0.9375rem;
+  background: rgba(255 255 255 / 0.04);
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+}
+
+.stack-scope input:focus-visible {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px hsl(142 71% 45% / 0.2), 0 0 20px hsl(142 71% 45% / 0.1);
+  background: rgba(255 255 255 / 0.07);
+}
+
+.stack-scope input::placeholder {
+  color: hsl(141 50% 60% / 0.5);
+}
+
+.stack-scope button:not(.stack-scope [role="tab"]),
+.stack-scope [type="button"]:not(.stack-scope [role="tab"]),
+.stack-scope [type="submit"] {
+  height: 3rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: all 0.2s ease;
+}
+
+.stack-scope button:not(.stack-scope [role="tab"]):not(:disabled):hover,
+.stack-scope [type="button"]:not(.stack-scope [role="tab"]):not(:disabled):hover,
+.stack-scope [type="submit"]:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 25px hsl(142 71% 45% / 0.3);
+}
+
+.stack-scope button:not(.stack-scope [role="tab"]):not(:disabled):active,
+.stack-scope [type="button"]:not(.stack-scope [role="tab"]):not(:disabled):active,
+.stack-scope [type="submit"]:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.stack-scope [role="tab"] {
+  border-radius: 0.625rem;
+  padding: 0.625rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.stack-scope [role="tablist"] {
+  gap: 0.25rem;
+  background: rgba(255 255 255 / 0.04);
+  border-radius: 0.75rem;
+  padding: 0.25rem;
+}
+
+.stack-scope [role="tab"][data-state="active"] {
+  background: hsl(142 71% 45% / 0.2);
+  color: #bbf7d0;
+}
+
+.stack-scope .text-center.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+.stack-scope .gap-4 {
+  gap: 0.75rem;
+}
+
+.stack-scope .mt-6 {
+  margin-top: 1.5rem;
+}
+
+.stack-scope .mt-2 {
+  margin-top: 1rem;
+}
+
+.stack-scope .mt-4 {
+  margin-top: 1.25rem;
+}
+
+.stack-scope .mb-1 {
+  margin-bottom: 0.5rem;
+}
+
+.stack-scope label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: hsl(141 50% 75%);
+}
+
+.stack-scope .border-t {
+  border-color: hsl(142 71% 45% / 0.15);
+}
+
+.stack-scope .text-sm {
+  font-size: 0.8125rem;
+}
+
+.stack-scope a:not([role="tab"]) {
+  color: #4ade80;
+  transition: color 0.15s ease;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.stack-scope a:not([role="tab"]):hover {
+  color: #86efac;
+  text-decoration: underline;
+}
+
+.stack-scope .separator-text {
+  color: hsl(141 50% 60% / 0.6);
+  font-size: 0.75rem;
+}
+
+/* OAuth buttons */
+.stack-scope .stack-scope button:has(svg) {
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgba(255 255 255 / 0.05);
+  border: 1.5px solid hsl(142 71% 45% / 0.15);
+}
+
+.stack-scope .stack-scope button:has(svg):hover {
+  background: rgba(255 255 255 / 0.1);
+  border-color: hsl(142 71% 45% / 0.3);
+}
+
+/* Spinner in button */
+.stack-scope .stack-scope .-ml-1 {
+  width: 1.25rem;
+  height: 1.25rem;
+}
