@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-gurken-50: #f0fdf4;
+  --color-gurken-100: #dcfce7;
+  --color-gurken-200: #bbf7d0;
+  --color-gurken-300: #86efac;
+  --color-gurken-400: #4ade80;
+  --color-gurken-500: #22c55e;
+  --color-gurken-600: #16a34a;
+  --color-gurken-700: #15803d;
+  --color-gurken-800: #166534;
+  --color-gurken-900: #14532d;
+  --color-cucumber-dark: #1B5E20;
+  --color-cucumber-light: #81C784;
+  --color-cult-gold: #FFD700;
+
+  --animate-spin-slow: spin 4s linear infinite;
+  --animate-spin-reverse: spin-reverse 3s linear infinite;
+  --animate-wiggle: wiggle 0.8s ease-in-out infinite;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-shake: shake 0.6s ease-in-out infinite;
+  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+  --animate-marquee: marquee 30s linear infinite;
+  --animate-bounce-gentle: bounce-gentle 2s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-cucumber-spin: cucumber-spin 6s linear infinite;
+}
+
+@keyframes spin-reverse {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px) rotate(-2deg); }
+  40% { transform: translateX(4px) rotate(2deg); }
+  60% { transform: translateX(-3px) rotate(-1deg); }
+  80% { transform: translateX(3px) rotate(1deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 5px #22c55e, 0 0 10px #22c55e; }
+  50% { box-shadow: 0 0 20px #4ade80, 0 0 40px #22c55e, 0 0 60px #16a34a; }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(100vw); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes bounce-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { text-shadow: 0 0 4px #4ade80, 0 0 8px #22c55e; }
+  50% { text-shadow: 0 0 16px #4ade80, 0 0 32px #22c55e, 0 0 48px #16a34a; }
+}
+
+@keyframes cucumber-spin {
+  from { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.1); }
+  to { transform: rotate(360deg) scale(1); }
+}
+
+body {
+  background: linear-gradient(135deg, #052e16 0%, #14532d 50%, #052e16 100%);
+  color: #e8f5e9;
+  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+::selection {
+  background: #22c55e;
+  color: #052e16;
+}
