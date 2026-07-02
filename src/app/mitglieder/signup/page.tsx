@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser, SignIn } from "@hexclave/next";
-import { WigglingCucumber } from "@/components/SpinningCucumber";
+import { useUser, SignUp } from "@hexclave/next";
+import { SpinningCucumber } from "@/components/SpinningCucumber";
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const user = useUser();
   const router = useRouter();
 
@@ -23,26 +23,26 @@ export default function LoginPage() {
     <div className="max-w-md mx-auto px-4 py-20">
       <div className="bg-gurken-900/40 rounded-2xl p-8 border border-gurken-500/20">
         <div className="text-center mb-6">
-          <WigglingCucumber size="text-6xl" />
+          <SpinningCucumber size="text-6xl" />
           <h1 className="text-2xl font-black text-gurken-300 mt-4 mb-2">
-            Mitglieder-Login
+            Der Sekte beitreten
           </h1>
           <p className="text-gurken-400">
-            Melde dich an, um in den exklusiven Mitgliederbereich der Gurken
-            Sekte zu gelangen.
+            Registriere dich und werde ein erleuchtetes Mitglied der Gurken
+            Sekte.
           </p>
         </div>
 
-        <SignIn
+        <SignUp
           automaticRedirect
           extraInfo={
             <p className="text-gurken-500 text-xs text-center mt-4">
-              Noch kein Mitglied?{" "}
+              Bereits Mitglied?{" "}
               <a
-                href="/mitglieder/signup"
+                href="/mitglieder/login"
                 className="text-gurken-400 hover:text-gurken-300 underline"
               >
-                Jetzt registrieren
+                Jetzt anmelden
               </a>
             </p>
           }

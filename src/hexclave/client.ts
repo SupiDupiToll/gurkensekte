@@ -4,8 +4,11 @@ export const hexclaveClientApp = new HexclaveClientApp({
   tokenStore: "nextjs-cookie",
   urls: {
     default: {
-      type: "hosted",
+      type: "handler-component",
     },
+    handler: "/handler",
+    signIn: "/mitglieder/login",
+    signUp: "/mitglieder/signup",
     afterSignIn: "/mitglieder",
     afterSignUp: "/mitglieder",
     afterSignOut: "/",
