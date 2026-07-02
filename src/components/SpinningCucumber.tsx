@@ -96,6 +96,8 @@ export function CucumberSwarm({ className = "" }: { className?: string }) {
       <SpinningCucumber size="text-2xl" reverse />
       <WigglingCucumber size="text-4xl" />
       <FloatingCucumber size="text-3xl" />
+      <ShakingCucumber size="text-2xl" />
+      <BouncingCucumber size="text-3xl" />
     </div>
   );
 }

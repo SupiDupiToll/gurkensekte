@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@hexclave/next": "^1.0.43",
+    "@phosphor-icons/react": "^2.1.10",
     "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4"

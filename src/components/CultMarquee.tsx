@@ -14,8 +14,8 @@ const cultSayings = [
 export function CultMarquee() {
   const text = cultSayings.join("  ~  ");
   return (
-    <div className="relative w-full overflow-hidden bg-gurken-900/60 border-y border-gurken-500/30 py-2">
-      <div className="animate-marquee whitespace-nowrap text-gurken-300 text-sm md:text-base font-bold tracking-wider">
+    <div className="relative w-full overflow-hidden bg-gurken-950/80 border-y border-gurken-500/20 py-2">
+      <div className="animate-marquee whitespace-nowrap text-gurken-300 text-sm md:text-base font-bold tracking-wider motion-reduce:animate-none motion-reduce:overflow-x-auto motion-reduce:whitespace-normal motion-reduce:flex-wrap motion-reduce:justify-center motion-reduce:px-4">
         {text}
       </div>
     </div>

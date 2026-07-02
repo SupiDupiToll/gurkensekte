@@ -1,6 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme inline {
+  --font-heading: 'Fredoka', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+
   --color-gurken-50: #f0fdf4;
   --color-gurken-100: #dcfce7;
   --color-gurken-200: #bbf7d0;
@@ -11,6 +15,7 @@
   --color-gurken-700: #15803d;
   --color-gurken-800: #166534;
   --color-gurken-900: #14532d;
+  --color-gurken-950: #0a3a1f;
   --color-cucumber-dark: #1B5E20;
   --color-cucumber-light: #81C784;
   --color-cult-gold: #FFD700;
@@ -75,16 +80,143 @@
   to { transform: rotate(360deg) scale(1); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: linear-gradient(135deg, #052e16 0%, #14532d 50%, #052e16 100%);
+  background-attachment: fixed;
   color: #e8f5e9;
-  font-family: Arial, Helvetica, sans-serif;
-  min-height: 100vh;
+  font-family: 'Nunito', Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Better sticky header on mobile Safari */
+@supports (padding-top: env(safe-area-inset-top)) {
+  header.sticky {
+    padding-top: calc(0.75rem + env(safe-area-inset-top));
+  }
+}
+
+/* Safe area bottom padding for mobile */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
 }
 
 ::selection {
   background: #22c55e;
   color: #052e16;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Fredoka', sans-serif;
+}
+
+/* ── Glassmorphism Utility ── */
+.glass {
+  background: rgba(21, 83, 45, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+}
+
+.glass-strong {
+  background: rgba(21, 83, 45, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+/* ── Glow Utilities ── */
+.glow-green {
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.15);
+}
+
+.glow-green-lg {
+  box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+}
+
+.glow-green-hover {
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.glow-green-hover:hover {
+  box-shadow: 0 0 25px rgba(34, 197, 94, 0.3);
+  transform: translateY(-2px);
+}
+
+/* ── CTA Button Base ── */
+.btn-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  font-size: 1.125rem;
+  font-family: 'Fredoka', sans-serif;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-cta-primary {
+  background: #16a34a;
+  color: white;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.15);
+}
+
+.btn-cta-primary:hover {
+  background: #22c55e;
+  box-shadow: 0 0 30px rgba(34, 197, 94, 0.35);
+  transform: translateY(-2px);
+}
+
+.btn-cta-primary:active {
+  transform: translateY(0);
+}
+
+.btn-cta-secondary {
+  background: transparent;
+  color: #86efac;
+  border: 2px solid rgba(34, 197, 94, 0.4);
+}
+
+.btn-cta-secondary:hover {
+  border-color: #4ade80;
+  color: #bbf7d0;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+  transform: translateY(-2px);
+}
+
+.btn-cta-secondary:active {
+  transform: translateY(0);
+}
+
+/* ── Card Base ── */
+.card {
+  background: rgba(21, 83, 45, 0.3);
+  border-radius: 1rem;
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: rgba(34, 197, 94, 0.3);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.1);
 }
 
 /* ── Hexclave Auth Form ── Modern Glass Look ── */
@@ -119,6 +251,7 @@ body {
   font-weight: 600;
   font-size: 0.9375rem;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .stack-scope button:not(.stack-scope [role="tab"]):not(:disabled):hover,
@@ -139,6 +272,7 @@ body {
   padding: 0.625rem 1rem;
   font-weight: 500;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .stack-scope [role="tablist"] {
@@ -209,7 +343,6 @@ body {
   font-size: 0.75rem;
 }
 
-/* OAuth buttons */
 .stack-scope .stack-scope button:has(svg) {
   justify-content: center;
   gap: 0.5rem;
@@ -222,7 +355,6 @@ body {
   border-color: hsl(142 71% 45% / 0.3);
 }
 
-/* Spinner in button */
 .stack-scope .stack-scope .-ml-1 {
   width: 1.25rem;
   height: 1.25rem;
