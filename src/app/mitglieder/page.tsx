@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useUser, useHexclaveApp } from "@hexclave/next";
 import { buildTippieLink } from "@/lib/tippie";
 import {
@@ -24,6 +24,49 @@ type Message = {
   role: "user" | "assistant";
   content: string;
 };
+
+function GurkchenQuote() {
+  const [quote, setQuote] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchQuote = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/guerkchen/quote");
+      const data = await res.json();
+      setQuote(data.quote);
+    } catch {
+      setQuote("Die Gurke ist der Urknall in essbarer Form. – Gürkchen 🥒");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchQuote();
+  }, [fetchQuote]);
+
+  return (
+    <div>
+      {loading ? (
+        <div className="flex justify-center py-4">
+          <SpinningCucumber size="text-3xl" />
+        </div>
+      ) : (
+        <blockquote className="text-gurken-200 text-lg italic leading-relaxed mb-4 min-h-[3rem]">
+          &bdquo;{quote}&rdquo;
+        </blockquote>
+      )}
+      <button
+        onClick={fetchQuote}
+        disabled={loading}
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gurken-600 hover:bg-gurken-500 text-white font-bold text-sm transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px]"
+      >
+        🥒 Neues Zitat
+      </button>
+    </div>
+  );
+}
 
 function GurkchenChat() {
   const [messages, setMessages] = useState<Message[]>([
@@ -311,6 +354,17 @@ export default function MitgliederPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Gürkchen-Zitat */}
+      <div className="card p-6 md:p-8 mb-8 text-center">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <FloatingCucumber size="text-3xl" />
+          <h2 className="text-xl font-heading font-bold text-gurken-200">
+            🥒 Gürkchen spricht 🥒
+          </h2>
+        </div>
+        <GurkchenQuote />
       </div>
 
       {/* Gürkchen-Chat */}
