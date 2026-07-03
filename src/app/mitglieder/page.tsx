@@ -18,16 +18,157 @@ import {
   ShieldCheck,
   ChatDots,
   ArrowsInSimple,
+  Coin,
+  Gift,
+  Basket,
+  ClockCounterClockwise,
 } from "@phosphor-icons/react";
+import { PunkteProvider, usePunkte, claimPunkte } from "@/components/PunkteContext";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
+function PunkteAnzeige() {
+  const { punkte, loading, dailyAvailable, verlauf, refresh } = usePunkte();
+  const [claimingDaily, setClaimingDaily] = useState(false);
+  const [claimingRedeem, setClaimingRedeem] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  async function handleDaily() {
+    setClaimingDaily(true);
+    const result = await claimPunkte("daily");
+    if (result) {
+      await refresh();
+    }
+    setClaimingDaily(false);
+  }
+
+  async function handleRedeem() {
+    setClaimingRedeem(true);
+    const result = await claimPunkte("einloesen");
+    if (result) {
+      await refresh();
+    }
+    setClaimingRedeem(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="card p-6 md:p-8 mb-8 text-center">
+        <SpinningCucumber size="text-3xl" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="card p-6 md:p-8 mb-8">
+      <div className="flex items-center gap-3 mb-6">
+        <Coin size={24} weight="fill" className="text-yellow-400" />
+        <h2 className="text-xl font-heading font-bold text-gurken-200">
+          🥒 Punkte & Belohnungen 🥒
+        </h2>
+      </div>
+
+      {/* Points Balance */}
+      <div className="bg-gurken-800/40 rounded-2xl p-6 text-center mb-6 border border-gurken-500/10">
+        <div className="text-gurken-500 text-xs uppercase tracking-wider mb-1">
+          Dein Gurkensegen
+        </div>
+        <div className="text-5xl font-heading font-bold text-yellow-300 mb-1">
+          {punkte}
+        </div>
+        <div className="text-gurken-400 text-sm">🥒 Punkte</div>
+
+        {punkte >= 100 && (
+          <button
+            onClick={handleRedeem}
+            disabled={claimingRedeem}
+            className="mt-4 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-base transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 touch-manipulation min-h-[48px]"
+          >
+            <Basket size={20} weight="fill" />
+            {claimingRedeem ? "Wird eingelöst…" : "🥒 Echte Gurke einlösen (100 Punkte)"}
+          </button>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-4">
+        <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10 flex items-center justify-between">
+          <div>
+            <div className="text-gurken-400 text-xs uppercase tracking-wider mb-1">
+              Täglicher Bonus
+            </div>
+            <div className="text-gurken-200 font-bold text-lg">+20 🥒</div>
+          </div>
+          <button
+            onClick={handleDaily}
+            disabled={!dailyAvailable || claimingDaily}
+            className="px-4 py-2.5 rounded-xl bg-gurken-600 hover:bg-gurken-500 text-white font-bold text-sm transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px] flex items-center gap-1.5"
+          >
+            <Gift size={18} weight="fill" />
+            {claimingDaily
+              ? "…"
+              : dailyAvailable
+                ? "Abholen"
+                : "✅ Erledigt"}
+          </button>
+        </div>
+
+        <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10">
+          <div className="text-gurken-400 text-xs uppercase tracking-wider mb-1">
+            So sammelst du Punkte
+          </div>
+          <ul className="text-gurken-300 text-sm space-y-1">
+            <li>🥒 Zitat generieren: +5</li>
+            <li>🥒 Chat-Nachricht: +3</li>
+            <li>🥒 Täglicher Bonus: +20</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* History toggle */}
+      <button
+        onClick={() => setShowHistory(!showHistory)}
+        className="flex items-center gap-1.5 text-gurken-500 hover:text-gurken-400 text-xs font-bold transition-all"
+      >
+        <ClockCounterClockwise size={14} />
+        {showHistory ? "Verlauf ausblenden" : "Verlauf anzeigen"}
+      </button>
+
+      {showHistory && (
+        <div className="mt-3 space-y-1 max-h-48 overflow-y-auto">
+          {verlauf.length === 0 && (
+            <p className="text-gurken-500 text-xs">Noch keine Aktivität</p>
+          )}
+          {[...verlauf].reverse().map((e, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-gurken-800/20"
+            >
+              <span className="text-gurken-400">
+                {new Date(e.datum).toLocaleString("de-DE")}
+              </span>
+              <span className="text-gurken-300 capitalize">{e.aktion}</span>
+              <span
+                className={`font-bold ${e.punkte > 0 ? "text-yellow-400" : "text-red-400"}`}
+              >
+                {e.punkte > 0 ? "+" : ""}
+                {e.punkte}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GurkchenQuote() {
   const [quote, setQuote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { refresh } = usePunkte();
 
   const fetchQuote = useCallback(async () => {
     setLoading(true);
@@ -35,12 +176,14 @@ function GurkchenQuote() {
       const res = await fetch("/api/guerkchen/quote");
       const data = await res.json();
       setQuote(data.quote);
+      claimPunkte("zitat");
+      refresh();
     } catch {
       setQuote("Die Gurke ist der Urknall in essbarer Form. – Gürkchen 🥒");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refresh]);
 
   useEffect(() => {
     fetchQuote();
@@ -80,6 +223,7 @@ function GurkchenChat() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { refresh } = usePunkte();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -134,6 +278,9 @@ function GurkchenChat() {
           { role: "assistant", content: data.reply },
         ]);
       }
+
+      claimPunkte("chat");
+      refresh();
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -294,100 +441,105 @@ export default function MitgliederPage() {
   });
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12 md:py-24 relative pb-safe">
-      {/* Decorative cucumbers */}
-      <div className="hidden md:flex flex-col gap-6 fixed left-4 top-1/3 opacity-25 pointer-events-none">
-        <SpinningCucumber size="text-3xl" />
-        <WigglingCucumber size="text-2xl" />
-        <BouncingCucumber size="text-3xl" />
-      </div>
-      <div className="hidden md:flex flex-col gap-6 fixed right-4 top-1/3 opacity-25 pointer-events-none">
-        <FloatingCucumber size="text-3xl" />
-        <ShakingCucumber size="text-2xl" />
-        <SpinningCucumber size="text-3xl" reverse />
-      </div>
-
-      <div className="text-center mb-10">
-        <SpinningCucumber size="text-5xl" />
-        <h1 className="text-3xl md:text-4xl font-heading font-bold text-gurken-300 mt-4">
-          🥒 Mitgliederbereich 🥒
-        </h1>
-        <p className="text-gurken-400 mt-2">
-          Willkommen, erleuchtete(r) {user.displayName ?? "Gurkenfreund"}! 🥒
-        </p>
-        <p className="text-gurken-500 text-xs mt-1">E-Mail: {email}</p>
-      </div>
-
-      {/* Member Dashboard */}
-      <div className="card p-6 md:p-8 mb-8">
-        <div className="flex items-center gap-3 mb-6">
+    <PunkteProvider>
+      <div className="max-w-2xl mx-auto px-4 py-12 md:py-24 relative pb-safe">
+        {/* Decorative cucumbers */}
+        <div className="hidden md:flex flex-col gap-6 fixed left-4 top-1/3 opacity-25 pointer-events-none">
+          <SpinningCucumber size="text-3xl" />
+          <WigglingCucumber size="text-2xl" />
+          <BouncingCucumber size="text-3xl" />
+        </div>
+        <div className="hidden md:flex flex-col gap-6 fixed right-4 top-1/3 opacity-25 pointer-events-none">
           <FloatingCucumber size="text-3xl" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🥒 Dein spirituelles Dashboard 🥒
-          </h2>
+          <ShakingCucumber size="text-2xl" />
+          <SpinningCucumber size="text-3xl" reverse />
         </div>
 
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-8">
-          <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10">
-            <div className="flex items-center gap-2 text-gurken-500 text-xs uppercase tracking-wider mb-1">
-              <CalendarBlank size={14} />
-              🥒 Mitglied seit
-            </div>
-            <p className="text-gurken-200 font-bold text-base">
-              {user.signedUpAt
-                ? new Date(user.signedUpAt).toLocaleDateString("de-DE")
-                : "Urzeiten der Gurke"}
-            </p>
+        <div className="text-center mb-10">
+          <SpinningCucumber size="text-5xl" />
+          <h1 className="text-3xl md:text-4xl font-heading font-bold text-gurken-300 mt-4">
+            🥒 Mitgliederbereich 🥒
+          </h1>
+          <p className="text-gurken-400 mt-2">
+            Willkommen, erleuchtete(r) {user.displayName ?? "Gurkenfreund"}! 🥒
+          </p>
+          <p className="text-gurken-500 text-xs mt-1">E-Mail: {email}</p>
+        </div>
+
+        {/* Member Dashboard */}
+        <div className="card p-6 md:p-8 mb-8">
+          <div className="flex items-center gap-3 mb-6">
+            <FloatingCucumber size="text-3xl" />
+            <h2 className="text-xl font-heading font-bold text-gurken-200">
+              🥒 Dein spirituelles Dashboard 🥒
+            </h2>
           </div>
-          <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10">
-            <div className="flex items-center gap-2 text-gurken-500 text-xs uppercase tracking-wider mb-1">
-              <ShieldCheck size={14} />
-              🥒 Status
+
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-8">
+            <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10">
+              <div className="flex items-center gap-2 text-gurken-500 text-xs uppercase tracking-wider mb-1">
+                <CalendarBlank size={14} />
+                🥒 Mitglied seit
+              </div>
+              <p className="text-gurken-200 font-bold text-base">
+                {user.signedUpAt
+                  ? new Date(user.signedUpAt).toLocaleDateString("de-DE")
+                  : "Urzeiten der Gurke"}
+              </p>
             </div>
-            <p className="text-gurken-200 font-bold text-base flex items-center gap-1.5 flex-wrap">
-              Erleuchtet 🥒
-              <ShieldCheck
-                size={16}
-                weight="fill"
-                className="text-gurken-400"
-              />
-            </p>
+            <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10">
+              <div className="flex items-center gap-2 text-gurken-500 text-xs uppercase tracking-wider mb-1">
+                <ShieldCheck size={14} />
+                🥒 Status
+              </div>
+              <p className="text-gurken-200 font-bold text-base flex items-center gap-1.5 flex-wrap">
+                Erleuchtet 🥒
+                <ShieldCheck
+                  size={16}
+                  weight="fill"
+                  className="text-gurken-400"
+                />
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Gürkchen-Zitat */}
-      <div className="card p-6 md:p-8 mb-8 text-center">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <FloatingCucumber size="text-3xl" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🥒 Gürkchen spricht 🥒
-          </h2>
+        {/* Punkte & Belohnungen */}
+        <PunkteAnzeige />
+
+        {/* Gürkchen-Zitat */}
+        <div className="card p-6 md:p-8 mb-8 text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <FloatingCucumber size="text-3xl" />
+            <h2 className="text-xl font-heading font-bold text-gurken-200">
+              🥒 Gürkchens Zitat 🥒
+            </h2>
+          </div>
+          <GurkchenQuote />
         </div>
-        <GurkchenQuote />
-      </div>
 
-      {/* Gürkchen-Chat */}
-      <GurkchenChat />
+        {/* Gürkchen-Chat */}
+        <GurkchenChat />
 
-      {/* Sign Out */}
-      <div className="text-center">
-        <button
-          onClick={() => app.redirectToSignOut()}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gurken-600/40 text-gurken-500 hover:text-gurken-400 hover:border-gurken-500 text-sm font-bold transition-all hover:bg-gurken-800/30 touch-manipulation"
-        >
-          <SignOut size={16} />
-          🥒 Ausloggen 🥒
-        </button>
-      </div>
+        {/* Sign Out */}
+        <div className="text-center">
+          <button
+            onClick={() => app.redirectToSignOut()}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gurken-600/40 text-gurken-500 hover:text-gurken-400 hover:border-gurken-500 text-sm font-bold transition-all hover:bg-gurken-800/30 touch-manipulation"
+          >
+            <SignOut size={16} />
+            🥒 Ausloggen 🥒
+          </button>
+        </div>
 
-      <div className="flex justify-center mt-8 gap-3 opacity-40">
-        <FloatingCucumber size="text-2xl" />
-        <WigglingCucumber size="text-2xl" />
-        <SpinningCucumber size="text-2xl" />
-        <BouncingCucumber size="text-2xl" />
-        <ShakingCucumber size="text-2xl" />
+        <div className="flex justify-center mt-8 gap-3 opacity-40">
+          <FloatingCucumber size="text-2xl" />
+          <WigglingCucumber size="text-2xl" />
+          <SpinningCucumber size="text-2xl" />
+          <BouncingCucumber size="text-2xl" />
+          <ShakingCucumber size="text-2xl" />
+        </div>
       </div>
-    </div>
+    </PunkteProvider>
   );
 }
