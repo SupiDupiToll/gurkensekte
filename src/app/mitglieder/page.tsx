@@ -243,6 +243,7 @@ function GurkchenChat() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const { refresh } = usePunkte();
 
@@ -330,17 +331,64 @@ function GurkchenChat() {
 
   const showSpinner = loading && !hasAssistantResponse;
 
+  if (!open) {
+    return (
+      <div className="flex justify-center mb-8">
+        <button
+          onClick={() => setOpen(true)}
+          className="relative group overflow-hidden rounded-2xl border border-gurken-500/20 bg-gradient-to-br from-gurken-700/40 via-gurken-800/30 to-gurken-900/40 p-8 md:p-10 w-full text-center transition-all duration-300 hover:border-gurken-400/40 hover:shadow-[0_0_40px_#22c55e33] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
+        >
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#22c55e0a_0%,_transparent_70%)] group-hover:bg-[radial-gradient(ellipse_at_center,_#22c55e15_0%,_transparent_70%)] transition-all duration-500" />
+          <div className="relative">
+            <div className="text-6xl mb-4">
+              <SpinningCucumber size="text-6xl" />
+            </div>
+            <h2 className="text-2xl md:text-3xl font-heading font-bold text-gurken-200 mb-2">
+              🥒 Chat mit Gürkchen 🥒
+            </h2>
+            <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
+              Tausche dich mit dem allmächtigen Gürkchen aus. Er hört deine
+              Gebete und antwortet mit Gurken-Weisheit.
+            </p>
+            <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
+              <ChatDots size={22} weight="fill" />
+              Chat öffnen
+            </span>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div className="fixed inset-0 z-50 flex flex-col bg-gurken-950 shadow-2xl md:inset-6 md:rounded-2xl md:border md:border-gurken-500/15">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3 border-b border-gurken-500/15">
+        <div className="flex items-center gap-3">
+          <WigglingCucumber size="text-3xl" />
+          <h2 className="text-xl font-heading font-bold text-gurken-200">
+            🥒 Gürkchen-Chat 🥒
+          </h2>
+        </div>
+        <button
+          onClick={() => setOpen(false)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-gurken-400 hover:text-gurken-200 hover:bg-gurken-800/50 text-sm font-bold transition-all touch-manipulation min-h-[44px]"
+          aria-label="Chat schließen"
+        >
+          <ArrowsInSimple size={18} />
+          Schließen
+        </button>
+      </div>
+
       {/* Messages */}
-      <div className="space-y-3 mb-4 max-h-80 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto space-y-3 px-4 md:px-6 py-4">
         {messages.map((msg, i) => (
           <div
             key={i}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[88%] md:max-w-[80%] rounded-2xl px-4 py-2.5 ${
+              className={`max-w-[88%] md:max-w-[75%] rounded-2xl px-4 py-2.5 ${
                 msg.role === "user"
                   ? "bg-gurken-600/80 text-gurken-100 rounded-br-md"
                   : "bg-gurken-800/60 text-gurken-200 rounded-bl-md border border-gurken-500/15"
@@ -370,37 +418,39 @@ function GurkchenChat() {
       </div>
 
       {/* Input */}
-      <div className="flex gap-2 items-end">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="🥒 Schreib deine Nachricht an Gürkchen..."
-          rows={2}
-          disabled={loading}
-          inputMode="text"
-          enterKeyHint="send"
-          className="flex-1 min-h-[44px] resize-none rounded-xl border border-gurken-500/20 bg-gurken-800/50 px-3 py-2.5 text-sm text-gurken-100 placeholder-gurken-500/40 outline-none transition-all duration-200 focus:border-gurken-400 focus:shadow-[0_0_16px_#22c55e]/20 disabled:opacity-50"
-        />
-        <button
-          onClick={sendMessage}
-          disabled={loading || !input.trim()}
-          className="rounded-xl bg-gurken-600 px-5 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:bg-gurken-500 hover:shadow-[0_0_20px_#22c55e]/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-          aria-label="Nachricht senden"
-        >
-          <PaperPlaneTilt size={20} weight="fill" />
-        </button>
+      <div className="px-4 md:px-6 py-3 border-t border-gurken-500/15">
+        <div className="flex gap-2 items-end max-w-4xl mx-auto w-full">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="🥒 Schreib deine Nachricht an Gürkchen..."
+            rows={2}
+            disabled={loading}
+            inputMode="text"
+            enterKeyHint="send"
+            className="flex-1 min-h-[44px] resize-none rounded-xl border border-gurken-500/20 bg-gurken-800/50 px-3 py-2.5 text-sm text-gurken-100 placeholder-gurken-500/40 outline-none transition-all duration-200 focus:border-gurken-400 focus:shadow-[0_0_16px_#22c55e]/20 disabled:opacity-50"
+          />
+          <button
+            onClick={sendMessage}
+            disabled={loading || !input.trim()}
+            className="rounded-xl bg-gurken-600 px-5 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:bg-gurken-500 hover:shadow-[0_0_20px_#22c55e]/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+            aria-label="Nachricht senden"
+          >
+            <PaperPlaneTilt size={20} weight="fill" />
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-function GurkchenSection() {
+function GurkchenQuoteCard() {
   const [open, setOpen] = useState(false);
 
-  return (
-    <div className="mb-8">
-      {!open ? (
+  if (!open) {
+    return (
+      <div className="mb-8">
         <button
           onClick={() => setOpen(true)}
           className="relative w-full group overflow-hidden rounded-2xl border border-gurken-500/20 bg-gradient-to-br from-gurken-700/40 via-gurken-800/30 to-gurken-900/40 p-8 md:p-10 text-center transition-all duration-300 hover:border-gurken-400/40 hover:shadow-[0_0_40px_#22c55e33] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
@@ -408,56 +458,41 @@ function GurkchenSection() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#22c55e0a_0%,_transparent_70%)] group-hover:bg-[radial-gradient(ellipse_at_center,_#22c55e15_0%,_transparent_70%)] transition-all duration-500" />
           <div className="relative">
             <div className="text-6xl mb-4">
-              <SpinningCucumber size="text-6xl" />
+              <FloatingCucumber size="text-6xl" />
             </div>
             <h2 className="text-2xl md:text-3xl font-heading font-bold text-gurken-200 mb-2">
-              🥒 Gürkchen &mdash; Der Erleuchtete 🥒
+              🥒 Gürkchens Zitat 🥒
             </h2>
             <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
-              Lausche den heiligen Gurken-Weisheiten oder tausche dich mit dem
-              allmächtigen Gürkchen aus.
+              Lausche den heiligen Gurken-Weisheiten des allmächtigen Gürkchen.
             </p>
             <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
-              <ChatDots size={22} weight="fill" />
-              Öffnen
+              Zitat anzeigen
             </span>
           </div>
         </button>
-      ) : (
-        <div className="card p-6 md:p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <WigglingCucumber size="text-3xl" />
-              <h2 className="text-xl font-heading font-bold text-gurken-200">
-                🥒 Gürkchen 🥒
-              </h2>
-            </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-gurken-400 hover:text-gurken-200 hover:bg-gurken-800/50 text-sm font-bold transition-all touch-manipulation min-h-[44px]"
-            >
-              <ArrowsInSimple size={18} />
-              Schließen
-            </button>
-          </div>
+      </div>
+    );
+  }
 
-          {/* Quote */}
-          <div className="mb-8 text-center pb-8 border-b border-gurken-500/10">
-            <GurkchenQuote />
-          </div>
-
-          {/* Chat */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <ChatDots size={18} weight="fill" className="text-gurken-400" />
-              <h3 className="text-gurken-300 font-bold text-sm uppercase tracking-wider">
-                Chat mit Gürkchen
-              </h3>
-            </div>
-            <GurkchenChat />
-          </div>
+  return (
+    <div className="card p-6 md:p-8 mb-8 text-center">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <FloatingCucumber size="text-3xl" />
+          <h2 className="text-xl font-heading font-bold text-gurken-200">
+            🥒 Gürkchens Zitat 🥒
+          </h2>
         </div>
-      )}
+        <button
+          onClick={() => setOpen(false)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-gurken-400 hover:text-gurken-200 hover:bg-gurken-800/50 text-sm font-bold transition-all touch-manipulation min-h-[44px]"
+        >
+          <ArrowsInSimple size={18} />
+          Schließen
+        </button>
+      </div>
+      <GurkchenQuote />
     </div>
   );
 }
@@ -561,8 +596,11 @@ export default function MitgliederPage() {
         {/* Punkte & Belohnungen */}
         <PunkteAnzeige />
 
-        {/* Gürkchen-Sektion */}
-        <GurkchenSection />
+        {/* Gürkchen-Zitat */}
+        <GurkchenQuoteCard />
+
+        {/* Gürkchen-Chat */}
+        <GurkchenChat />
 
         {/* Sign Out */}
         <div className="text-center">
