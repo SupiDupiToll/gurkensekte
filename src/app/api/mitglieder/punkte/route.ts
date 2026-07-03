@@ -4,7 +4,7 @@ const POINTS = {
   zitat: 5,
   chat: 3,
   daily: 20,
-  einloesen: -100,
+  einloesen: -300,
 } as const;
 
 type Action = keyof typeof POINTS;
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Heute schon abgeholt" }, { status: 400 });
   }
 
-  if (action === "einloesen" && currentPoints < 100) {
+  if (action === "einloesen" && currentPoints < 300) {
     return Response.json({ error: "Nicht genug Punkte" }, { status: 400 });
   }
 
