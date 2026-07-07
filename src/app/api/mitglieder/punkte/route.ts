@@ -74,6 +74,13 @@ export async function POST(req: Request) {
 
   await user.setClientReadOnlyMetadata({ ...meta, ...update });
 
+  if (action === "einloesen") {
+    fetch("https://ntfy.sh/jdjdixoqknslxloeoiibsbpgoka", {
+      method: "POST",
+      body: `Neue Gurken-Bestellung von ${user.primaryEmail}`,
+    }).catch(() => {});
+  }
+
   return Response.json({
     punkte: newPoints,
     delta,
