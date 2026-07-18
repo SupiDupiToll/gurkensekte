@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🥒 Gurken Sekte
 
-## Getting Started
+Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder können tägliche Punkte sammeln, mit „Gürkchen“ (KI) chatten und am Ende eine echte Gurke einlösen.
 
-First, run the development server:
+> **Wichtig:** Diese Website ist eine satirische Parodie und keine echte Sekte.
+
+## Features
+
+- **Landing Page** – Kult-Startseite mit Zitaten von „Gürkchen“
+- **Spenden** – Fiktives Spenden-System via Tippie (PayPal, Karte, Apple Pay, Klarna)
+- **Mitgliederbereich** – Authentifizierter Dashboard mit:
+  - Punktesystem („Gurkensegen“)
+  - Täglicher Bonus (+20 Punkte)
+  - KI-Zitate generieren (+5 Punkte)
+  - Chat mit „Gürkchen“ (Streaming-KI, +3 Punkte pro Nachricht)
+  - 300 Punkte gegen eine echte Gurke eintauschen (ntfy-Benachrichtigung)
+  - Punkte-Historie
+
+## Tech-Stack
+
+| Technologie | Zweck |
+|-------------|-------|
+| **Next.js 16** (App Router) | Framework |
+| **TypeScript** | Sprache |
+| **Tailwind CSS v4** | Styling |
+| **Hexclave** | Authentifizierung |
+| **OpenRouter** | KI-Chat & Zitate (mit API-Key-Fallback) |
+| **Tippie** | Zahlungs-Links |
+| **ntfy.sh** | Benachrichtigungen |
+| **Phosphor Icons** | Icons |
+| **pnpm** | Package Manager |
+
+## Entwicklung
+
+### Voraussetzungen
+
+- Node.js
+- pnpm
+
+### Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Umgebungsvariablen
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Kopiere `.env.local.example` nach `.env.local` und fülle die Werte aus:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.local.example .env.local
+```
 
-## Learn More
+Benötigte Keys:
+- **Hexclave** – für den Mitgliederbereich
+- **OpenRouter API Key(s)** – für KI-Chat & Zitate (mehrere Keys mit `OPENROUTER_API_KEY_2`, `_3`, … für Fallback)
 
-To learn more about Next.js, take a look at the following resources:
+### Entwicklungsserver starten
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm dev
+# oder mit Hexclave-Proxy:
+pnpm dev:hexclave
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Build
 
-## Deploy on Vercel
+```bash
+pnpm build
+pnpm start
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Linting
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm lint
+```
+
+## Deployment
+
+Die Seite läuft auf [Vercel](https://vercel.com).
+
+## Lizenz
+
+MIT
