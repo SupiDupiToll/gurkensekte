@@ -7,7 +7,7 @@ Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder kön
 ## Features
 
 - **Landing Page** – Kult-Startseite mit Zitaten von „Gürkchen“
-- **Spenden** – Fiktives Spenden-System via Tippie (PayPal, Karte, Apple Pay, Klarna)
+- **Spenden** – Spenden-System via Tippie (PayPal, Karte, Apple Pay, Klarna)
 - **Mitgliederbereich** – Authentifizierter Dashboard mit:
   - Punktesystem („Gurkensegen“)
   - Täglicher Bonus (+20 Punkte)
