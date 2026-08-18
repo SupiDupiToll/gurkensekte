@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SpinningCucumber } from "./SpinningCucumber";
-import { House, HandCoins, Users } from "@phosphor-icons/react";
+import { House, HandCoins, Users, Flask } from "@phosphor-icons/react";
+import { demoPath } from "@/lib/demo";
 
 const navLinks = [
   { href: "/", label: "Startseite", icon: House },
@@ -13,12 +14,14 @@ const navLinks = [
 
 export function CultHeader() {
   const pathname = usePathname();
+  const isDemo = pathname.startsWith("/demo");
+  const homeHref = isDemo ? demoPath("/") : "/";
 
   return (
     <header className="sticky top-0 z-50 glass-strong border-b border-gurken-500/20">
       <div className="max-w-6xl mx-auto px-3 md:px-4 py-2 md:py-3 flex items-center justify-between">
         <Link
-          href="/"
+          href={homeHref}
           className="flex items-center gap-2 md:gap-3 group min-h-[44px]"
           aria-label="Zur Startseite"
         >
@@ -28,19 +31,31 @@ export function CultHeader() {
               Gurken Sekte
             </h1>
             <p className="text-[9px] md:text-xs text-gurken-500 -mt-0.5 leading-tight">
-              Offizielle Kult-Website
+              {isDemo ? "Demo-Version" : "Offizielle Kult-Website"}
             </p>
           </div>
         </Link>
 
         <nav className="flex items-center gap-0.5 md:gap-2" aria-label="Hauptnavigation">
+          {isDemo && (
+            <Link
+              href="/"
+              className="flex items-center justify-center gap-1 min-w-[44px] min-h-[44px] px-2 md:px-3 rounded-lg text-[10px] md:text-xs font-bold text-gurken-100 bg-gurken-600/70 hover:bg-gurken-500 border border-gurken-400/40 transition-all duration-200"
+              aria-label="Zur echten Gurken Sekte"
+              title="Zur echten Gurken Sekte"
+            >
+              <Flask size={16} weight="fill" />
+              <span>Demo</span>
+            </Link>
+          )}
           {navLinks.map((link) => {
-            const isActive = pathname === link.href;
+            const href = isDemo ? demoPath(link.href) : link.href;
+            const isActive = pathname === href;
             const Icon = link.icon;
             return (
               <Link
                 key={link.href}
-                href={link.href}
+                href={href}
                 className={`flex items-center justify-center gap-1 md:gap-1.5 min-w-[44px] min-h-[44px] px-2 md:px-4 rounded-lg text-xs md:text-sm font-bold transition-all duration-200 ${
                   isActive
                     ? "bg-gurken-600/80 text-white shadow-[0_0_12px_#22c55e]"
