@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spende</title>
+<style>
+  :root {
+    --bg: #f4f4f5;
+    --card: #ffffff;
+    --text: #18181b;
+    --muted: #71717a;
+    --accent: #16a34a;
+    --accent-text: #ffffff;
+    --key-bg: #f4f4f5;
+    --key-active: #e4e4e7;
+    --border: #e4e4e7;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a0a0a;
+      --card: #18181b;
+      --text: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #22c55e;
+      --accent-text: #0a0a0a;
+      --key-bg: #27272a;
+      --key-active: #3f3f46;
+      --border: #27272a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a0a0a;
+    --card: #18181b;
+    --text: #fafafa;
+    --muted: #a1a1aa;
+    --accent: #22c55e;
+    --accent-text: #0a0a0a;
+    --key-bg: #27272a;
+    --key-active: #3f3f46;
+    --border: #27272a;
+  }
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .card {
+    width: 100%;
+    max-width: 360px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px 20px;
+  }
+  h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 20px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .amount {
+    text-align: center;
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    word-break: break-all;
+  }
+  .amount span {
+    color: var(--muted);
+    font-size: 24px;
+    font-weight: 500;
+  }
+  .fee-line {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    min-height: 18px;
+    margin-bottom: 18px;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--key-bg);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    font-size: 14px;
+  }
+  .switch {
+    position: relative;
+    width: 44px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 999px;
+    transition: 0.15s;
+    cursor: pointer;
+  }
+  .slider::before {
+    content: "";
+    position: absolute;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.15s;
+  }
+  input:checked + .slider { background: var(--accent); }
+  input:checked + .slider::before { transform: translateX(18px); }
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .key {
+    background: var(--key-bg);
+    border: none;
+    border-radius: 12px;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+    padding: 16px 0;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.08s ease, background 0.08s ease;
+  }
+  .key:active, .key.pressed {
+    background: var(--key-active);
+    transform: scale(0.9);
+  }
+  .key.func { font-size: 18px; color: var(--muted); }
+  .amount {
+    transition: transform 0.1s ease;
+  }
+  .amount.bump {
+    transform: scale(1.06);
+  }
+  .pay-btn {
+    width: 100%;
+    border: none;
+    border-radius: 14px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: 17px;
+    font-weight: 600;
+    padding: 16px 0;
+    cursor: pointer;
+    transition: transform 0.08s ease, opacity 0.15s ease;
+  }
+  .pay-btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .pay-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .fee-line {
+    transition: opacity 0.15s ease;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Spende</h1>
+    <div class="amount" id="amount">0<span>,00 €</span></div>
+    <div class="fee-line" id="feeLine">&nbsp;</div>
+
+    <div class="toggle-row">
+      <span>Gebühren übernehmen (1,3&nbsp;%)</span>
+      <label class="switch">
+        <input type="checkbox" id="feeToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="keypad">
+      <button class="key" data-d="1">1</button>
+      <button class="key" data-d="2">2</button>
+      <button class="key" data-d="3">3</button>
+      <button class="key" data-d="4">4</button>
+      <button class="key" data-d="5">5</button>
+      <button class="key" data-d="6">6</button>
+      <button class="key" data-d="7">7</button>
+      <button class="key" data-d="8">8</button>
+      <button class="key" data-d="9">9</button>
+      <button class="key func" id="clearBtn">C</button>
+      <button class="key" data-d="0">0</button>
+      <button class="key func" id="backBtn">⌫</button>
+    </div>
+
+    <button class="pay-btn" id="payBtn" disabled>Zahlung öffnen</button>
+    <div class="fee-line" id="limitLine">&nbsp;</div>
+  </div>
+
+<script>
+  const BASE_URL = "https://pay.tippie.de/business-pay/3763235/EUR/";
+  const FEE_RATE = 0.013;
+  const MIN_CENTS = 50;      // 0,50 €
+  const MAX_CENTS = 100000;  // 1.000,00 €
+
+  let cents = 0;
+
+  const amountEl = document.getElementById('amount');
+  const feeLineEl = document.getElementById('feeLine');
+  const limitLineEl = document.getElementById('limitLine');
+  const feeToggle = document.getElementById('feeToggle');
+  const payBtn = document.getElementById('payBtn');
+
+  function formatEuro(c) {
+    const euros = Math.floor(c / 100);
+    const rest = (c % 100).toString().padStart(2, '0');
+    return euros.toLocaleString('de-DE') + ',' + rest;
+  }
+
+  function finalCents() {
+    if (!feeToggle.checked) return cents;
+    return Math.round(cents * (1 + FEE_RATE));
+  }
+
+  function bump(el) {
+    el.classList.remove('bump');
+    void el.offsetWidth; // reflow, damit die Animation neu startet
+    el.classList.add('bump');
+  }
+
+  function pressAnim(btn) {
+    btn.classList.add('pressed');
+    setTimeout(() => btn.classList.remove('pressed'), 90);
+  }
+
+  function render() {
+    amountEl.innerHTML = formatEuro(cents) + ' <span>€</span>';
+
+    const withFee = finalCents();
+    if (feeToggle.checked && cents > 0) {
+      feeLineEl.textContent = 'inkl. Gebühr: ' + formatEuro(withFee) + ' €';
+    } else {
+      feeLineEl.innerHTML = '&nbsp;';
+    }
+
+    if (cents > 0 && cents < MIN_CENTS) {
+      limitLineEl.textContent = 'Mindestbetrag: 0,50 €';
+    } else if (cents > MAX_CENTS) {
+      limitLineEl.textContent = 'maximal 1000€';
+    } else {
+      limitLineEl.innerHTML = '&nbsp;';
+    }
+
+    payBtn.disabled = cents < MIN_CENTS || cents > MAX_CENTS;
+  }
+
+  document.querySelectorAll('.key[data-d]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const d = btn.dataset.d;
+      const next = cents * 10 + Number(d);
+      pressAnim(btn);
+      if (next > MAX_CENTS) return;
+      cents = next;
+      bump(amountEl);
+      render();
+    });
+  });
+
+  document.getElementById('backBtn').addEventListener('click', (e) => {
+    pressAnim(e.currentTarget);
+    cents = Math.floor(cents / 10);
+    render();
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', (e) => {
+    pressAnim(e.currentTarget);
+    cents = 0;
+    render();
+  });
+
+  feeToggle.addEventListener('change', render);
+
+  payBtn.addEventListener('click', () => {
+    if (cents < MIN_CENTS || cents > MAX_CENTS) return;
+    const url = BASE_URL + finalCents();
+    window.open(url, '_blank');
+  });
+
+  render();
+</script>
+</body>
+</html>
