@@ -80,7 +80,7 @@ function PunkteInhalt() {
         </div>
         <div className="text-gurken-400 text-sm">🥒 Punkte</div>
 
-        {punkte >= 1500 ? (
+        {punkte >= 1000 ? (
           <div className="mt-4 space-y-3">
             <div className="text-gurken-300 text-sm">
               🥒 Du hast genug Punkte für eine <strong>echte Gurke</strong>!
@@ -99,12 +99,12 @@ function PunkteInhalt() {
           <div className="mt-4">
             <div className="flex items-center justify-between text-xs text-gurken-500 mb-1.5">
               <span>Nächste Belohnung: Echte Gurke 🥒</span>
-              <span>{punkte} / 1500 Punkte</span>
+              <span>{punkte} / 1000 Punkte</span>
             </div>
             <div className="w-full h-2 rounded-full bg-gurken-800/60 overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-gurken-600 to-yellow-400 transition-all duration-500"
-                style={{ width: `${Math.min((punkte / 1500) * 100, 100)}%` }}
+                style={{ width: `${Math.min((punkte / 1000) * 100, 100)}%` }}
               />
             </div>
           </div>
@@ -143,7 +143,7 @@ function PunkteInhalt() {
             <li>🥒 Chat-Nachricht: +3</li>
             <li>🥒 Täglicher Bonus: +20</li>
             <li className="text-yellow-400/80 font-bold pt-1 border-t border-gurken-500/10 mt-1">
-              🎁 1500 Punkte → Echte Gurke bestellen
+              🎁 1000 Punkte → Echte Gurke bestellen
             </li>
           </ul>
         </div>
@@ -205,7 +205,7 @@ function PunkteAnzeige() {
               🥒 Punkte & Belohnungen 🥒
             </h2>
             <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
-              Sammle Punkte durch Zitate, Chats und tägliche Boni. Ab 1500 Punkten
+              Sammle Punkte durch Zitate, Chats und tägliche Boni. Ab 1000 Punkten
               gibt es eine echte Gurke!
             </p>
             <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">

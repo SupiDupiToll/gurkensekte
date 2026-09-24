@@ -4,7 +4,7 @@ const POINTS = {
   zitat: 5,
   chat: 3,
   daily: 20,
-  einloesen: -1500,
+  einloesen: -1000,
 } as const;
 
 type Action = keyof typeof POINTS;
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Heute schon ein Zitat generiert" }, { status: 400 });
   }
 
-  if (action === "einloesen" && profile.punkte < 1500) {
+  if (action === "einloesen" && profile.punkte < 1000) {
     return Response.json({ error: "Nicht genug Punkte" }, { status: 400 });
   }
 
