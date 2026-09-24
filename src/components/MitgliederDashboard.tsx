@@ -206,7 +206,7 @@ function PunkteAnzeige() {
             </h2>
             <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
               Sammle Punkte durch Zitate, Chats und tägliche Boni. Ab 1000 Punkten
-              gibt's eine echte Gurke!
+              gibt es eine echte Gurke!
             </p>
             <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
               <Coin size={22} weight="fill" className="text-yellow-400" />
