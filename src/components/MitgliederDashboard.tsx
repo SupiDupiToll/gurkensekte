@@ -30,6 +30,23 @@ type Message = {
   content: string;
 };
 
+type TurnstileApi = {
+  render: (
+    container: HTMLElement,
+    options: {
+      sitekey: string;
+      callback: (token: string) => void;
+      "expired-callback": () => void;
+      "error-callback": () => void;
+    },
+  ) => string | number;
+  reset: (widgetId: string | number) => void;
+};
+
+type TurnstileWindow = Window & {
+  turnstile?: TurnstileApi;
+};
+
 export type MitgliedInfo = {
   displayName?: string | null;
   primaryEmail?: string | null;
@@ -312,16 +329,96 @@ function GurkchenChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [captchaRequired, setCaptchaRequired] = useState(true);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileStatusText, setTurnstileStatusText] = useState<string | null>(
+    "Bitte bestätige kurz das Captcha.",
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetIdRef = useRef<string | number | null>(null);
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const { refresh, claim } = usePunkte();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  const renderTurnstileWidget = useCallback(() => {
+    if (!turnstileSiteKey || !turnstileContainerRef.current) return;
+    const turnstile = (window as TurnstileWindow).turnstile;
+    if (!turnstile || turnstileWidgetIdRef.current !== null) return;
+
+    turnstileWidgetIdRef.current = turnstile.render(turnstileContainerRef.current, {
+      sitekey: turnstileSiteKey,
+      callback: (token: string) => {
+        setTurnstileToken(token);
+        setTurnstileStatusText(null);
+      },
+      "expired-callback": () => {
+        setTurnstileToken(null);
+        setCaptchaRequired(true);
+        setTurnstileStatusText("Captcha abgelaufen. Bitte erneut bestätigen.");
+      },
+      "error-callback": () => {
+        setTurnstileToken(null);
+        setCaptchaRequired(true);
+        setTurnstileStatusText("Captcha konnte nicht geladen werden. Bitte erneut versuchen.");
+      },
+    });
+  }, [turnstileSiteKey]);
+
+  const resetTurnstileWidget = useCallback(() => {
+    const turnstile = (window as TurnstileWindow).turnstile;
+    if (!turnstile || turnstileWidgetIdRef.current === null) return;
+    turnstile.reset(turnstileWidgetIdRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!open || !captchaRequired || !turnstileSiteKey) return;
+
+    const turnstile = (window as TurnstileWindow).turnstile;
+    if (turnstile) {
+      renderTurnstileWidget();
+      return;
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"]',
+    );
+    if (existingScript) {
+      existingScript.addEventListener("load", renderTurnstileWidget);
+      return () => existingScript.removeEventListener("load", renderTurnstileWidget);
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", renderTurnstileWidget);
+    document.head.appendChild(script);
+
+    return () => script.removeEventListener("load", renderTurnstileWidget);
+  }, [open, captchaRequired, turnstileSiteKey, renderTurnstileWidget]);
+
   async function sendMessage() {
     const text = input.trim();
     if (!text || loading) return;
+    if (!turnstileSiteKey) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "🥒 Turnstile ist noch nicht eingerichtet (NEXT_PUBLIC_TURNSTILE_SITE_KEY fehlt).",
+        },
+      ]);
+      return;
+    }
+    if (captchaRequired && !turnstileToken) {
+      setTurnstileStatusText("Bitte zuerst das Captcha lösen.");
+      return;
+    }
 
     setInput("");
     const userMessage: Message = { role: "user", content: text };
@@ -336,8 +433,27 @@ function GurkchenChat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history.map((m) => ({ role: m.role, content: m.content })),
+          turnstileToken,
         }),
       });
+
+      if (res.status === 403) {
+        let errorText = "Captcha erforderlich. Bitte erneut bestätigen.";
+        try {
+          const errorData = (await res.json()) as { error?: string; requiresTurnstile?: boolean };
+          if (errorData.requiresTurnstile) {
+            errorText = errorData.error ?? errorText;
+            setCaptchaRequired(true);
+            setTurnstileToken(null);
+            resetTurnstileWidget();
+            setTurnstileStatusText(errorText);
+          }
+        } catch {
+          // ignore parse error
+        }
+        setMessages((prev) => prev.filter((msg, idx) => !(idx === prev.length - 1 && msg === userMessage)));
+        return;
+      }
 
       const contentType = res.headers.get("Content-Type") || "";
 
@@ -371,6 +487,8 @@ function GurkchenChat() {
 
       claim("chat");
       refresh();
+      setCaptchaRequired(false);
+      setTurnstileStatusText(null);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -487,6 +605,22 @@ function GurkchenChat() {
 
       {/* Input */}
       <div className="px-4 md:px-6 py-3 border-t border-gurken-500/15">
+        {turnstileSiteKey ? (
+          <div className="max-w-4xl mx-auto w-full mb-2">
+            {captchaRequired && (
+              <div className="rounded-xl border border-gurken-500/20 bg-gurken-900/40 p-3">
+                <div ref={turnstileContainerRef} />
+                {turnstileStatusText && (
+                  <p className="text-xs text-gurken-400 mt-2">{turnstileStatusText}</p>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto w-full mb-2 rounded-xl border border-red-500/30 bg-red-900/20 p-3 text-xs text-red-200">
+            Turnstile ist nicht konfiguriert (NEXT_PUBLIC_TURNSTILE_SITE_KEY fehlt).
+          </div>
+        )}
         <div className="flex gap-2 items-end max-w-4xl mx-auto w-full">
           <textarea
             value={input}
@@ -501,7 +635,7 @@ function GurkchenChat() {
           />
           <button
             onClick={sendMessage}
-            disabled={loading || !input.trim()}
+            disabled={loading || !input.trim() || (captchaRequired && !turnstileToken)}
             className="rounded-xl bg-gurken-600 px-5 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:bg-gurken-500 hover:shadow-[0_0_20px_#22c55e]/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
             aria-label="Nachricht senden"
           >
