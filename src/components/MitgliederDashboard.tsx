@@ -157,7 +157,7 @@ function PunkteInhalt() {
           </div>
           <ul className="text-gurken-300 text-sm space-y-1">
             <li>🥒 Zitat generieren (max. 3× täglich): +5</li>
-            <li>🥒 Chat-Nachricht: +3</li>
+            <li>🥒 Chat-Nachricht: +5</li>
             <li>🥒 Täglicher Bonus: +20</li>
             <li className="text-yellow-400/80 font-bold pt-1 border-t border-gurken-500/10 mt-1">
               🎁 1000 Punkte → Echte Gurke bestellen

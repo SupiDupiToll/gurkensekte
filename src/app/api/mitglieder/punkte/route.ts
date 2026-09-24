@@ -2,7 +2,7 @@ import { hexclaveServerApp } from "@/hexclave/server";
 
 const POINTS = {
   zitat: 5,
-  chat: 3,
+  chat: 5,
   daily: 20,
   einloesen: -1000,
 } as const;
