@@ -15,6 +15,7 @@ type PunkteContextType = {
   punkte: number;
   loading: boolean;
   dailyAvailable: boolean;
+  quoteAvailable: boolean;
   verlauf: VerlaufEintrag[];
   refresh: () => Promise<void>;
   claim: (action: string) => Promise<ClaimResult | null>;
@@ -24,6 +25,7 @@ const PunkteContext = createContext<PunkteContextType>({
   punkte: 0,
   loading: true,
   dailyAvailable: true,
+  quoteAvailable: true,
   verlauf: [],
   refresh: async () => {},
   claim: async () => null,
@@ -39,6 +41,7 @@ export function PunkteProvider({
   const [punkte, setPunkte] = useState(0);
   const [loading, setLoading] = useState(true);
   const [dailyAvailable, setDailyAvailable] = useState(true);
+  const [quoteAvailable, setQuoteAvailable] = useState(true);
   const [verlauf, setVerlauf] = useState<VerlaufEintrag[]>([]);
 
   const refresh = useCallback(async () => {
@@ -48,6 +51,7 @@ export function PunkteProvider({
       const data = await res.json();
       setPunkte(data.punkte);
       setDailyAvailable(data.dailyAvailable);
+      setQuoteAvailable(data.quoteAvailable ?? true);
       setVerlauf(data.verlauf ?? []);
     } catch {
       // ignore
@@ -78,7 +82,9 @@ export function PunkteProvider({
   }, [refresh]);
 
   return (
-    <PunkteContext.Provider value={{ punkte, loading, dailyAvailable, verlauf, refresh, claim }}>
+    <PunkteContext.Provider
+      value={{ punkte, loading, dailyAvailable, quoteAvailable, verlauf, refresh, claim }}
+    >
       {children}
     </PunkteContext.Provider>
   );

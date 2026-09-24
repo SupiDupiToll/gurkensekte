@@ -23,6 +23,7 @@ export async function GET(req: Request) {
   return Response.json({
     punkte: (meta.punkte as number) ?? 0,
     dailyAvailable: meta.letzterDailyBonus !== today,
+    quoteAvailable: meta.letzterZitatBonus !== today,
     verlauf: (meta.punkteVerlauf as unknown[]) ?? [],
   });
 }
@@ -46,6 +47,10 @@ export async function POST(req: Request) {
 
   if (action === "daily" && meta.letzterDailyBonus === today) {
     return Response.json({ error: "Heute schon abgeholt" }, { status: 400 });
+  }
+
+  if (action === "zitat" && meta.letzterZitatBonus === today) {
+    return Response.json({ error: "Heute schon ein Zitat generiert" }, { status: 400 });
   }
 
   if (action === "einloesen" && currentPoints < 1500) {
@@ -78,12 +83,21 @@ export async function POST(req: Request) {
   if (action === "daily") {
     update.letzterDailyBonus = today;
   }
+  if (action === "zitat") {
+    update.letzterZitatBonus = today;
+  }
 
   await user.setClientReadOnlyMetadata({ ...meta, ...update });
+
+  const nextDailyBonusDate =
+    action === "daily" ? today : ((meta.letzterDailyBonus as string | undefined) ?? null);
+  const nextZitatBonusDate =
+    action === "zitat" ? today : ((meta.letzterZitatBonus as string | undefined) ?? null);
 
   return Response.json({
     punkte: newPoints,
     delta,
-    dailyAvailable: action !== "daily",
+    dailyAvailable: nextDailyBonusDate !== today,
+    quoteAvailable: nextZitatBonusDate !== today,
   });
 }

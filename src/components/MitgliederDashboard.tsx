@@ -139,7 +139,7 @@ function PunkteInhalt() {
             So sammelst du Punkte
           </div>
           <ul className="text-gurken-300 text-sm space-y-1">
-            <li>🥒 Zitat generieren: +5</li>
+            <li>🥒 Tägliches Zitat generieren: +5</li>
             <li>🥒 Chat-Nachricht: +3</li>
             <li>🥒 Täglicher Bonus: +20</li>
             <li className="text-yellow-400/80 font-bold pt-1 border-t border-gurken-500/10 mt-1">
@@ -243,22 +243,34 @@ function PunkteAnzeige() {
 function GurkchenQuote() {
   const [quote, setQuote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { refresh, claim } = usePunkte();
+  const { refresh, claim, quoteAvailable } = usePunkte();
 
   const fetchQuote = useCallback(async () => {
+    if (!quoteAvailable) {
+      setQuote("Heute gibt es kein neues Zitat mehr. Komm morgen wieder! 🥒");
+      return;
+    }
+
     setLoading(true);
     try {
+      const result = await claim("zitat");
+      if (!result) {
+        setQuote("Heute gibt es kein neues Zitat mehr. Komm morgen wieder! 🥒");
+        await refresh();
+        return;
+      }
+
       const res = await fetch("/api/guerkchen/quote");
+      if (!res.ok) throw new Error("Quote fetch failed");
       const data = await res.json();
       setQuote(data.quote);
-      claim("zitat");
-      refresh();
+      await refresh();
     } catch {
       setQuote("Die Gurke ist der Urknall in essbarer Form. – Gürkchen 🥒");
     } finally {
       setLoading(false);
     }
-  }, [refresh, claim]);
+  }, [refresh, claim, quoteAvailable]);
 
   useEffect(() => {
     fetchQuote();
@@ -277,10 +289,10 @@ function GurkchenQuote() {
       )}
       <button
         onClick={fetchQuote}
-        disabled={loading}
+        disabled={loading || !quoteAvailable}
         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gurken-600 hover:bg-gurken-500 text-white font-bold text-sm transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px]"
       >
-        🥒 Neues Zitat
+        {quoteAvailable ? "🥒 Neues Zitat" : "⏳ Morgen wieder"}
       </button>
     </div>
   );

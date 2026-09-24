@@ -19,6 +19,7 @@ type VerlaufEintrag = {
 type DemoProfile = {
   punkte: number;
   letzterDailyBonus: string | null;
+  letzterZitatBonus: string | null;
   punkteVerlauf: VerlaufEintrag[];
 };
 
@@ -49,7 +50,7 @@ function getProfile(req: Request, res: Response): DemoProfile {
   }
   let profile = stores.get(id);
   if (!profile) {
-    profile = { punkte: 0, letzterDailyBonus: null, punkteVerlauf: [] };
+    profile = { punkte: 0, letzterDailyBonus: null, letzterZitatBonus: null, punkteVerlauf: [] };
     stores.set(id, profile);
     if (stores.size > 1000) {
       const oldest = stores.keys().next().value;
@@ -69,6 +70,7 @@ export async function GET(req: Request) {
   const json = Response.json({
     punkte: profile.punkte,
     dailyAvailable: profile.letzterDailyBonus !== today,
+    quoteAvailable: profile.letzterZitatBonus !== today,
     verlauf: profile.punkteVerlauf,
   });
   const cookie = res.headers.get("Set-Cookie");
@@ -95,6 +97,10 @@ export async function POST(req: Request) {
     return Response.json({ error: "Heute schon abgeholt" }, { status: 400 });
   }
 
+  if (action === "zitat" && profile.letzterZitatBonus === today) {
+    return Response.json({ error: "Heute schon ein Zitat generiert" }, { status: 400 });
+  }
+
   if (action === "einloesen" && profile.punkte < 1500) {
     return Response.json({ error: "Nicht genug Punkte" }, { status: 400 });
   }
@@ -114,11 +120,15 @@ export async function POST(req: Request) {
   if (action === "daily") {
     profile.letzterDailyBonus = today;
   }
+  if (action === "zitat") {
+    profile.letzterZitatBonus = today;
+  }
 
   const json = Response.json({
     punkte: newPoints,
     delta,
-    dailyAvailable: action !== "daily",
+    dailyAvailable: profile.letzterDailyBonus !== today,
+    quoteAvailable: profile.letzterZitatBonus !== today,
   });
   const cookie = res.headers.get("Set-Cookie");
   if (cookie) {
