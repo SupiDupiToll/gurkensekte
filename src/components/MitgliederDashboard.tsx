@@ -139,7 +139,7 @@ function PunkteInhalt() {
             So sammelst du Punkte
           </div>
           <ul className="text-gurken-300 text-sm space-y-1">
-            <li>🥒 Tägliches Zitat generieren: +5</li>
+            <li>🥒 Zitat generieren (max. 3× täglich): +5</li>
             <li>🥒 Chat-Nachricht: +3</li>
             <li>🥒 Täglicher Bonus: +20</li>
             <li className="text-yellow-400/80 font-bold pt-1 border-t border-gurken-500/10 mt-1">
@@ -243,11 +243,11 @@ function PunkteAnzeige() {
 function GurkchenQuote() {
   const [quote, setQuote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { refresh, claim, quoteAvailable } = usePunkte();
+  const { refresh, claim, quoteAvailable, quoteRemaining } = usePunkte();
 
   const fetchQuote = useCallback(async () => {
     if (!quoteAvailable) {
-      setQuote("Heute gibt es kein neues Zitat mehr. Komm morgen wieder! 🥒");
+      setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder! 🥒");
       return;
     }
 
@@ -255,7 +255,7 @@ function GurkchenQuote() {
     try {
       const result = await claim("zitat");
       if (!result) {
-        setQuote("Heute gibt es kein neues Zitat mehr. Komm morgen wieder! 🥒");
+        setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder! 🥒");
         await refresh();
         return;
       }
@@ -294,6 +294,9 @@ function GurkchenQuote() {
       >
         {quoteAvailable ? "🥒 Neues Zitat" : "⏳ Morgen wieder"}
       </button>
+      <p className="mt-2 text-xs text-gurken-400">
+        Heute noch verfügbar: {quoteRemaining} / 3
+      </p>
     </div>
   );
 }

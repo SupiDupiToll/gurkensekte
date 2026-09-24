@@ -11,7 +11,7 @@ Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder kön
 - **Mitgliederbereich** – Authentifizierter Dashboard mit:
   - Punktesystem („Gurkensegen“)
   - Täglicher Bonus (+20 Punkte)
-  - Täglich ein KI-Zitat generieren (+5 Punkte)
+  - Bis zu 3 KI-Zitate pro Tag generieren (+5 Punkte je Zitat)
   - Chat mit „Gürkchen“ (Streaming-KI, +3 Punkte pro Nachricht)
   - 1000 Punkte gegen eine echte Gurke eintauschen (ntfy-Benachrichtigung)
   - Punkte-Historie

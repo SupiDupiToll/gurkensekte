@@ -20,6 +20,7 @@ type DemoProfile = {
   punkte: number;
   letzterDailyBonus: string | null;
   letzterZitatBonus: string | null;
+  zitatBonusCount: number;
   punkteVerlauf: VerlaufEintrag[];
 };
 
@@ -50,7 +51,13 @@ function getProfile(req: Request, res: Response): DemoProfile {
   }
   let profile = stores.get(id);
   if (!profile) {
-    profile = { punkte: 0, letzterDailyBonus: null, letzterZitatBonus: null, punkteVerlauf: [] };
+    profile = {
+      punkte: 0,
+      letzterDailyBonus: null,
+      letzterZitatBonus: null,
+      zitatBonusCount: 0,
+      punkteVerlauf: [],
+    };
     stores.set(id, profile);
     if (stores.size > 1000) {
       const oldest = stores.keys().next().value;
@@ -66,11 +73,14 @@ export async function GET(req: Request) {
   const res = new Response();
   const profile = getProfile(req, res);
   const today = new Date().toISOString().split("T")[0];
+  const quoteCountToday =
+    profile.letzterZitatBonus === today ? Math.max(profile.zitatBonusCount ?? 0, 1) : 0;
 
   const json = Response.json({
     punkte: profile.punkte,
     dailyAvailable: profile.letzterDailyBonus !== today,
-    quoteAvailable: profile.letzterZitatBonus !== today,
+    quoteAvailable: quoteCountToday < 3,
+    quoteRemaining: Math.max(0, 3 - quoteCountToday),
     verlauf: profile.punkteVerlauf,
   });
   const cookie = res.headers.get("Set-Cookie");
@@ -92,13 +102,15 @@ export async function POST(req: Request) {
   }
 
   const today = new Date().toISOString().split("T")[0];
+  const quoteCountToday =
+    profile.letzterZitatBonus === today ? Math.max(profile.zitatBonusCount ?? 0, 1) : 0;
 
   if (action === "daily" && profile.letzterDailyBonus === today) {
     return Response.json({ error: "Heute schon abgeholt" }, { status: 400 });
   }
 
-  if (action === "zitat" && profile.letzterZitatBonus === today) {
-    return Response.json({ error: "Heute schon ein Zitat generiert" }, { status: 400 });
+  if (action === "zitat" && quoteCountToday >= 3) {
+    return Response.json({ error: "Heute schon 3 Zitate generiert" }, { status: 400 });
   }
 
   if (action === "einloesen" && profile.punkte < 1000) {
@@ -122,13 +134,20 @@ export async function POST(req: Request) {
   }
   if (action === "zitat") {
     profile.letzterZitatBonus = today;
+    profile.zitatBonusCount = quoteCountToday + 1;
   }
+  if (action !== "zitat" && profile.letzterZitatBonus !== today) {
+    profile.zitatBonusCount = 0;
+  }
+
+  const nextQuoteCountToday = action === "zitat" ? quoteCountToday + 1 : quoteCountToday;
 
   const json = Response.json({
     punkte: newPoints,
     delta,
     dailyAvailable: profile.letzterDailyBonus !== today,
-    quoteAvailable: profile.letzterZitatBonus !== today,
+    quoteAvailable: nextQuoteCountToday < 3,
+    quoteRemaining: Math.max(0, 3 - nextQuoteCountToday),
   });
   const cookie = res.headers.get("Set-Cookie");
   if (cookie) {

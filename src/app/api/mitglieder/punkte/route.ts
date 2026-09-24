@@ -19,11 +19,16 @@ export async function GET(req: Request) {
 
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
   const today = new Date().toISOString().split("T")[0];
+  const quoteBonusDate = meta.letzterZitatBonus as string | undefined;
+  const storedQuoteCount = (meta.zitatBonusCount as number) ?? 0;
+  const quoteCountToday =
+    quoteBonusDate === today ? Math.max(storedQuoteCount, quoteBonusDate ? 1 : 0) : 0;
 
   return Response.json({
     punkte: (meta.punkte as number) ?? 0,
     dailyAvailable: meta.letzterDailyBonus !== today,
-    quoteAvailable: meta.letzterZitatBonus !== today,
+    quoteAvailable: quoteCountToday < 3,
+    quoteRemaining: Math.max(0, 3 - quoteCountToday),
     verlauf: (meta.punkteVerlauf as unknown[]) ?? [],
   });
 }
@@ -44,13 +49,17 @@ export async function POST(req: Request) {
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
   const today = new Date().toISOString().split("T")[0];
   const currentPoints = (meta.punkte as number) ?? 0;
+  const quoteBonusDate = meta.letzterZitatBonus as string | undefined;
+  const storedQuoteCount = (meta.zitatBonusCount as number) ?? 0;
+  const quoteCountToday =
+    quoteBonusDate === today ? Math.max(storedQuoteCount, quoteBonusDate ? 1 : 0) : 0;
 
   if (action === "daily" && meta.letzterDailyBonus === today) {
     return Response.json({ error: "Heute schon abgeholt" }, { status: 400 });
   }
 
-  if (action === "zitat" && meta.letzterZitatBonus === today) {
-    return Response.json({ error: "Heute schon ein Zitat generiert" }, { status: 400 });
+  if (action === "zitat" && quoteCountToday >= 3) {
+    return Response.json({ error: "Heute schon 3 Zitate generiert" }, { status: 400 });
   }
 
   if (action === "einloesen" && currentPoints < 1000) {
@@ -85,19 +94,20 @@ export async function POST(req: Request) {
   }
   if (action === "zitat") {
     update.letzterZitatBonus = today;
+    update.zitatBonusCount = quoteCountToday + 1;
   }
 
   await user.setClientReadOnlyMetadata({ ...meta, ...update });
 
   const nextDailyBonusDate =
     action === "daily" ? today : ((meta.letzterDailyBonus as string | undefined) ?? null);
-  const nextZitatBonusDate =
-    action === "zitat" ? today : ((meta.letzterZitatBonus as string | undefined) ?? null);
+  const nextQuoteCountToday = action === "zitat" ? quoteCountToday + 1 : quoteCountToday;
 
   return Response.json({
     punkte: newPoints,
     delta,
     dailyAvailable: nextDailyBonusDate !== today,
-    quoteAvailable: nextZitatBonusDate !== today,
+    quoteAvailable: nextQuoteCountToday < 3,
+    quoteRemaining: Math.max(0, 3 - nextQuoteCountToday),
   });
 }
