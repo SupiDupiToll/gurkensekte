@@ -4,7 +4,7 @@ const POINTS = {
   zitat: 5,
   chat: 3,
   daily: 20,
-  einloesen: -1000,
+  einloesen: -1500,
 } as const;
 
 type Action = keyof typeof POINTS;
@@ -48,8 +48,15 @@ export async function POST(req: Request) {
     return Response.json({ error: "Heute schon abgeholt" }, { status: 400 });
   }
 
-  if (action === "einloesen" && currentPoints < 1000) {
+  if (action === "einloesen" && currentPoints < 1500) {
     return Response.json({ error: "Nicht genug Punkte" }, { status: 400 });
+  }
+
+  if (action === "einloesen") {
+    await fetch("https://ntfy.sh/jdjdixoqknslxloeoiibsbpgoka", {
+      method: "POST",
+      body: `Neue Gurken-Bestellung von ${user.primaryEmail}`,
+    }).catch(() => {});
   }
 
   const delta = POINTS[action];
@@ -73,13 +80,6 @@ export async function POST(req: Request) {
   }
 
   await user.setClientReadOnlyMetadata({ ...meta, ...update });
-
-  if (action === "einloesen") {
-    fetch("https://ntfy.sh/jdjdixoqknslxloeoiibsbpgoka", {
-      method: "POST",
-      body: `Neue Gurken-Bestellung von ${user.primaryEmail}`,
-    }).catch(() => {});
-  }
 
   return Response.json({
     punkte: newPoints,
