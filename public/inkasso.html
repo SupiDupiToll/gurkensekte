@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inkasso einreichen</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --accent: #b91c1c;
+    --accent-dark: #7f1414;
+    --border: #e2e4e9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 24px; font-size: 0.9rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+  input[type=text], input[type=number] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 16px;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .posten-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .posten-row input[type=text] { flex: 2; margin-bottom: 0; }
+  .posten-row input[type=number] { flex: 1; margin-bottom: 0; }
+  .posten-row button {
+    flex: 0 0 auto;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    width: 40px;
+    cursor: pointer;
+    font-size: 1.1rem;
+  }
+  .add-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--accent);
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    width: 100%;
+  }
+  .summe {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .submit-btn {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .submit-btn:active { background: var(--accent-dark); }
+  .submit-btn:disabled { opacity: 0.6; }
+  .status {
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: none;
+  }
+  .status.ok { display: block; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .status.err { display: block; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Inkasso einreichen</h1>
+  <p class="sub">Angaben ausfüllen und absenden – die Meldung geht per ntfy.sh raus.</p>
+
+  <form id="inkassoForm">
+    <div class="card">
+      <label for="schuldner">Name (an wen geht die Forderung)</label>
+      <input type="text" id="schuldner" required placeholder="z. B. Max Mustermann">
+
+      <label for="betrag">Gesamtbetrag (€)</label>
+      <input type="number" id="betrag" step="0.01" min="0" placeholder="0,00">
+    </div>
+
+    <div class="card">
+      <label>Posten</label>
+      <div id="postenListe"></div>
+      <button type="button" class="add-btn" id="addPosten">+ Posten hinzufügen</button>
+      <div class="summe">
+        <span>Summe Posten</span>
+        <span id="postenSumme">0,00 €</span>
+      </div>
+    </div>
+
+    <button type="submit" class="submit-btn" id="submitBtn">Inkasso einreichen</button>
+    <div class="status" id="status"></div>
+  </form>
+</div>
+
+<script>
+const NTFY_URL = "https://ntfy.sh/inkasso_jeksiaoqpdksbakfudowbqkfxixijs";
+const postenListe = document.getElementById("postenListe");
+const postenSummeEl = document.getElementById("postenSumme");
+
+function addPostenRow(bez = "", betrag = "") {
+  const row = document.createElement("div");
+  row.className = "posten-row";
+  row.innerHTML = `
+    <input type="text" placeholder="Bezeichnung" class="posten-bez" value="${bez}">
+    <input type="number" step="0.01" placeholder="Betrag" class="posten-betrag" value="${betrag}">
+    <button type="button" title="entfernen">✕</button>
+  `;
+  row.querySelector("button").addEventListener("click", () => {
+    row.remove();
+    updateSumme();
+  });
+  row.querySelectorAll("input").forEach(i => i.addEventListener("input", updateSumme));
+  postenListe.appendChild(row);
+}
+
+function updateSumme() {
+  let sum = 0;
+  document.querySelectorAll(".posten-betrag").forEach(i => {
+    const v = parseFloat(i.value.replace(",", "."));
+    if (!isNaN(v)) sum += v;
+  });
+  postenSummeEl.textContent = sum.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+}
+
+document.getElementById("addPosten").addEventListener("click", () => addPostenRow());
+addPostenRow();
+
+document.getElementById("inkassoForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("submitBtn");
+  const status = document.getElementById("status");
+  status.className = "status";
+  status.textContent = "";
+
+  const schuldner = document.getElementById("schuldner").value.trim();
+  const betrag = document.getElementById("betrag").value.trim();
+
+  const posten = Array.from(document.querySelectorAll(".posten-row")).map(row => {
+    const bez = row.querySelector(".posten-bez").value.trim();
+    const b = row.querySelector(".posten-betrag").value.trim();
+    return { bez, b };
+  }).filter(p => p.bez || p.b);
+
+  if (!schuldner) {
+    status.className = "status err";
+    status.textContent = "Bitte einen Namen angeben.";
+    return;
+  }
+
+  let nachricht = `Name: ${schuldner}\n`;
+  nachricht += `Betrag: ${betrag ? betrag + " €" : "(nicht angegeben)"}\n`;
+  if (posten.length) {
+    nachricht += `Posten:\n`;
+    posten.forEach(p => {
+      nachricht += `- ${p.bez || "(ohne Bezeichnung)"}${p.b ? ": " + p.b + " €" : ""}\n`;
+    });
+  } else {
+    nachricht += `Posten: keine\n`;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Wird gesendet…";
+
+  try {
+    const res = await fetch(NTFY_URL, {
+      method: "POST",
+      headers: {
+        "Title": `Neues Inkasso: ${schuldner}`,
+        "Priority": "default",
+        "Tags": "moneybag"
+      },
+      body: nachricht
+    });
+    if (!res.ok) throw new Error("Status " + res.status);
+    status.className = "status ok";
+    status.textContent = "Inkasso wurde übermittelt.";
+    document.getElementById("inkassoForm").reset();
+    postenListe.innerHTML = "";
+    addPostenRow();
+    updateSumme();
+  } catch (err) {
+    status.className = "status err";
+    status.textContent = "Fehler beim Senden: " + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Inkasso einreichen";
+  }
+});
+</script>
+</body>
+</html>
