@@ -787,14 +787,16 @@ export function MitgliederDashboard({
           </div>
         </div>
 
+
+        {/* Gürkchen-Chat */}
+        <GurkchenChat />
+
         {/* Punkte & Belohnungen */}
         <PunkteAnzeige />
 
         {/* Gürkchen-Zitat */}
         <GurkchenQuoteCard />
 
-        {/* Gürkchen-Chat */}
-        <GurkchenChat />
 
         {/* Sign Out / Demo Exit */}
         <div className="text-center">
