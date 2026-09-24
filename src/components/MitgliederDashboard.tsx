@@ -30,6 +30,23 @@ type Message = {
   content: string;
 };
 
+type TurnstileApi = {
+  render: (
+    container: HTMLElement,
+    options: {
+      sitekey: string;
+      callback: (token: string) => void;
+      "expired-callback": () => void;
+      "error-callback": () => void;
+    },
+  ) => string | number;
+  reset: (widgetId: string | number) => void;
+};
+
+type TurnstileWindow = Window & {
+  turnstile?: TurnstileApi;
+};
+
 export type MitgliedInfo = {
   displayName?: string | null;
   primaryEmail?: string | null;
@@ -80,7 +97,7 @@ function PunkteInhalt() {
         </div>
         <div className="text-gurken-400 text-sm">🥒 Punkte</div>
 
-        {punkte >= 300 ? (
+        {punkte >= 1000 ? (
           <div className="mt-4 space-y-3">
             <div className="text-gurken-300 text-sm">
               🥒 Du hast genug Punkte für eine <strong>echte Gurke</strong>!
@@ -99,12 +116,12 @@ function PunkteInhalt() {
           <div className="mt-4">
             <div className="flex items-center justify-between text-xs text-gurken-500 mb-1.5">
               <span>Nächste Belohnung: Echte Gurke 🥒</span>
-              <span>{punkte} / 300 Punkte</span>
+              <span>{punkte} / 1000 Punkte</span>
             </div>
             <div className="w-full h-2 rounded-full bg-gurken-800/60 overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-gurken-600 to-yellow-400 transition-all duration-500"
-                style={{ width: `${Math.min((punkte / 300) * 100, 100)}%` }}
+                style={{ width: `${Math.min((punkte / 1000) * 100, 100)}%` }}
               />
             </div>
           </div>
@@ -139,11 +156,11 @@ function PunkteInhalt() {
             So sammelst du Punkte
           </div>
           <ul className="text-gurken-300 text-sm space-y-1">
-            <li>🥒 Zitat generieren: +5</li>
-            <li>🥒 Chat-Nachricht: +3</li>
+            <li>🥒 Zitat generieren (max. 3× täglich): +5</li>
+            <li>🥒 Chat-Nachricht: +5</li>
             <li>🥒 Täglicher Bonus: +20</li>
             <li className="text-yellow-400/80 font-bold pt-1 border-t border-gurken-500/10 mt-1">
-              🎁 300 Punkte → Echte Gurke bestellen
+              🎁 1000 Punkte → Echte Gurke bestellen
             </li>
           </ul>
         </div>
@@ -205,8 +222,8 @@ function PunkteAnzeige() {
               🥒 Punkte & Belohnungen 🥒
             </h2>
             <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
-              Sammle Punkte durch Zitate, Chats und tägliche Boni. Ab 300 Punkten
-              gibt's eine echte Gurke!
+              Sammle Punkte durch Zitate, Chats und tägliche Boni. Ab 1000 Punkten
+              gibt es eine echte Gurke!
             </p>
             <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
               <Coin size={22} weight="fill" className="text-yellow-400" />
@@ -243,22 +260,34 @@ function PunkteAnzeige() {
 function GurkchenQuote() {
   const [quote, setQuote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { refresh, claim } = usePunkte();
+  const { refresh, claim, quoteAvailable, quoteRemaining } = usePunkte();
 
   const fetchQuote = useCallback(async () => {
+    if (!quoteAvailable) {
+      setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder! 🥒");
+      return;
+    }
+
     setLoading(true);
     try {
+      const result = await claim("zitat");
+      if (!result) {
+        setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder! 🥒");
+        await refresh();
+        return;
+      }
+
       const res = await fetch("/api/guerkchen/quote");
+      if (!res.ok) throw new Error("Quote fetch failed");
       const data = await res.json();
       setQuote(data.quote);
-      claim("zitat");
-      refresh();
+      await refresh();
     } catch {
       setQuote("Die Gurke ist der Urknall in essbarer Form. – Gürkchen 🥒");
     } finally {
       setLoading(false);
     }
-  }, [refresh, claim]);
+  }, [refresh, claim, quoteAvailable]);
 
   useEffect(() => {
     fetchQuote();
@@ -277,11 +306,14 @@ function GurkchenQuote() {
       )}
       <button
         onClick={fetchQuote}
-        disabled={loading}
+        disabled={loading || !quoteAvailable}
         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gurken-600 hover:bg-gurken-500 text-white font-bold text-sm transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px]"
       >
-        🥒 Neues Zitat
+        {quoteAvailable ? "🥒 Neues Zitat" : "⏳ Morgen wieder"}
       </button>
+      <p className="mt-2 text-xs text-gurken-400">
+        Heute noch verfügbar: {quoteRemaining} / 3
+      </p>
     </div>
   );
 }
@@ -297,16 +329,96 @@ function GurkchenChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [captchaRequired, setCaptchaRequired] = useState(true);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileStatusText, setTurnstileStatusText] = useState<string | null>(
+    "Bitte bestätige kurz das Captcha.",
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetIdRef = useRef<string | number | null>(null);
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const { refresh, claim } = usePunkte();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  const renderTurnstileWidget = useCallback(() => {
+    if (!turnstileSiteKey || !turnstileContainerRef.current) return;
+    const turnstile = (window as TurnstileWindow).turnstile;
+    if (!turnstile || turnstileWidgetIdRef.current !== null) return;
+
+    turnstileWidgetIdRef.current = turnstile.render(turnstileContainerRef.current, {
+      sitekey: turnstileSiteKey,
+      callback: (token: string) => {
+        setTurnstileToken(token);
+        setTurnstileStatusText(null);
+      },
+      "expired-callback": () => {
+        setTurnstileToken(null);
+        setCaptchaRequired(true);
+        setTurnstileStatusText("Captcha abgelaufen. Bitte erneut bestätigen.");
+      },
+      "error-callback": () => {
+        setTurnstileToken(null);
+        setCaptchaRequired(true);
+        setTurnstileStatusText("Captcha konnte nicht geladen werden. Bitte erneut versuchen.");
+      },
+    });
+  }, [turnstileSiteKey]);
+
+  const resetTurnstileWidget = useCallback(() => {
+    const turnstile = (window as TurnstileWindow).turnstile;
+    if (!turnstile || turnstileWidgetIdRef.current === null) return;
+    turnstile.reset(turnstileWidgetIdRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!open || !captchaRequired || !turnstileSiteKey) return;
+
+    const turnstile = (window as TurnstileWindow).turnstile;
+    if (turnstile) {
+      renderTurnstileWidget();
+      return;
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"]',
+    );
+    if (existingScript) {
+      existingScript.addEventListener("load", renderTurnstileWidget);
+      return () => existingScript.removeEventListener("load", renderTurnstileWidget);
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", renderTurnstileWidget);
+    document.head.appendChild(script);
+
+    return () => script.removeEventListener("load", renderTurnstileWidget);
+  }, [open, captchaRequired, turnstileSiteKey, renderTurnstileWidget]);
+
   async function sendMessage() {
     const text = input.trim();
     if (!text || loading) return;
+    if (!turnstileSiteKey) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "🥒 Turnstile ist noch nicht eingerichtet (NEXT_PUBLIC_TURNSTILE_SITE_KEY fehlt).",
+        },
+      ]);
+      return;
+    }
+    if (captchaRequired && !turnstileToken) {
+      setTurnstileStatusText("Bitte zuerst das Captcha lösen.");
+      return;
+    }
 
     setInput("");
     const userMessage: Message = { role: "user", content: text };
@@ -321,8 +433,27 @@ function GurkchenChat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history.map((m) => ({ role: m.role, content: m.content })),
+          turnstileToken,
         }),
       });
+
+      if (res.status === 403) {
+        let errorText = "Captcha erforderlich. Bitte erneut bestätigen.";
+        try {
+          const errorData = (await res.json()) as { error?: string; requiresTurnstile?: boolean };
+          if (errorData.requiresTurnstile) {
+            errorText = errorData.error ?? errorText;
+            setCaptchaRequired(true);
+            setTurnstileToken(null);
+            resetTurnstileWidget();
+            setTurnstileStatusText(errorText);
+          }
+        } catch {
+          // ignore parse error
+        }
+        setMessages((prev) => prev.filter((msg, idx) => !(idx === prev.length - 1 && msg === userMessage)));
+        return;
+      }
 
       const contentType = res.headers.get("Content-Type") || "";
 
@@ -356,6 +487,8 @@ function GurkchenChat() {
 
       claim("chat");
       refresh();
+      setCaptchaRequired(false);
+      setTurnstileStatusText(null);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -472,6 +605,22 @@ function GurkchenChat() {
 
       {/* Input */}
       <div className="px-4 md:px-6 py-3 border-t border-gurken-500/15">
+        {turnstileSiteKey ? (
+          <div className="max-w-4xl mx-auto w-full mb-2">
+            {captchaRequired && (
+              <div className="rounded-xl border border-gurken-500/20 bg-gurken-900/40 p-3">
+                <div ref={turnstileContainerRef} />
+                {turnstileStatusText && (
+                  <p className="text-xs text-gurken-400 mt-2">{turnstileStatusText}</p>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto w-full mb-2 rounded-xl border border-red-500/30 bg-red-900/20 p-3 text-xs text-red-200">
+            Turnstile ist nicht konfiguriert (NEXT_PUBLIC_TURNSTILE_SITE_KEY fehlt).
+          </div>
+        )}
         <div className="flex gap-2 items-end max-w-4xl mx-auto w-full">
           <textarea
             value={input}
@@ -486,7 +635,7 @@ function GurkchenChat() {
           />
           <button
             onClick={sendMessage}
-            disabled={loading || !input.trim()}
+            disabled={loading || !input.trim() || (captchaRequired && !turnstileToken)}
             className="rounded-xl bg-gurken-600 px-5 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:bg-gurken-500 hover:shadow-[0_0_20px_#22c55e]/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
             aria-label="Nachricht senden"
           >

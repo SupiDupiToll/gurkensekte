@@ -11,9 +11,9 @@ Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder kön
 - **Mitgliederbereich** – Authentifizierter Dashboard mit:
   - Punktesystem („Gurkensegen“)
   - Täglicher Bonus (+20 Punkte)
-  - KI-Zitate generieren (+5 Punkte)
-  - Chat mit „Gürkchen“ (Streaming-KI, +3 Punkte pro Nachricht)
-  - 300 Punkte gegen eine echte Gurke eintauschen (ntfy-Benachrichtigung)
+  - Bis zu 3 KI-Zitate pro Tag generieren (+5 Punkte je Zitat)
+  - Chat mit „Gürkchen“ (Streaming-KI, +3 Punkte pro Nachricht, Turnstile-geschützt)
+  - 1000 Punkte gegen eine echte Gurke eintauschen (ntfy-Benachrichtigung)
   - Punkte-Historie
 
 ## Tech-Stack
@@ -54,6 +54,8 @@ cp .env.local.example .env.local
 Benötigte Keys:
 - **Hexclave** – für den Mitgliederbereich
 - **OpenRouter API Key(s)** – für KI-Chat & Zitate (mehrere Keys mit `OPENROUTER_API_KEY_2`, `_3`, … für Fallback)
+- **Cloudflare Turnstile Site Key** – `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (Frontend)
+- **Cloudflare Turnstile Secret Key** – `TURNSTILE_SECRET_KEY` (Backend)
 
 ### Entwicklungsserver starten
 

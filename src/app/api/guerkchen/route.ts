@@ -10,6 +10,10 @@ const GUERKCHEN_SYSTEM_PROMPT =
 const FALLBACK_REPLY =
   "Gürkchen meditiert gerade im Glas und ist nicht erreichbar. Versuch's gleich nochmal. 🥒";
 
+const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const TURNSTILE_VALID_MS = 30 * 60 * 1000;
+const turnstileSessions = new Map<string, number>();
+
 function getApiKeys(): string[] {
   const keys: string[] = [];
   for (const [key, value] of Object.entries(process.env)) {
@@ -28,7 +32,40 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
+    const { messages, turnstileToken } = (await req.json()) as {
+      messages?: unknown[];
+      turnstileToken?: string;
+    };
+    const now = Date.now();
+    const sessionKey = getTurnstileSessionKey(req);
+    const validUntil = turnstileSessions.get(sessionKey) ?? 0;
+
+    if (validUntil <= now) {
+      const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+      if (!turnstileSecret) {
+        console.warn("Gürkchen-Chat: TURNSTILE_SECRET_KEY fehlt, Turnstile-Prüfung übersprungen.");
+      } else {
+        const token = turnstileToken?.trim();
+        if (!token) {
+          return Response.json(
+            { error: "Turnstile-Captcha erforderlich", requiresTurnstile: true },
+            { status: 403 },
+          );
+        }
+
+        const remoteIp = getClientIp(req);
+        const verification = await verifyTurnstileToken(token, turnstileSecret, remoteIp);
+        if (!verification.success) {
+          return Response.json(
+            { error: "Turnstile-Captcha ungültig oder abgelaufen", requiresTurnstile: true },
+            { status: 403 },
+          );
+        }
+
+        turnstileSessions.set(sessionKey, now + TURNSTILE_VALID_MS);
+        cleanupTurnstileSessions(now);
+      }
+    }
 
     const apiKeys = getApiKeys();
 
@@ -56,7 +93,7 @@ export async function POST(req: Request) {
               stream: true,
               messages: [
                 { role: "system", content: GUERKCHEN_SYSTEM_PROMPT },
-                ...messages,
+                ...(messages ?? []),
               ],
             }),
           },
@@ -122,6 +159,52 @@ export async function POST(req: Request) {
           error,
         );
         lastError = error;
+      }
+    }
+
+    function getClientIp(req: Request): string | null {
+      const forwardedFor = req.headers.get("x-forwarded-for");
+      if (forwardedFor) return forwardedFor.split(",")[0]?.trim() ?? null;
+      return req.headers.get("x-real-ip");
+    }
+
+    function getTurnstileSessionKey(req: Request): string {
+      const ip = getClientIp(req) ?? "no-ip";
+      const userAgent = req.headers.get("user-agent") ?? "no-ua";
+      return `${ip}:${userAgent}`;
+    }
+
+    async function verifyTurnstileToken(
+      token: string,
+      secret: string,
+      remoteIp: string | null,
+    ): Promise<{ success: boolean }> {
+      const body = new URLSearchParams({
+        secret,
+        response: token,
+      });
+      if (remoteIp) body.set("remoteip", remoteIp);
+
+      const response = await fetch(TURNSTILE_VERIFY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+
+      if (!response.ok) return { success: false };
+
+      const data = (await response.json()) as { success?: boolean };
+      return { success: Boolean(data.success) };
+    }
+
+    function cleanupTurnstileSessions(now: number) {
+      for (const [key, expiresAt] of turnstileSessions) {
+        if (expiresAt <= now) turnstileSessions.delete(key);
+      }
+      if (turnstileSessions.size <= 1000) return;
+      const entries = Array.from(turnstileSessions.entries()).sort((a, b) => a[1] - b[1]);
+      for (const [key] of entries.slice(0, turnstileSessions.size - 1000)) {
+        turnstileSessions.delete(key);
       }
     }
 
