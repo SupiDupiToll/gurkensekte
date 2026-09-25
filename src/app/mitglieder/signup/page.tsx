@@ -33,7 +33,7 @@ export default function SignUpPage() {
         <SpinningCucumber size="text-5xl" />
       </div>
 
-      <div className="glass rounded-3xl p-8 md:p-10 glow-green">
+      <div className="auth-signup glass rounded-3xl p-8 md:p-10 glow-green">
         <div className="text-center mb-6">
           <SpinningCucumber size="text-6xl" />
           <h1 className="text-2xl font-heading font-bold text-gurken-300 mt-4 mb-2">

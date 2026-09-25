@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   SpinningCucumber,
   WigglingCucumber,
@@ -7,7 +6,8 @@ import {
   ShakingCucumber,
   CucumberSwarm,
 } from "@/components/SpinningCucumber";
-import { ArrowRight, Heart, Sparkle } from "@phosphor-icons/react/dist/ssr";
+import { HomeCta } from "@/components/HomeCta";
+import { Sparkle } from "@phosphor-icons/react/dist/ssr";
 
 const quotes = [
   {
@@ -29,9 +29,6 @@ const quotes = [
 ];
 
 export function HomePage({ base = "" }: { base?: string }) {
-  const spendenHref = `${base}/spenden`;
-  const mitgliederHref = `${base}/mitglieder`;
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 md:py-24 pb-safe">
       {/* Hero Section */}
@@ -54,22 +51,7 @@ export function HomePage({ base = "" }: { base?: string }) {
           &mdash; wo die Salatsaison niemals endet.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
-          <Link
-            href={spendenHref}
-            className="btn-cta btn-cta-primary w-full sm:w-auto text-center"
-          >
-            <Heart size={20} weight="fill" />
-            Spende jetzt 🥒
-          </Link>
-          <Link
-            href={mitgliederHref}
-            className="btn-cta btn-cta-secondary w-full sm:w-auto text-center"
-          >
-            Mitglied werden
-            <ArrowRight size={20} />
-          </Link>
-        </div>
+        <HomeCta variant="hero" base={base} />
       </section>
 
       {/* Floating cucumbers along sides */}
@@ -178,10 +160,7 @@ export function HomePage({ base = "" }: { base?: string }) {
           Tausende haben bereits den Weg zur Gurke gefunden. Warte nicht, bis
           die Salatsaison vorbei ist!
         </p>
-        <Link href={mitgliederHref} className="btn-cta btn-cta-primary">
-          <Heart size={20} weight="fill" />
-          Jetzt der GurkenSekte beitreten 🥒
-        </Link>
+        <HomeCta variant="join" base={base} />
       </section>
     </div>
   );

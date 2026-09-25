@@ -221,6 +221,28 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ── Hexclave Auth Form ── Modern Glass Look ── */
 
+/* Our custom auth pages render their own themed heading, so hide Hexclave's
+   built-in title. Only the sign-up page needs this: on sign-in the whole header
+   block is hidden below, and the other Hexclave pages (e.g. the handler's
+   forgot-password screen) have no heading of our own. */
+.auth-signup .stack-scope .text-center.mb-6 > h2 {
+  display: none;
+}
+
+/* The sign-in page intentionally offers no sign-up shortcut: new members sign up
+   via OAuth / magic link right there. This drops the built-in title as well as
+   the "Noch kein Konto?" / sign-up line. */
+.auth-signin .stack-scope .text-center.mb-6 {
+  display: none;
+}
+
+/* Hexclave's Typography hardcodes `text-black dark:text-white`. The app is always
+   dark while `dark:` follows the OS setting, so that text rendered unreadably
+   black on our dark green background. Force the site foreground colour. */
+.stack-scope .text-black {
+  color: #e8f5e9;
+}
+
 .stack-scope input:where(:not([type="checkbox"]):not([type="radio"])),
 .stack-scope .stack-scope input {
   height: 3rem;

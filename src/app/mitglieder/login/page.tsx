@@ -33,7 +33,7 @@ export default function LoginPage() {
         <SpinningCucumber size="text-5xl" />
       </div>
 
-      <div className="glass rounded-3xl p-8 md:p-10 glow-green">
+      <div className="auth-signin glass rounded-3xl p-8 md:p-10 glow-green">
         <div className="text-center mb-6">
           <WigglingCucumber size="text-6xl" />
           <h1 className="text-2xl font-heading font-bold text-gurken-300 mt-4 mb-2">
@@ -44,21 +44,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <SignIn
-          automaticRedirect
-          firstTab="password"
-          extraInfo={
-            <p className="text-gurken-500 text-xs text-center mt-4">
-              Noch kein Mitglied? 🥒{" "}
-              <a
-                href="/mitglieder/signup"
-                className="text-gurken-400 hover:text-gurken-300 underline underline-offset-2"
-              >
-                Jetzt registrieren
-              </a>
-            </p>
-          }
-        />
+        <SignIn automaticRedirect firstTab="password" />
       </div>
     </div>
   );
