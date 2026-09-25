@@ -1020,7 +1020,7 @@ export function MitgliederDashboard({
                 🥒 Gurken Casino
               </div>
               <p className="mt-0.5 text-sm text-gurken-400">
-                Wage deine Punkte an der Slotmaschine – höchstens 2× Gewinn,
+                Wage deine Punkte an der Slotmaschine – höchstens 3× Gewinn,
                 aber auch minus möglich.
               </p>
             </div>

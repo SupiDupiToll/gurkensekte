@@ -25,7 +25,7 @@ function zahl(n: number) {
 /**
  * Spielbare Slotmaschine des Gurken Casinos: Einsatz wählen, Walzen drehen
  * lassen, serverseitiges Ergebnis anzeigen und die Punkte per refresh()
- * nachziehen. Höchster Gewinn 2×, größter Verlust 1×.
+ * nachziehen. Höchster Gewinn 3×, größter Verlust 1×.
  */
 export function Slotmaschine({ apiBase }: { apiBase: string }) {
   const { punkte, loading, refresh } = usePunkte();
@@ -219,7 +219,7 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       </button>
 
       <p className="mt-3 text-center text-xs leading-relaxed text-gurken-500">
-        Spielgeld-Regeln: höchstens <strong className="text-gurken-400">2×</strong>{" "}
+        Spielgeld-Regeln: höchstens <strong className="text-gurken-400">3×</strong>{" "}
         Gewinn, aber auch bis zu <strong className="text-gurken-400">1×</strong>{" "}
         Verlust. Einsatz brauchst du wirklich auf dem Konto.
       </p>

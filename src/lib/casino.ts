@@ -2,8 +2,12 @@
  * Gurken Casino – reines Spielgeld mit Punkten, kein echtes Geld.
  *
  * Der Wurf passiert ausschließlich serverseitig (die Clients bekommen nur
- * das Ergebnis), der höchste Multiplikator beträgt 2×, der schlechteste −1×.
+ * das Ergebnis), der höchste Multiplikator beträgt 3×, der schlechteste −1×.
  * Verluste ziehen das Guthaben, erhöhen aber nie die nie fallenden XP.
+ *
+ * Die Chancen sind Spieler-freundlich gestimmt: rund 30 % der Drehungen
+ * gewinnen (vorher 20 %), nur noch rund 45 % verlieren – bei einem mäßigen
+ * Hausvorteil von ca. −7,5 %, damit sich Punkte nicht am Automaten farmen lassen.
  */
 
 /** Erlaubte Einsätze in Punkten. */
@@ -11,7 +15,7 @@ export const CASINO_EINSAETZE = [10, 25, 50] as const;
 export type CasinoEinsatz = (typeof CASINO_EINSAETZE)[number];
 
 export type CasinoFaktor = {
-  /** Multiplikator auf den Einsatz: maximal 2, minimal −1. */
+  /** Multiplikator auf den Einsatz: maximal 3, minimal −1. */
   faktor: number;
   /** Ziehgewicht in Prozent – summiert sich auf 100. */
   gewicht: number;
@@ -21,11 +25,12 @@ export type CasinoFaktor = {
 };
 
 export const CASINO_FAKTOREN: CasinoFaktor[] = [
-  { faktor: 2, gewicht: 4, symbole: ["🥒", "🥒", "🥒"], label: "Dreifach-Gurke – 2×!" },
-  { faktor: 1, gewicht: 16, symbole: ["🥒", "🥒", "🫙"], label: "Sauber eingefallen – 1×!" },
-  { faktor: 0, gewicht: 20, symbole: ["🫙", "🫙", "🫙"], label: "Ins Glas gefallen – nichts passiert" },
-  { faktor: -0.5, gewicht: 25, symbole: ["💧", "🫙", "💧"], label: "Halb eingelegt – 0,5× minus" },
-  { faktor: -1, gewicht: 35, symbole: ["🫠", "💥", "🫠"], label: "Zerschellt – 1× minus" },
+  { faktor: 3, gewicht: 4, symbole: ["🥒", "🥒", "✨"], label: "Heiliger Volltreffer – 3×!" },
+  { faktor: 2, gewicht: 8, symbole: ["🥒", "🥒", "🥒"], label: "Dreifach-Gurke – 2×!" },
+  { faktor: 1, gewicht: 18, symbole: ["🥒", "🥒", "🫙"], label: "Sauber eingefallen – 1×!" },
+  { faktor: 0, gewicht: 25, symbole: ["🫙", "🫙", "🫙"], label: "Ins Glas gefallen – nichts passiert" },
+  { faktor: -0.5, gewicht: 23, symbole: ["💧", "🫙", "💧"], label: "Halb eingelegt – 0,5× minus" },
+  { faktor: -1, gewicht: 22, symbole: ["🫠", "💥", "🫠"], label: "Zerschellt – 1× minus" },
 ];
 
 /** Prüft, ob ein Einsatzwert aus der erlaubten Liste stammt. */

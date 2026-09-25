@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 /**
  * Gurken Casino (echter Mitgliederbereich): Einsatz prüfen, serverseitig
- * würfeln und die Punkte buchen. Höchster Gewinn 2×, größter Verlust 1×;
+ * würfeln und die Punkte buchen. Höchster Gewinn 3×, größter Verlust 1×;
  * das Guthaben darf dabei nie unter die Einsatzgrenze geraten, da mehr als
  * der Einsatz nie verloren geht.
  */
