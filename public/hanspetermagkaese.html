@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 4 Gewinnt</title>
+
+    <style>
+        html, body {
+            margin: 0;
+            overflow: hidden;
+            background: #2b2b2b;
+            font-family: Arial, sans-serif;
+            touch-action: none;
+            overscroll-behavior: none;
+        }
+
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+
+        #fallback {
+            display: none;
+            position: absolute;
+            inset: 0;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+            font-size: 16px;
+        }
+
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, .7);
+            color: #fff;
+            border-radius: 12px;
+        }
+
+        button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 10;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 12px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div id="ui">Du bist am Zug.</div>
+    <button onclick="location.reload()">Neu starten</button>
+    <div id="fallback">Dein Gerät/Browser unterstützt leider kein WebGL. Bitte aktuellen Browser verwenden.</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        const SIZE = 4, HUMAN = 1, AI = 2;
+        const SPACING = 1.5;
+
+        let gameOver = false;
+
+        const board = Array.from({ length: SIZE }, () =>
+            Array.from({ length: SIZE }, () =>
+                Array(SIZE).fill(0)
+            )
+        );
+
+        const dirs = [
+            [1, 0, 0], [0, 1, 0], [0, 0, 1],
+            [1, 1, 0], [1, -1, 0],
+            [1, 0, 1], [1, 0, -1],
+            [0, 1, 1], [0, 1, -1],
+            [1, 1, 1], [1, 1, -1],
+            [1, -1, 1], [1, -1, -1]
+        ];
+
+        // Alle gültigen 4er-Gewinnlinien EINMAL vorberechnen. Der ursprüngliche
+        // Code hat bei JEDEM win()/evaluate()-Aufruf für jede der 64 Zellen und
+        // 13 Richtungen erneut die Grenzen geprüft (~3300 Iterationen pro Aufruf,
+        // und das bei Tiefe-3-Minimax tausendfach). Mit vorberechneten Linien
+        // bleiben nur die tatsächlich existierenden 76 Linien übrig.
+        const idx = (x, y, z) => x * SIZE * SIZE + y * SIZE + z;
+
+        const ALL_LINES = [];
+
+        for (let x = 0; x < SIZE; x++)
+            for (let y = 0; y < SIZE; y++)
+                for (let z = 0; z < SIZE; z++)
+                    for (const [dx, dy, dz] of dirs) {
+
+                        const cells = [];
+                        let ok = true;
+
+                        for (let i = 0; i < 4; i++) {
+                            const nx = x + dx * i, ny = y + dy * i, nz = z + dz * i;
+                            if (nx < 0 || nx >= SIZE || ny < 0 || ny >= SIZE || nz < 0 || nz >= SIZE) {
+                                ok = false;
+                                break;
+                            }
+                            cells.push([nx, ny, nz]);
+                        }
+
+                        if (ok) ALL_LINES.push(cells);
+                    }
+
+        // Zelle -> Liste der Linien, die durch sie verlaufen (für schnellen
+        // Gewinn-Check direkt nach einem Zug, statt das ganze Board zu scannen)
+        const LINES_BY_CELL = Array.from({ length: SIZE * SIZE * SIZE }, () => []);
+
+        for (const line of ALL_LINES)
+            for (const [x, y, z] of line)
+                LINES_BY_CELL[idx(x, y, z)].push(line);
+
+        // WebGL-Verfügbarkeit prüfen (wichtig für ältere Mobile-Browser)
+
+        function hasWebGL() {
+            try {
+                const c = document.createElement("canvas");
+                return !!(window.WebGLRenderingContext &&
+                    (c.getContext("webgl") || c.getContext("experimental-webgl")));
+            } catch (e) {
+                return false;
+            }
+        }
+
+        if (!hasWebGL()) {
+            document.getElementById("fallback").style.display = "flex";
+            throw new Error("WebGL nicht verfügbar");
+        }
+
+        // Szene
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x3b3b3b);
+
+        const camera = new THREE.PerspectiveCamera(
+            55, innerWidth / innerHeight, 0.1, 100
+        );
+
+        // Basisrichtung der Kamera; Distanz wird je nach Seitenverhältnis angepasst
+        // (auf schmalen Hochformat-Handys sonst zu nah/abgeschnitten)
+        const cameraDir = new THREE.Vector3(8, 8, 10).normalize();
+
+        function updateCameraForViewport() {
+            const aspect = innerWidth / innerHeight;
+            camera.aspect = aspect;
+            const distance = aspect < 0.7 ? 17 : (aspect < 1 ? 14.5 : 12.5);
+            camera.position.copy(cameraDir).multiplyScalar(distance);
+            camera.updateProjectionMatrix();
+        }
+
+        updateCameraForViewport();
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        // Pixel-Ratio deckeln: verhindert massive Überlastung auf High-DPI-Mobilgeräten
+        // (z.B. DPR 3 auf manchen Phones), aber immer noch scharf genug
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.domElement.style.touchAction = "none";
+
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, 1.5, 0);
+        controls.minDistance = 6;
+        controls.maxDistance = 25;
+
+        // Licht
+
+        scene.add(new THREE.AmbientLight(0xffffff, .8));
+
+        const light = new THREE.DirectionalLight(0xffffff, 1.4);
+        light.position.set(10, 15, 10);
+        light.castShadow = true;
+
+        // Schattenkamera-Frustum eng um die Szene legen: bessere Schattenqualität
+        // und weniger GPU-Last als das (default zu große) Standard-Frustum
+        light.shadow.mapSize.set(1024, 1024);
+        light.shadow.camera.near = 5;
+        light.shadow.camera.far = 30;
+        light.shadow.camera.left = -6;
+        light.shadow.camera.right = 6;
+        light.shadow.camera.top = 6;
+        light.shadow.camera.bottom = -6;
+
+        scene.add(light);
+
+        // Holzplatte
+
+        const base = new THREE.Mesh(
+            new THREE.BoxGeometry(6, 0.8, 6),
+            new THREE.MeshStandardMaterial({
+                color: 0xb8895c,
+                roughness: .9
+            })
+        );
+
+        base.position.y = -0.4;
+        base.receiveShadow = true;
+        scene.add(base);
+
+        // Stäbe
+
+        // Geteilte Ressourcen (statt pro Stab/Stein neu zu erzeugen) -> weniger
+        // Draw Calls, weniger GPU-Speicher, spürbar besser auf Mobile-GPUs
+        const rodMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8c8c8c,
+            metalness: .9,
+            roughness: .2
+        });
+
+        const pieceGeometry = new THREE.SphereGeometry(.36, 20, 16);
+
+        const humanMaterial = new THREE.MeshStandardMaterial({
+            color: 0xe7d1ad,
+            roughness: 1
+        });
+
+        const aiMaterial = new THREE.MeshStandardMaterial({
+            color: 0x666666,
+            metalness: 1,
+            roughness: .15
+        });
+
+        const rods = [];
+
+        for (let x = 0; x < SIZE; x++) {
+            for (let z = 0; z < SIZE; z++) {
+
+                const rod = new THREE.Mesh(
+                    new THREE.CylinderGeometry(.06, .06, 4.5, 10),
+                    rodMaterial
+                );
+
+                rod.position.set(
+                    (x - 1.5) * SPACING,
+                    2.2,
+                    (z - 1.5) * SPACING
+                );
+
+                rod.userData = { x, z };
+                rod.castShadow = true;
+
+                scene.add(rod);
+                rods.push(rod);
+
+            }
+        }
+
+        // Eingabe
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // WICHTIG (Mobile-Fix): OrbitControls ruft bei Touch preventDefault() auf,
+        // wodurch der Browser danach keinen synthetischen "click"-Event mehr
+        // erzeugt -> Taps haben nie funktioniert. Deshalb hier selbst per
+        // Pointer Events Tap (kurz, kaum Bewegung) von Drag (Kamera drehen)
+        // unterscheiden. Funktioniert für Maus UND Touch gleichermaßen.
+        let downPos = null;
+        let downTime = 0;
+        const TAP_MAX_DIST = 8;   // Pixel
+        const TAP_MAX_TIME = 500; // ms
+
+        renderer.domElement.addEventListener("pointerdown", (e) => {
+            downPos = { x: e.clientX, y: e.clientY };
+            downTime = performance.now();
+        });
+
+        renderer.domElement.addEventListener("pointerup", (e) => {
+            if (!downPos) return;
+
+            const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+            const elapsed = performance.now() - downTime;
+            downPos = null;
+
+            if (dist > TAP_MAX_DIST || elapsed > TAP_MAX_TIME) return; // war ein Drag/Rotate
+
+            handleTap(e.clientX, e.clientY);
+        });
+
+        function handleTap(clientX, clientY) {
+
+            if (gameOver) return;
+
+            mouse.x = clientX / innerWidth * 2 - 1;
+            mouse.y = -(clientY / innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            const hit = raycaster.intersectObjects(rods);
+
+            if (!hit.length) return;
+
+            const { x, z } = hit[0].object.userData;
+
+            // Bug-Fix: place() lieferte vorher true/false; "false" wurde geprüft
+            // mit `!place(...)`, aber y=0 (unterste Reihe) wäre dabei ebenfalls
+            // "falsy" gewesen. Jetzt liefert place() -1 bei Fehlschlag, alles
+            // andere (auch 0) ist ein gültiger Zug.
+            const y = place(x, z, HUMAN);
+            if (y === -1) return;
+
+            if (winAt(board, x, y, z, HUMAN)) {
+                msg("🎉 Du hast gewonnen!");
+                gameOver = true;
+                return;
+            }
+
+            msg("KI denkt ...");
+
+            setTimeout(aiMove, 150);
+        }
+
+        // Stein setzen
+
+        function place(x, z, player) {
+
+            for (let y = 0; y < SIZE; y++) {
+
+                if (board[x][y][z] === 0) {
+
+                    board[x][y][z] = player;
+
+                    const piece = new THREE.Mesh(
+                        pieceGeometry,
+                        player === HUMAN ? humanMaterial : aiMaterial
+                    );
+
+                    piece.position.set(
+                        (x - 1.5) * SPACING,
+                        y * .82 + .4,
+                        (z - 1.5) * SPACING
+                    );
+
+                    piece.castShadow = true;
+
+                    scene.add(piece);
+
+                    return y;
+                }
+            }
+
+            return -1;
+        }
+
+        // KI
+
+        function aiMove() {
+
+            const moves = valid(board);
+
+            // 1. Kann die KI direkt gewinnen?
+            for (const m of moves) {
+
+                const copy = clone(board);
+                const y = drop(copy, m.x, m.z, AI);
+
+                if (winAt(copy, m.x, y, m.z, AI)) {
+                    const py = place(m.x, m.z, AI);
+
+                    if (winAt(board, m.x, py, m.z, AI)) {
+                        msg("🤖 Die KI hat gewonnen!");
+                        gameOver = true;
+                    }
+
+                    return;
+                }
+            }
+
+            // 2. Muss die KI einen Sieg des Menschen blockieren?
+            for (const m of moves) {
+
+                const copy = clone(board);
+                const y = drop(copy, m.x, m.z, HUMAN);
+
+                if (winAt(copy, m.x, y, m.z, HUMAN)) {
+                    place(m.x, m.z, AI);
+                    msg("Du bist am Zug.");
+                    return;
+                }
+            }
+
+            let best = -Infinity;
+            let bestMove = moves[0];
+
+            for (const m of moves) {
+
+                const copy = clone(board);
+
+                drop(copy, m.x, m.z, AI);
+
+                const score = minimax(
+                    copy, 3, false, -Infinity, Infinity
+                );
+
+                if (score > best) {
+                    best = score;
+                    bestMove = m;
+                }
+            }
+
+            const finalY = place(bestMove.x, bestMove.z, AI);
+
+            if (winAt(board, bestMove.x, finalY, bestMove.z, AI)) {
+                msg("🤖 Die KI hat gewonnen!");
+                gameOver = true;
+                return;
+            }
+
+            msg("Du bist am Zug.");
+        }
+
+        // Minimax
+
+        function minimax(state, depth, max, alpha, beta) {
+
+            if (depth === 0 || win(state, AI) || win(state, HUMAN))
+                return evaluate(state);
+
+            const moves = valid(state);
+
+            if (max) {
+
+                let value = -Infinity;
+
+                for (const m of moves) {
+
+                    const copy = clone(state);
+
+                    drop(copy, m.x, m.z, AI);
+
+                    value = Math.max(
+                        value,
+                        minimax(copy, depth - 1, false, alpha, beta)
+                    );
+
+                    alpha = Math.max(alpha, value);
+
+                    if (alpha >= beta) break;
+                }
+
+                return value;
+            }
+
+            let value = Infinity;
+
+            for (const m of moves) {
+
+                const copy = clone(state);
+
+                drop(copy, m.x, m.z, HUMAN);
+
+                value = Math.min(
+                    value,
+                    minimax(copy, depth - 1, true, alpha, beta)
+                );
+
+                beta = Math.min(beta, value);
+
+                if (alpha >= beta) break;
+            }
+
+            return value;
+        }
+
+        // Bewertung
+
+        function evaluate(state) {
+
+            if (win(state, AI)) return 1000000;
+            if (win(state, HUMAN)) return -1000000;
+
+            let score = 0;
+
+            for (const line of ALL_LINES) {
+
+                let ai = 0, human = 0;
+
+                for (const [x, y, z] of line) {
+                    const v = state[x][y][z];
+                    if (v === AI) ai++;
+                    else if (v === HUMAN) human++;
+                }
+
+                if (ai > 0 && human > 0) continue;
+
+                if (ai === 3) score += 5000;
+                else if (ai === 2) score += 300;
+
+                if (human === 3) score -= 7000;
+                else if (human === 2) score -= 400;
+            }
+
+            return score;
+        }
+
+        // Hilfsfunktionen
+
+        function valid(state) {
+
+            const moves = [];
+
+            for (let x = 0; x < SIZE; x++)
+                for (let z = 0; z < SIZE; z++)
+                    if (state[x][SIZE - 1][z] === 0)
+                        moves.push({ x, z });
+
+            moves.sort((a, b) => {
+
+                const da = Math.abs(a.x - 1.5) + Math.abs(a.z - 1.5);
+                const db = Math.abs(b.x - 1.5) + Math.abs(b.z - 1.5);
+
+                return da - db;
+            });
+
+            return moves;
+        }
+
+        function drop(state, x, z, player) {
+
+            for (let y = 0; y < SIZE; y++)
+                if (state[x][y][z] === 0) {
+                    state[x][y][z] = player;
+                    return y;
+                }
+
+            return -1;
+        }
+
+        function clone(state) {
+            return state.map(a => a.map(b => [...b]));
+        }
+
+        function win(state, player) {
+
+            for (const line of ALL_LINES) {
+
+                let all = true;
+
+                for (const [x, y, z] of line) {
+                    if (state[x][y][z] !== player) { all = false; break; }
+                }
+
+                if (all) return true;
+            }
+
+            return false;
+        }
+
+        // Schneller Gewinn-Check nur für die Linien durch den zuletzt gesetzten
+        // Stein, statt das komplette Board zu durchsuchen.
+        function winAt(state, x, y, z, player) {
+
+            for (const line of LINES_BY_CELL[idx(x, y, z)]) {
+
+                let all = true;
+
+                for (const [lx, ly, lz] of line) {
+                    if (state[lx][ly][lz] !== player) { all = false; break; }
+                }
+
+                if (all) return true;
+            }
+
+            return false;
+        }
+
+        function msg(t) {
+            document.getElementById("ui").textContent = t;
+        }
+
+        addEventListener("resize", () => {
+
+            updateCameraForViewport();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        function animate() {
+
+            requestAnimationFrame(animate);
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+    </script>
+
+</body>
+
+</html>
