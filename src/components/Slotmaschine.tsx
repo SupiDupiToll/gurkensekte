@@ -73,7 +73,10 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
 
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setFehler(data.error ?? "Der Automat ruckelt – versuch es gleich nochmal.");
+        setFehler(
+          data.error ??
+            `Der Automat meldet Fehler ${res.status} – versuch es gleich nochmal.`,
+        );
         return;
       }
 
