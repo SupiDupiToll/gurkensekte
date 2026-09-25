@@ -4,6 +4,7 @@ import { hexclaveServerApp } from "@/hexclave/server";
 import { CultHeader } from "@/components/CultHeader";
 import { CultMarquee } from "@/components/CultMarquee";
 import { Footer } from "@/components/Footer";
+import { ReferralCapture } from "@/components/ReferralCapture";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,6 +28,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <HexclaveProvider app={hexclaveServerApp}>
+          <ReferralCapture />
           <HexclaveTheme
             theme={{
               dark: {

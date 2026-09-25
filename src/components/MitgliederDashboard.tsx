@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
+import { ReferralBox } from "@/components/ReferralBox";
 import {
   SpinningCucumber,
   FloatingCucumber,
@@ -48,6 +49,7 @@ type TurnstileWindow = Window & {
 };
 
 export type MitgliedInfo = {
+  id?: string | null;
   displayName?: string | null;
   primaryEmail?: string | null;
   signedUpAt?: string | Date | null;
@@ -159,6 +161,7 @@ function PunkteInhalt() {
             <li>🥒 Zitat generieren (max. 3× täglich): +5</li>
             <li>🥒 Chat-Nachricht: +5</li>
             <li>🥒 Täglicher Bonus: +20</li>
+            <li>🥒 Freund werben: +100 (unbegrenzt oft)</li>
             <li className="text-yellow-400/80 font-bold pt-1 border-t border-gurken-500/10 mt-1">
               🎁 1000 Punkte → Echte Gurke bestellen
             </li>
@@ -793,6 +796,12 @@ export function MitgliederDashboard({
 
         {/* Punkte & Belohnungen */}
         <PunkteAnzeige />
+
+        {/* Freunde werben Freunde */}
+        <ReferralBox
+          code={user.id ?? (isDemo ? "demo-mitglied" : null)}
+          isDemo={isDemo}
+        />
 
         {/* Gürkchen-Zitat */}
         <GurkchenQuoteCard />

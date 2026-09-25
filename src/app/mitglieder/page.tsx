@@ -12,6 +12,7 @@ export default function MitgliederPage() {
   return (
     <MitgliederDashboard
       user={{
+        id: user.id,
         displayName: user.displayName,
         primaryEmail: user.primaryEmail,
         signedUpAt: user.signedUpAt,

@@ -30,6 +30,7 @@ export async function GET(req: Request) {
     quoteAvailable: quoteCountToday < 3,
     quoteRemaining: Math.max(0, 3 - quoteCountToday),
     verlauf: (meta.punkteVerlauf as unknown[]) ?? [],
+    geworben: (meta.werbungen as number) ?? 0,
   });
 }
 

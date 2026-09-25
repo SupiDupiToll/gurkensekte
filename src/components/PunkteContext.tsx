@@ -17,6 +17,7 @@ type PunkteContextType = {
   dailyAvailable: boolean;
   quoteAvailable: boolean;
   quoteRemaining: number;
+  geworben: number;
   verlauf: VerlaufEintrag[];
   refresh: () => Promise<void>;
   claim: (action: string) => Promise<ClaimResult | null>;
@@ -28,6 +29,7 @@ const PunkteContext = createContext<PunkteContextType>({
   dailyAvailable: true,
   quoteAvailable: true,
   quoteRemaining: 3,
+  geworben: 0,
   verlauf: [],
   refresh: async () => {},
   claim: async () => null,
@@ -45,6 +47,7 @@ export function PunkteProvider({
   const [dailyAvailable, setDailyAvailable] = useState(true);
   const [quoteAvailable, setQuoteAvailable] = useState(true);
   const [quoteRemaining, setQuoteRemaining] = useState(3);
+  const [geworben, setGeworben] = useState(0);
   const [verlauf, setVerlauf] = useState<VerlaufEintrag[]>([]);
 
   const refresh = useCallback(async () => {
@@ -56,6 +59,7 @@ export function PunkteProvider({
       setDailyAvailable(data.dailyAvailable);
       setQuoteAvailable(data.quoteAvailable ?? true);
       setQuoteRemaining(data.quoteRemaining ?? 3);
+      setGeworben(data.geworben ?? 0);
       setVerlauf(data.verlauf ?? []);
     } catch {
       // ignore
@@ -93,6 +97,7 @@ export function PunkteProvider({
         dailyAvailable,
         quoteAvailable,
         quoteRemaining,
+        geworben,
         verlauf,
         refresh,
         claim,
