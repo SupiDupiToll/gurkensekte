@@ -60,12 +60,18 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       );
     }, 90);
 
+    // Der Wurf passiert ausschließlich serverseitig: Kommt keine saubere
+    // Antwort an, wird nichts gebucht und keine Bewegung angezeigt.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+
     try {
       const [res] = await Promise.all([
         fetch(`${apiBase}/casino`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ einsatz }),
+          signal: controller.signal,
         }),
         // Mindestdauer, damit die Drehung auch wirklich sichtbar ist.
         new Promise((r) => setTimeout(r, 1200)),
@@ -74,9 +80,10 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         setFehler(
-          data.error ??
-            `Der Automat meldet Fehler ${res.status} – versuch es gleich nochmal.`,
+          (data.error ?? `Der Automat meldet Fehler ${res.status}`) +
+            " – es wurden keine Punkte abgezogen oder vergeben.",
         );
+        await refresh();
         return;
       }
 
@@ -85,8 +92,15 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       setErgebnis(data);
       await refresh();
     } catch {
-      setFehler("Der Automat ist gerade außer Betrieb – gleich nochmal?");
+      setFehler(
+        controller.signal.aborted
+          ? "Der Automat meldet sich nicht – es wurden keine Punkte abgezogen oder vergeben."
+          : "Der Automat ist außer Betrieb – es wurden keine Punkte abgezogen oder vergeben.",
+      );
+      // Serverstand nachziehen, damit die Anzeige immer dem Konto entspricht.
+      await refresh();
     } finally {
+      clearTimeout(timeout);
       if (intervallRef.current) clearInterval(intervallRef.current);
       intervallRef.current = null;
       setDreht(false);
