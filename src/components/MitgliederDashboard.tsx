@@ -639,6 +639,8 @@ function GurkchenChat() {
           </div>
         )}
         <div className="flex gap-2 items-end max-w-4xl mx-auto w-full">
+          {/* text-base (16px): iOS/Android zoomen bei fokussierten Feldern mit
+              kleinerer Schrift automatisch rein – 16px verhindert das. */}
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -648,7 +650,7 @@ function GurkchenChat() {
             disabled={loading}
             inputMode="text"
             enterKeyHint="send"
-            className="flex-1 min-h-[44px] resize-none rounded-xl border border-gurken-500/20 bg-gurken-800/50 px-3 py-2.5 text-sm text-gurken-100 placeholder-gurken-500/40 outline-none transition-all duration-200 focus:border-gurken-400 focus:shadow-[0_0_16px_#22c55e]/20 disabled:opacity-50"
+            className="flex-1 min-h-[44px] resize-none rounded-xl border border-gurken-500/20 bg-gurken-800/50 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all duration-200 focus:border-gurken-400 focus:shadow-[0_0_16px_#22c55e]/20 disabled:opacity-50"
           />
           <button
             onClick={sendMessage}
