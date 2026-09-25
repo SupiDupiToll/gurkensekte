@@ -3,7 +3,9 @@
  *
  * Jedes Mitglied hat einen Werbe-Link `/?ref=<userId>`. Öffnet jemand diesen
  * Link, wird der Code als Cookie hinterlegt. Registriert sich die Person
- * anschließend, bekommt der Werber einmalig Punkte gutgeschrieben.
+ * anschließend, wird die Werbung als offene Prüfung hinterlegt und die
+ * Sekten-Leitung per E-Mail informiert. Erst nach Bestätigung über den
+ * Token-Link bekommt der Werber die Punkte gutgeschrieben.
  */
 
 export const REFERRAL_COOKIE = "gurken_ref";
@@ -17,8 +19,62 @@ export const REFERRAL_POINTS = 100;
 /** Aktionsname im Punkte-Verlauf des Werbers. */
 export const REFERRAL_ACTIVITY = "freund-werben";
 
+/**
+ * An diese Adresse geht jede offene Werbung zur Prüfung. Die Sekten-Leitung
+ * bestätigt sie über den Link in der E-Mail, erst danach werden die Punkte
+ * gutgeschrieben.
+ */
+export const REFERRAL_REVIEW_EMAIL = "rui@sdtoll.de";
+
+/** Name des Metadaten-Feldes, in dem offene (unbestätigte) Werbungen liegen. */
+export const REFERRAL_PENDING_KEY = "referralPending";
+
+/** Flag auf dem geworbenen Konto, sobald eine Prüfung angestoßen wurde. */
+export const REFERRAL_CLAIMED_KEY = "referralClaimed";
+
+/** So viele offene Werbungen werden pro Werber maximal vorgehalten. */
+export const REFERRAL_PENDING_MAX = 50;
+
+export type ReferralPendingEntry = {
+  token: string;
+  inviteeId: string;
+  inviteeEmail: string | null;
+  at: number;
+};
+
 export function buildReferralLink(origin: string, code: string): string {
   return `${origin}/?ref=${encodeURIComponent(code)}`;
+}
+
+/** Einmal-Token für die Bestätigungs-Mail (URL-sicher, ohne Bindestriche). */
+export function createReferralToken(): string {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
+/** Bestätigungslink aus der Prüf-Mail an die Sekten-Leitung. */
+export function buildReferralConfirmLink(
+  origin: string,
+  referrerId: string,
+  token: string,
+): string {
+  return `${origin}/api/mitglieder/referral/bestaetigen?k=${encodeURIComponent(
+    referrerId,
+  )}&token=${encodeURIComponent(token)}`;
+}
+
+/** Liest die Liste der offenen Werbungen defensiv aus den Metadaten. */
+export function getPendingReferrals(
+  meta: Record<string, unknown> | null | undefined,
+): ReferralPendingEntry[] {
+  const raw = meta?.[REFERRAL_PENDING_KEY];
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (entry): entry is ReferralPendingEntry =>
+      typeof entry === "object" &&
+      entry !== null &&
+      typeof (entry as ReferralPendingEntry).token === "string" &&
+      typeof (entry as ReferralPendingEntry).inviteeId === "string",
+  );
 }
 
 /**

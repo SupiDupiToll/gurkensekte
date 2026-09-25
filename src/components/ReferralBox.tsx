@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   ArrowsInSimple,
   Check,
+  Clock,
   Copy,
   Gift,
   ShareNetwork,
@@ -31,7 +32,7 @@ export function ReferralBox({
   code?: string | null;
   isDemo?: boolean;
 }) {
-  const { geworben } = usePunkte();
+  const { geworben, werbungenOffen } = usePunkte();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const hydrated = useIsHydrated();
@@ -86,8 +87,7 @@ export function ReferralBox({
             <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
               Lade unbegrenzt viele Freunde in die Sekte ein und kassiere{" "}
               {REFERRAL_POINTS} Punkte für jedes neue Mitglied.
-            </p>
-            <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
+            </p>            <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
               <Gift size={22} weight="fill" className="text-yellow-400" />
               Werbe-Link anzeigen
             </span>
@@ -122,6 +122,11 @@ export function ReferralBox({
         Der Segen gilt für jedes neue Mitglied – du kannst{" "}
         <strong className="text-gurken-200">unbegrenzt viele Freunde</strong>{" "}
         einladen, es gibt keine Obergrenze. 🥒
+      </p>
+
+      <p className="text-gurken-400/70 text-xs leading-relaxed mb-4">
+        Jede Werbung wird von der Sekten-Leitung geprüft, bevor die Punkte
+        gutgeschrieben werden.
       </p>
 
       <div className="flex items-center gap-2 mb-4">
@@ -165,7 +170,7 @@ export function ReferralBox({
         <div className="flex items-center gap-3 rounded-xl border border-gurken-500/10 bg-gurken-800/30 px-4 py-3">
           <UsersThree size={22} weight="fill" className="text-gurken-300 flex-shrink-0" />
           <div className="text-sm">
-            <span className="text-gurken-400">Erfolgreich geworben: </span>
+            <span className="text-gurken-400">Bestätigt geworben: </span>
             <span className="text-gurken-100 font-bold">{geworben}</span>
             <span className="text-gurken-400">
               {" "}
@@ -182,6 +187,20 @@ export function ReferralBox({
             </span>
           </div>
         </div>
+        {werbungenOffen > 0 && (
+          <div className="flex items-center gap-3 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3 sm:col-span-2">
+            <Clock size={22} weight="fill" className="text-yellow-400 flex-shrink-0" />
+            <div className="text-sm">
+              <span className="text-gurken-400">In Prüfung: </span>
+              <span className="text-gurken-100 font-bold">{werbungenOffen}</span>
+              <span className="text-gurken-400">
+                {" "}
+                {werbungenOffen === 1 ? "Werbung" : "Werbungen"} – warten auf
+                Bestätigung durch die Sekten-Leitung.
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

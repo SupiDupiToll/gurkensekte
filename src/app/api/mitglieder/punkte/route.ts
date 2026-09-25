@@ -1,4 +1,5 @@
 import { hexclaveServerApp } from "@/hexclave/server";
+import { getPendingReferrals } from "@/lib/referral";
 
 const POINTS = {
   zitat: 5,
@@ -31,6 +32,7 @@ export async function GET(req: Request) {
     quoteRemaining: Math.max(0, 3 - quoteCountToday),
     verlauf: (meta.punkteVerlauf as unknown[]) ?? [],
     geworben: (meta.werbungen as number) ?? 0,
+    werbungenOffen: getPendingReferrals(meta).length,
   });
 }
 
