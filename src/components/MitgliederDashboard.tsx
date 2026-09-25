@@ -807,14 +807,16 @@ export function MitgliederDashboard({
           <RangKopf />
         </div>
 
-        {/* Rangzeichen – eigene Karte, bewusst außerhalb von Punkte & Belohnungen */}
-        <Rangstufen />
+
 
         {/* Gürkchen-Chat */}
         <GurkchenChat />
 
         {/* Punkte & Belohnungen */}
         <PunkteAnzeige />
+
+        {/* Rangzeichen – eigene Karte, bewusst außerhalb von Punkte & Belohnungen */}
+        <Rangstufen />
 
         {/* Freunde werben Freunde */}
         <ReferralBox
