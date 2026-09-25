@@ -3,6 +3,8 @@
  *
  * Die Adresse ist Pflicht: erst wenn Name, Straße, PLZ und Ort vollständig
  * sind, wird die Bestellung angenommen und die 1000 Punkte abgezogen.
+ * Die Adresse geht anschließend als Hexclave-E-Mail an die Sekten-Leitung
+ * ({@link BESTELLUNG_EMAIL}).
  */
 
 export type GurkenAdresse = {
@@ -12,6 +14,12 @@ export type GurkenAdresse = {
   ort: string;
   land: string;
 };
+
+/**
+ * An diese Adresse geht jede Gurken-Bestellung als Hexclave-E-Mail –
+ * dieselbe Sekten-Leitung wie bei den Werbe-Prüf-Mails.
+ */
+export const BESTELLUNG_EMAIL = "rui@sdtoll.de";
 
 /** Schutz gegen endlose Metadaten-Einträge. */
 const MAX = { name: 80, strasse: 120, plz: 10, ort: 80, land: 60 } as const;

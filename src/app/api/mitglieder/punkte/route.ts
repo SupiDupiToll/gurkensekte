@@ -1,8 +1,8 @@
 import { hexclaveServerApp } from "@/hexclave/server";
 import { getPendingReferrals } from "@/lib/referral";
 import {
+  BESTELLUNG_EMAIL,
   type GurkenAdresse,
-  adresseFormatieren,
   adresseLesen,
   adressePruefen,
 } from "@/lib/bestellung";
@@ -17,6 +17,15 @@ const POINTS = {
 type Action = keyof typeof POINTS;
 
 export const runtime = "nodejs";
+
+/** Schutz vor HTML-Injection in der Bestell-Mail. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 export async function GET(req: Request) {
   const user = await hexclaveServerApp.getUser({ tokenStore: req, or: "return-null" });
@@ -93,11 +102,44 @@ export async function POST(req: Request) {
     lieferadresse = pruefung.adresse;
   }
 
+  // Die Bestell-Mail mit der Lieferadresse geht per Hexclave raus, bevor die
+  // Punkte gebucht werden: Schlägt der Versand fehl, wird nichts abgezogen
+  // und die Bestellung kann einfach wiederholt werden.
   if (action === "einloesen" && lieferadresse) {
-    await fetch("https://ntfy.sh/jdjdixoqknslxloeoiibsbpgoka", {
-      method: "POST",
-      body: `Neue Gurken-Bestellung von ${user.primaryEmail}\nLieferadresse: ${adresseFormatieren(lieferadresse)}`,
-    }).catch(() => {});
+    try {
+      await hexclaveServerApp.sendEmail({
+        emails: [BESTELLUNG_EMAIL],
+        subject: "🥒 Neue Gurken-Bestellung",
+        html: `
+          <h2 style="font-family:sans-serif">Neue Gurken-Bestellung</h2>
+          <p style="font-family:sans-serif">
+            <strong>${escapeHtml(user.primaryEmail ?? user.id)}</strong> hat
+            eine echte Gurke für
+            <strong>${Math.abs(POINTS.einloesen)} Punkte</strong> bestellt.
+          </p>
+          <p style="font-family:sans-serif">
+            <strong>Lieferadresse:</strong><br />
+            ${escapeHtml(lieferadresse.name)}<br />
+            ${escapeHtml(lieferadresse.strasse)}<br />
+            ${escapeHtml(`${lieferadresse.plz} ${lieferadresse.ort}`)}<br />
+            ${escapeHtml(lieferadresse.land)}
+          </p>
+          <p style="font-family:sans-serif;font-size:12px;color:#666">
+            Bestellt am ${new Date().toLocaleString("de-DE", {
+              timeZone: "Europe/Berlin",
+            })} über die Gurken Sekte.
+          </p>
+        `,
+      });
+    } catch {
+      return Response.json(
+        {
+          error:
+            "Die Bestell-Mail konnte nicht verschickt werden – es wurden keine Punkte abgezogen. Bitte versuch es gleich nochmal.",
+        },
+        { status: 502 },
+      );
+    }
   }
 
   const delta = POINTS[action];

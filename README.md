@@ -13,7 +13,7 @@ Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder kön
   - Täglicher Bonus (+20 Punkte)
   - Bis zu 3 KI-Zitate pro Tag generieren (+5 Punkte je Zitat)
   - Chat mit „Gürkchen“ (Streaming-KI, +3 Punkte pro Nachricht, Turnstile-geschützt)
-  - 1000 Punkte gegen eine echte Gurke eintauschen (ntfy-Benachrichtigung)
+  - 1000 Punkte gegen eine echte Gurke eintauschen (Pflicht-Lieferadresse, Bestell-E-Mail via Hexclave)
   - Punkte-Historie
 
 ## Tech-Stack
@@ -23,10 +23,9 @@ Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder kön
 | **Next.js 16** (App Router) | Framework |
 | **TypeScript** | Sprache |
 | **Tailwind CSS v4** | Styling |
-| **Hexclave** | Authentifizierung |
+| **Hexclave** | Authentifizierung & E-Mails |
 | **OpenRouter** | KI-Chat & Zitate (mit API-Key-Fallback) |
 | **Tippie** | Zahlungs-Links |
-| **ntfy.sh** | Benachrichtigungen |
 | **Phosphor Icons** | Icons |
 | **pnpm** | Package Manager |
 
