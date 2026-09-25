@@ -36,8 +36,9 @@ function RangZeile({
       >
         {rang <= 3 ? MEDAILLEN[rang - 1] : rang}
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm text-gurken-200">
-        {eintrag.name}
+      <span className="min-w-0 flex-1 truncate text-sm text-gurken-200 uppercase tracking-wide">
+        {/* Nur die ersten zwei Buchstaben – den vollen Namen zeigt die Rangliste bewusst nicht. */}
+        {eintrag.name.trim().slice(0, 2)}
         {istDu && (
           <span className="ml-2 rounded border border-yellow-400/30 px-1 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-yellow-400">
             du
