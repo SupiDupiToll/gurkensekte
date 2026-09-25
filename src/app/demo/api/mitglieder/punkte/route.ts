@@ -1,4 +1,5 @@
 import { getDemoProfile, mitDemoCookie } from "@/lib/demoStore";
+import { adressePruefen } from "@/lib/bestellung";
 
 const POINTS = {
   zitat: 5,
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
       quoteAvailable: quoteCountToday < 3,
       quoteRemaining: Math.max(0, 3 - quoteCountToday),
       verlauf: profile.punkteVerlauf,
+      gurkenAdresse: profile.gurkenAdresse ?? null,
     }),
     res,
   );
@@ -34,7 +36,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const res = new Response();
   const profile = getDemoProfile(req, res);
-  const body = (await req.json()) as { action?: string };
+  const body = (await req.json()) as { action?: string; adresse?: unknown };
   const action = body.action as Action | undefined;
 
   if (!action || !(action in POINTS)) {
@@ -55,6 +57,15 @@ export async function POST(req: Request) {
 
   if (action === "einloesen" && profile.punkte < 1000) {
     return Response.json({ error: "Nicht genug Punkte" }, { status: 400 });
+  }
+
+  // Erst mit vollständiger Lieferadresse wird die Gurke bestellt.
+  if (action === "einloesen") {
+    const pruefung = adressePruefen(body.adresse);
+    if (!pruefung.ok) {
+      return Response.json({ error: pruefung.error }, { status: 400 });
+    }
+    profile.gurkenAdresse = pruefung.adresse;
   }
 
   const delta = POINTS[action];

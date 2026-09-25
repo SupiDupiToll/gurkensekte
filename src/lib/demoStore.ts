@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import type { GurkenAdresse } from "@/lib/bestellung";
 
 /**
  * In-Memory-Speicher der Demo-Sitzungen.
@@ -21,6 +22,8 @@ export type DemoProfile = {
   letzterZitatBonus: string | null;
   zitatBonusCount: number;
   punkteVerlauf: DemoVerlaufEintrag[];
+  /** Lieferadresse der letzten Gurken-Bestellung – Adresse ist Pflicht. */
+  gurkenAdresse?: GurkenAdresse;
 };
 
 export const DEMO_COOKIE_NAME = "gurken_demo";

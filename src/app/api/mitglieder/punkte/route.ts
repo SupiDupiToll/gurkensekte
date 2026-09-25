@@ -1,5 +1,11 @@
 import { hexclaveServerApp } from "@/hexclave/server";
 import { getPendingReferrals } from "@/lib/referral";
+import {
+  type GurkenAdresse,
+  adresseFormatieren,
+  adresseLesen,
+  adressePruefen,
+} from "@/lib/bestellung";
 
 const POINTS = {
   zitat: 5,
@@ -39,6 +45,8 @@ export async function GET(req: Request) {
     verlauf: (meta.punkteVerlauf as unknown[]) ?? [],
     geworben: (meta.werbungen as number) ?? 0,
     werbungenOffen: getPendingReferrals(meta).length,
+    // Lieferadresse der (letzten) Gurken-Bestellung – für die Wiederverwendung.
+    gurkenAdresse: adresseLesen(meta.gurkenAdresse),
   });
 }
 
@@ -48,7 +56,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
   }
 
-  const body = (await req.json()) as { action?: string };
+  const body = (await req.json()) as { action?: string; adresse?: unknown };
   const action = body.action as Action | undefined;
 
   if (!action || !(action in POINTS)) {
@@ -75,10 +83,20 @@ export async function POST(req: Request) {
     return Response.json({ error: "Nicht genug Punkte" }, { status: 400 });
   }
 
+  // Erst mit vollständiger Lieferadresse wird die Gurke bestellt.
+  let lieferadresse: GurkenAdresse | null = null;
   if (action === "einloesen") {
+    const pruefung = adressePruefen(body.adresse);
+    if (!pruefung.ok) {
+      return Response.json({ error: pruefung.error }, { status: 400 });
+    }
+    lieferadresse = pruefung.adresse;
+  }
+
+  if (action === "einloesen" && lieferadresse) {
     await fetch("https://ntfy.sh/jdjdixoqknslxloeoiibsbpgoka", {
       method: "POST",
-      body: `Neue Gurken-Bestellung von ${user.primaryEmail}`,
+      body: `Neue Gurken-Bestellung von ${user.primaryEmail}\nLieferadresse: ${adresseFormatieren(lieferadresse)}`,
     }).catch(() => {});
   }
 
@@ -103,6 +121,11 @@ export async function POST(req: Request) {
     punkteGesamt: newTotal,
     punkteVerlauf: verlauf,
   };
+
+  if (lieferadresse) {
+    // Für die nächste Bestellung parat halten.
+    update.gurkenAdresse = lieferadresse;
+  }
 
   if (action === "daily") {
     update.letzterDailyBonus = today;

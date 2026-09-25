@@ -29,6 +29,7 @@ import {
   DiceFive,
 } from "@phosphor-icons/react";
 import { demoPath } from "@/lib/demo";
+import { adresseFormatieren } from "@/lib/bestellung";
 
 type Message = {
   role: "user" | "assistant";
@@ -60,11 +61,30 @@ export type MitgliedInfo = {
 };
 
 function PunkteInhalt() {
-  const { punkte, punkteGesamt, loading, dailyAvailable, verlauf, refresh, claim } =
-    usePunkte();
+  const {
+    punkte,
+    punkteGesamt,
+    loading,
+    dailyAvailable,
+    verlauf,
+    refresh,
+    claim,
+    gurkenAdresse,
+  } = usePunkte();
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [claimingRedeem, setClaimingRedeem] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // Bestellformular: ohne vollständige Lieferadresse wird nicht eingelöst.
+  const [showAdresse, setShowAdresse] = useState(false);
+  const [adresseFehler, setAdresseFehler] = useState<string | null>(null);
+  const [bestellt, setBestellt] = useState(false);
+  const [adresseForm, setAdresseForm] = useState({
+    name: "",
+    strasse: "",
+    plz: "",
+    ort: "",
+    land: "",
+  });
 
   async function handleDaily() {
     setClaimingDaily(true);
@@ -75,11 +95,44 @@ function PunkteInhalt() {
     setClaimingDaily(false);
   }
 
-  async function handleRedeem() {
+  /** Öffnet das Adressformular, möglichst mit der gespeicherten Adresse. */
+  function starteBestellung() {
+    setAdresseFehler(null);
+    setAdresseForm({
+      name: gurkenAdresse?.name ?? "",
+      strasse: gurkenAdresse?.strasse ?? "",
+      plz: gurkenAdresse?.plz ?? "",
+      ort: gurkenAdresse?.ort ?? "",
+      land: gurkenAdresse?.land ?? "",
+    });
+    setShowAdresse(true);
+  }
+
+  function setzeFeld(feld: keyof typeof adresseForm, wert: string) {
+    setAdresseForm((prev) => ({ ...prev, [feld]: wert }));
+  }
+
+  async function handleRedeem(e: React.FormEvent) {
+    e.preventDefault();
+    const fehltPflichtfeld = (["name", "strasse", "plz", "ort"] as const).some(
+      (feld) => !adresseForm[feld].trim(),
+    );
+    if (fehltPflichtfeld) {
+      setAdresseFehler("Bitte fülle Name, Straße, PLZ und Ort aus.");
+      return;
+    }
+
+    setAdresseFehler(null);
     setClaimingRedeem(true);
-    const result = await claim("einloesen");
+    const result = await claim("einloesen", { adresse: adresseForm });
     if (result) {
       await refresh();
+      setShowAdresse(false);
+      setBestellt(true);
+    } else {
+      setAdresseFehler(
+        "Bestellung nicht durchgegangen – es wurden keine Punkte abgezogen. Bitte prüfe die Adresse und versuch es erneut.",
+      );
     }
     setClaimingRedeem(false);
   }
@@ -111,20 +164,143 @@ function PunkteInhalt() {
           – die fallen nie, auch beim Einlösen nicht.
         </div>
 
+        {bestellt && (
+          <div className="mt-4 rounded-xl border border-gurken-400/40 bg-gurken-500/10 px-4 py-3 text-sm text-gurken-200">
+            🥒 Deine Gurke ist bestellt! Sie geht an{" "}
+            <strong className="text-gurken-100">
+              {gurkenAdresse
+                ? adresseFormatieren(gurkenAdresse)
+                : "deine gespeicherte Adresse"}
+            </strong>
+            .
+          </div>
+        )}
+
         {punkte >= 1000 ? (
           <div className="mt-4 space-y-3">
             <div className="text-gurken-300 text-sm">
               🥒 Du hast genug Punkte für eine <strong>echte Gurke</strong>!
               Gürkchen persönlich schickt sie dir per Post. 🥒
             </div>
-            <button
-              onClick={handleRedeem}
-              disabled={claimingRedeem}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-base transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 touch-manipulation min-h-[48px]"
-            >
-              <Basket size={20} weight="fill" />
-              {claimingRedeem ? "Wird eingelöst…" : "🥒 Jetzt echte Gurke bestellen"}
-            </button>
+
+            {showAdresse ? (
+              <form
+                onSubmit={handleRedeem}
+                className="space-y-3 rounded-xl border border-gurken-500/20 bg-gurken-800/40 p-4 text-left"
+              >
+                <div className="text-xs uppercase tracking-wider text-gurken-500">
+                  Lieferadresse (Pflicht)
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-semibold text-gurken-400 sm:col-span-2">
+                    Name
+                    <input
+                      type="text"
+                      value={adresseForm.name}
+                      onChange={(e) => setzeFeld("name", e.target.value)}
+                      placeholder="Vor- und Nachname"
+                      autoComplete="name"
+                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                    />
+                  </label>
+                  <label className="text-xs font-semibold text-gurken-400 sm:col-span-2">
+                    Straße und Hausnummer
+                    <input
+                      type="text"
+                      value={adresseForm.strasse}
+                      onChange={(e) => setzeFeld("strasse", e.target.value)}
+                      placeholder="Gurkenweg 1"
+                      autoComplete="street-address"
+                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                    />
+                  </label>
+                  <label className="text-xs font-semibold text-gurken-400">
+                    PLZ
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={adresseForm.plz}
+                      onChange={(e) => setzeFeld("plz", e.target.value)}
+                      placeholder="12345"
+                      autoComplete="postal-code"
+                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                    />
+                  </label>
+                  <label className="text-xs font-semibold text-gurken-400">
+                    Ort
+                    <input
+                      type="text"
+                      value={adresseForm.ort}
+                      onChange={(e) => setzeFeld("ort", e.target.value)}
+                      placeholder="Gurkenstadt"
+                      autoComplete="address-level2"
+                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                    />
+                  </label>
+                  <label className="text-xs font-semibold text-gurken-400 sm:col-span-2">
+                    Land (optional)
+                    <input
+                      type="text"
+                      value={adresseForm.land}
+                      onChange={(e) => setzeFeld("land", e.target.value)}
+                      placeholder="Deutschland"
+                      autoComplete="country-name"
+                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                    />
+                  </label>
+                </div>
+
+                {adresseFehler && (
+                  <p className="text-xs font-semibold text-red-300">
+                    {adresseFehler}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="submit"
+                    disabled={claimingRedeem}
+                    className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-gurken-500 px-5 py-3 text-sm font-bold text-gurken-950 transition-all duration-200 hover:bg-gurken-400 hover:shadow-[0_0_20px_#22c55e] disabled:opacity-50 touch-manipulation"
+                  >
+                    <Basket size={18} weight="fill" />
+                    {claimingRedeem
+                      ? "Wird bestellt…"
+                      : "🥒 Jetzt bestellen (1000 Punkte)"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdresse(false);
+                      setAdresseFehler(null);
+                    }}
+                    disabled={claimingRedeem}
+                    className="min-h-[48px] rounded-xl border border-gurken-600/40 px-5 py-3 text-sm font-bold text-gurken-400 transition-all hover:text-gurken-200 disabled:opacity-50 touch-manipulation"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button
+                onClick={starteBestellung}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-base transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation min-h-[48px]"
+              >
+                <Basket size={20} weight="fill" />
+                🥒 Jetzt echte Gurke bestellen
+              </button>
+            )}
+
+            {!showAdresse && gurkenAdresse && (
+              <p className="text-xs text-gurken-500">
+                Lieferadresse: {adresseFormatieren(gurkenAdresse)}{" "}
+                <button
+                  onClick={starteBestellung}
+                  className="font-semibold text-gurken-400 underline hover:text-gurken-300"
+                >
+                  ändern
+                </button>
+              </p>
+            )}
           </div>
         ) : (
           <div className="mt-4">

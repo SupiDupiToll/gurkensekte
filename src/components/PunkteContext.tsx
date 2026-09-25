@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import type { GurkenAdresse } from "@/lib/bestellung";
 
 type VerlaufEintrag = {
   datum: string;
@@ -24,8 +25,13 @@ type PunkteContextType = {
   verlauf: VerlaufEintrag[];
   /** Endpunkt der Gurken-Rangliste (gehört zur gewählten Punkte-API). */
   leaderboardApiBase: string;
+  /** Lieferadresse der letzten Bestellung – beim Einlösen Pflicht. */
+  gurkenAdresse: GurkenAdresse | null;
   refresh: () => Promise<void>;
-  claim: (action: string) => Promise<ClaimResult | null>;
+  claim: (
+    action: string,
+    extra?: Record<string, unknown>,
+  ) => Promise<ClaimResult | null>;
 };
 
 const PunkteContext = createContext<PunkteContextType>({
@@ -39,6 +45,7 @@ const PunkteContext = createContext<PunkteContextType>({
   werbungenOffen: 0,
   verlauf: [],
   leaderboardApiBase: "/api/mitglieder/punkte/leaderboard",
+  gurkenAdresse: null,
   refresh: async () => {},
   claim: async () => null,
 });
@@ -52,6 +59,7 @@ export function PunkteProvider({
 }) {
   const [punkte, setPunkte] = useState(0);
   const [punkteGesamt, setPunkteGesamt] = useState(0);
+  const [gurkenAdresse, setGurkenAdresse] = useState<GurkenAdresse | null>(null);
   const [loading, setLoading] = useState(true);
   const [dailyAvailable, setDailyAvailable] = useState(true);
   const [quoteAvailable, setQuoteAvailable] = useState(true);
@@ -67,6 +75,7 @@ export function PunkteProvider({
       const data = await res.json();
       setPunkte(data.punkte);
       setPunkteGesamt(data.punkteGesamt ?? data.punkte ?? 0);
+      setGurkenAdresse(data.gurkenAdresse ?? null);
       setDailyAvailable(data.dailyAvailable);
       setQuoteAvailable(data.quoteAvailable ?? true);
       setQuoteRemaining(data.quoteRemaining ?? 3);
@@ -81,12 +90,15 @@ export function PunkteProvider({
   }, [apiBase]);
 
   const claim = useCallback(
-    async (action: string): Promise<ClaimResult | null> => {
+    async (
+      action: string,
+      extra?: Record<string, unknown>,
+    ): Promise<ClaimResult | null> => {
       try {
         const res = await fetch(apiBase, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action }),
+          body: JSON.stringify({ action, ...(extra ?? {}) }),
         });
         if (!res.ok) return null;
         return await res.json();
@@ -114,6 +126,7 @@ export function PunkteProvider({
         werbungenOffen,
         verlauf,
         leaderboardApiBase: `${apiBase}/leaderboard`,
+        gurkenAdresse,
         refresh,
         claim,
       }}
