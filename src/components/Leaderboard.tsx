@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { Trophy } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
 import { SpinningCucumber } from "@/components/SpinningCucumber";
-import { type LeaderboardDaten, type LeaderboardEintrag } from "@/lib/leaderboard";
+import {
+  type LeaderboardDaten,
+  type LeaderboardEintrag,
+  rangTitelFuer,
+} from "@/lib/leaderboard";
 
 const MEDAILLEN = ["🥇", "🥈", "🥉"];
 
@@ -39,6 +43,12 @@ function RangZeile({
       <span className="min-w-0 flex-1 truncate text-sm text-gurken-200 uppercase tracking-wide">
         {/* Nur die ersten zwei Buchstaben – den vollen Namen zeigt die Rangliste bewusst nicht. */}
         {eintrag.name.trim().slice(0, 2)}
+        <span
+          className="ml-2 inline-block rounded border border-gurken-500/30 bg-gurken-800/40 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-gurken-300"
+          title={`${zahl(eintrag.punkte)} Punkte`}
+        >
+          {rangTitelFuer(eintrag.punkte)}
+        </span>
         {istDu && (
           <span className="ml-2 rounded border border-yellow-400/30 px-1 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-yellow-400">
             du
@@ -109,8 +119,10 @@ export function Leaderboard() {
       </div>
       <p className="mb-3 text-xs leading-relaxed text-gurken-500">
         Geranking nach den <strong className="text-gurken-400">normalen Punkten</strong>{" "}
-        – bei Gleichstand gewinnt das ältere Mitglied. Wer eine echte Gurke
-        einlöst, verliert 1000 Punkte und kann dafür rutschen.
+        – bei Gleichstand gewinnt das ältere Mitglied. Je mehr Punkte, desto
+        höher das <strong className="text-gurken-400">Rangzeichen</strong>: von
+        Nano Gurke bis Extremst riesige Gurke. Wer eine echte Gurke einlöst,
+        verliert 1000 Punkte und kann dafür rutschen.
       </p>
 
       {!geladen && (

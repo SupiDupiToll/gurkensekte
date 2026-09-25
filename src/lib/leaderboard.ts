@@ -31,6 +31,30 @@ export function vergleicheEintraege(
   return aSeit - bSeit;
 }
 
+/**
+ * Rangzeichen der Gurken-Sekte: Wer genug Punkte hat, bekommt einen
+ * prestigeträchtigeren Titel. Schwellen liegen auf der normalen Punkteskala
+ * (1000 = eine echte Gurke einlösbar).
+ */
+export const RANG_TITEL: { ab: number; titel: string }[] = [
+  { ab: 0, titel: "Nano Gurke" },
+  { ab: 250, titel: "Mini Gurke" },
+  { ab: 500, titel: "Gurke" },
+  { ab: 1000, titel: "Große Gurke" },
+  { ab: 2500, titel: "Super große Gurke" },
+  { ab: 5000, titel: "Riesen Gurke" },
+  { ab: 10000, titel: "Extremst riesige Gurke" },
+];
+
+/** Höchste Stufe, die man mit diesen Punkten erreicht hat. */
+export function rangTitelFuer(punkte: number): string {
+  let titel = RANG_TITEL[0].titel;
+  for (const stufe of RANG_TITEL) {
+    if (punkte >= stufe.ab) titel = stufe.titel;
+  }
+  return titel;
+}
+
 /** 1-basierte Position, die der Eintrag in der sortierten Liste hätte. */
 export function positionFuer(
   eintraege: LeaderboardEintrag[],
