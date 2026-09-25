@@ -4,6 +4,12 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
 import { Leaderboard } from "@/components/Leaderboard";
+import { Rangstufen } from "@/components/Rangstufen";
+import {
+  naechsterRang,
+  rangTitelFuer,
+  rangstufeVon,
+} from "@/lib/leaderboard";
 import { ReferralBox } from "@/components/ReferralBox";
 import {
   SpinningCucumber,
@@ -89,6 +95,17 @@ function PunkteInhalt() {
     );
   }
 
+  // Rangzeichen für die Kopfzeile: aktueller Titel + Rest bis zur nächsten Stufe.
+  const rangTitel = rangTitelFuer(punkte);
+  const naechsterRangStufe = naechsterRang(punkte);
+  const rangFortschritt = (() => {
+    if (!naechsterRangStufe) return 100;
+    const von = rangstufeVon(punkte);
+    const spanne = naechsterRangStufe.ab - von;
+    if (spanne <= 0) return 100;
+    return Math.min(((punkte - von) / spanne) * 100, 100);
+  })();
+
   return (
     <>
       {/* Points Balance */}
@@ -106,6 +123,35 @@ function PunkteInhalt() {
             {punkteGesamt.toLocaleString("de-DE")} XP
           </span>{" "}
           – die fallen nie, auch beim Einlösen nicht.
+        </div>
+
+        {/* Rangzeichen mit Rest bis zur nächsten Stufe */}
+        <div className="mt-3 inline-flex w-full max-w-xs flex-col items-center rounded-xl border border-yellow-400/25 bg-yellow-400/5 px-5 py-3 shadow-[0_0_25px_rgba(250,204,21,0.15)]">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gurken-500">
+            Dein Rang
+          </span>
+          <span className="font-heading text-xl font-bold text-yellow-300 [text-shadow:0_0_14px_rgba(250,204,21,0.55)]">
+            {rangTitel}
+          </span>
+          <span className="mt-0.5 text-[11px] text-gurken-400">
+            {naechsterRangStufe ? (
+              <>
+                Noch{" "}
+                <strong className="text-yellow-300">
+                  {naechsterRangStufe.fehlt.toLocaleString("de-DE")}
+                </strong>{" "}
+                Punkte bis <strong className="text-gurken-200">{naechsterRangStufe.titel}</strong>
+              </>
+            ) : (
+              <>Höchster Rang erreicht 🏆</>
+            )}
+          </span>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gurken-800/60">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-gurken-600 to-yellow-400 transition-all duration-500"
+              style={{ width: `${rangFortschritt}%` }}
+            />
+          </div>
         </div>
 
         {punkte >= 1000 ? (
@@ -177,6 +223,9 @@ function PunkteInhalt() {
           </ul>
         </div>
       </div>
+
+      {/* Rangzeichen-Übersicht */}
+      <Rangstufen punkte={punkte} />
 
       {/* Gurken-Rangliste */}
       <Leaderboard />

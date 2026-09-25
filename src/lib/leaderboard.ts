@@ -55,6 +55,27 @@ export function rangTitelFuer(punkte: number): string {
   return titel;
 }
 
+/** Nächste Stufe, die mit diesen Punkten noch offen ist – sonst null. */
+export function naechsterRang(
+  punkte: number,
+): { titel: string; ab: number; fehlt: number } | null {
+  for (const stufe of RANG_TITEL) {
+    if (punkte < stufe.ab) {
+      return { titel: stufe.titel, ab: stufe.ab, fehlt: stufe.ab - punkte };
+    }
+  }
+  return null;
+}
+
+/** Untergrenze der Stufe, auf der man gerade steht (für Fortschrittsbalken). */
+export function rangstufeVon(punkte: number): number {
+  let ab = 0;
+  for (const stufe of RANG_TITEL) {
+    if (punkte >= stufe.ab) ab = stufe.ab;
+  }
+  return ab;
+}
+
 /** 1-basierte Position, die der Eintrag in der sortierten Liste hätte. */
 export function positionFuer(
   eintraege: LeaderboardEintrag[],
