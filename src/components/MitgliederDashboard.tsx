@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
+import { Leaderboard } from "@/components/Leaderboard";
 import { ReferralBox } from "@/components/ReferralBox";
 import {
   SpinningCucumber,
@@ -56,7 +57,8 @@ export type MitgliedInfo = {
 };
 
 function PunkteInhalt() {
-  const { punkte, loading, dailyAvailable, verlauf, refresh, claim } = usePunkte();
+  const { punkte, punkteGesamt, loading, dailyAvailable, verlauf, refresh, claim } =
+    usePunkte();
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [claimingRedeem, setClaimingRedeem] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -98,6 +100,13 @@ function PunkteInhalt() {
           {punkte}
         </div>
         <div className="text-gurken-400 text-sm">🥒 Punkte</div>
+        <div className="mt-1.5 text-xs text-gurken-500">
+          Gesammelt: {" "}
+          <span className="font-bold text-gurken-300">
+            {punkteGesamt.toLocaleString("de-DE")} XP
+          </span>{" "}
+          – die fallen nie, auch beim Einlösen nicht.
+        </div>
 
         {punkte >= 1000 ? (
           <div className="mt-4 space-y-3">
@@ -169,6 +178,9 @@ function PunkteInhalt() {
         </div>
       </div>
 
+      {/* Gurken-Rangliste */}
+      <Leaderboard />
+
       {/* History toggle */}
       <button
         onClick={() => setShowHistory(!showHistory)}
@@ -225,8 +237,9 @@ function PunkteAnzeige() {
               🥒 Punkte & Belohnungen 🥒
             </h2>
             <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
-              Sammle Punkte durch Zitate, Chats und tägliche Boni. Ab 1000 Punkten
-              gibt es eine echte Gurke!
+              Sammle Punkte durch Zitate, Chats und tägliche Boni, vergleiche
+              dich in der Gurken-Rangliste und ab 1000 Punkten gibt es eine
+              echte Gurke!
             </p>
             <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
               <Coin size={22} weight="fill" className="text-yellow-400" />

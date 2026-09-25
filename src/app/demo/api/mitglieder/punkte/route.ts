@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { getDemoProfile, mitDemoCookie } from "@/lib/demoStore";
 
 const POINTS = {
   zitat: 5,
@@ -9,91 +9,31 @@ const POINTS = {
 
 type Action = keyof typeof POINTS;
 
-type VerlaufEintrag = {
-  datum: string;
-  aktion: string;
-  punkte: number;
-  saldo: number;
-};
-
-type DemoProfile = {
-  punkte: number;
-  letzterDailyBonus: string | null;
-  letzterZitatBonus: string | null;
-  zitatBonusCount: number;
-  punkteVerlauf: VerlaufEintrag[];
-};
-
-const COOKIE_NAME = "gurken_demo";
-const stores = new Map<string, DemoProfile>();
-
-function parseCookies(req: Request): Record<string, string> {
-  const header = req.headers.get("cookie") ?? "";
-  const cookies: Record<string, string> = {};
-  for (const part of header.split(";")) {
-    const idx = part.indexOf("=");
-    if (idx === -1) continue;
-    cookies[part.slice(0, idx).trim()] = decodeURIComponent(
-      part.slice(idx + 1).trim(),
-    );
-  }
-  return cookies;
-}
-
-function getProfile(req: Request, res: Response): DemoProfile {
-  let id = parseCookies(req)[COOKIE_NAME];
-  if (!id) {
-    id = randomUUID();
-    res.headers.set(
-      "Set-Cookie",
-      `${COOKIE_NAME}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,
-    );
-  }
-  let profile = stores.get(id);
-  if (!profile) {
-    profile = {
-      punkte: 0,
-      letzterDailyBonus: null,
-      letzterZitatBonus: null,
-      zitatBonusCount: 0,
-      punkteVerlauf: [],
-    };
-    stores.set(id, profile);
-    if (stores.size > 1000) {
-      const oldest = stores.keys().next().value;
-      if (oldest !== undefined) stores.delete(oldest);
-    }
-  }
-  return profile;
-}
-
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   const res = new Response();
-  const profile = getProfile(req, res);
+  const profile = getDemoProfile(req, res);
   const today = new Date().toISOString().split("T")[0];
   const quoteCountToday =
-    profile.letzterZitatBonus === today ? Math.max(profile.zitatBonusCount ?? 0, 1) : 0;
+    profile.letzterZitatBonus === today ? Math.max(profile.zitatBonusCount, 1) : 0;
 
-  const json = Response.json({
-    punkte: profile.punkte,
-    dailyAvailable: profile.letzterDailyBonus !== today,
-    quoteAvailable: quoteCountToday < 3,
-    quoteRemaining: Math.max(0, 3 - quoteCountToday),
-    verlauf: profile.punkteVerlauf,
-  });
-  const cookie = res.headers.get("Set-Cookie");
-  if (cookie) {
-    json.headers.set("Set-Cookie", cookie);
-  }
-  return json;
+  return mitDemoCookie(
+    Response.json({
+      punkte: profile.punkte,
+      punkteGesamt: profile.punkteGesamt,
+      dailyAvailable: profile.letzterDailyBonus !== today,
+      quoteAvailable: quoteCountToday < 3,
+      quoteRemaining: Math.max(0, 3 - quoteCountToday),
+      verlauf: profile.punkteVerlauf,
+    }),
+    res,
+  );
 }
 
 export async function POST(req: Request) {
   const res = new Response();
-  const profile = getProfile(req, res);
-
+  const profile = getDemoProfile(req, res);
   const body = (await req.json()) as { action?: string };
   const action = body.action as Action | undefined;
 
@@ -103,7 +43,7 @@ export async function POST(req: Request) {
 
   const today = new Date().toISOString().split("T")[0];
   const quoteCountToday =
-    profile.letzterZitatBonus === today ? Math.max(profile.zitatBonusCount ?? 0, 1) : 0;
+    profile.letzterZitatBonus === today ? Math.max(profile.zitatBonusCount, 1) : 0;
 
   if (action === "daily" && profile.letzterDailyBonus === today) {
     return Response.json({ error: "Heute schon abgeholt" }, { status: 400 });
@@ -119,16 +59,21 @@ export async function POST(req: Request) {
 
   const delta = POINTS[action];
   const newPoints = profile.punkte + delta;
+  // XP steigen nur bei positivem Delta – Einlösen drückt das Guthaben, aber
+  // nie die gesammelten Punkte (und damit nie den Rang in der Rangliste).
+  const newTotal = delta > 0 ? profile.punkteGesamt + delta : profile.punkteGesamt;
+  const verlauf = profile.punkteVerlauf.slice(-9);
 
-  profile.punkteVerlauf.push({
+  verlauf.push({
     datum: new Date().toISOString(),
     aktion: action,
     punkte: delta,
     saldo: newPoints,
   });
-  profile.punkteVerlauf = profile.punkteVerlauf.slice(-9);
 
+  profile.punkteVerlauf = verlauf;
   profile.punkte = newPoints;
+  profile.punkteGesamt = newTotal;
   if (action === "daily") {
     profile.letzterDailyBonus = today;
   }
@@ -142,16 +87,15 @@ export async function POST(req: Request) {
 
   const nextQuoteCountToday = action === "zitat" ? quoteCountToday + 1 : quoteCountToday;
 
-  const json = Response.json({
-    punkte: newPoints,
-    delta,
-    dailyAvailable: profile.letzterDailyBonus !== today,
-    quoteAvailable: nextQuoteCountToday < 3,
-    quoteRemaining: Math.max(0, 3 - nextQuoteCountToday),
-  });
-  const cookie = res.headers.get("Set-Cookie");
-  if (cookie) {
-    json.headers.set("Set-Cookie", cookie);
-  }
-  return json;
+  return mitDemoCookie(
+    Response.json({
+      punkte: newPoints,
+      punkteGesamt: newTotal,
+      delta,
+      dailyAvailable: profile.letzterDailyBonus !== today,
+      quoteAvailable: nextQuoteCountToday < 3,
+      quoteRemaining: Math.max(0, 3 - nextQuoteCountToday),
+    }),
+    res,
+  );
 }

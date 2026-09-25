@@ -13,6 +13,8 @@ type ClaimResult = { punkte: number; delta: number };
 
 type PunkteContextType = {
   punkte: number;
+  /** Je gesammelte Punkte (XP) – fällt nie, auch nicht beim Einlösen. */
+  punkteGesamt: number;
   loading: boolean;
   dailyAvailable: boolean;
   quoteAvailable: boolean;
@@ -20,12 +22,15 @@ type PunkteContextType = {
   geworben: number;
   werbungenOffen: number;
   verlauf: VerlaufEintrag[];
+  /** Endpunkt der Gurken-Rangliste (gehört zur gewählten Punkte-API). */
+  leaderboardApiBase: string;
   refresh: () => Promise<void>;
   claim: (action: string) => Promise<ClaimResult | null>;
 };
 
 const PunkteContext = createContext<PunkteContextType>({
   punkte: 0,
+  punkteGesamt: 0,
   loading: true,
   dailyAvailable: true,
   quoteAvailable: true,
@@ -33,6 +38,7 @@ const PunkteContext = createContext<PunkteContextType>({
   geworben: 0,
   werbungenOffen: 0,
   verlauf: [],
+  leaderboardApiBase: "/api/mitglieder/punkte/leaderboard",
   refresh: async () => {},
   claim: async () => null,
 });
@@ -45,6 +51,7 @@ export function PunkteProvider({
   apiBase?: string;
 }) {
   const [punkte, setPunkte] = useState(0);
+  const [punkteGesamt, setPunkteGesamt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [dailyAvailable, setDailyAvailable] = useState(true);
   const [quoteAvailable, setQuoteAvailable] = useState(true);
@@ -59,6 +66,7 @@ export function PunkteProvider({
       if (!res.ok) return;
       const data = await res.json();
       setPunkte(data.punkte);
+      setPunkteGesamt(data.punkteGesamt ?? data.punkte ?? 0);
       setDailyAvailable(data.dailyAvailable);
       setQuoteAvailable(data.quoteAvailable ?? true);
       setQuoteRemaining(data.quoteRemaining ?? 3);
@@ -97,6 +105,7 @@ export function PunkteProvider({
     <PunkteContext.Provider
       value={{
         punkte,
+        punkteGesamt,
         loading,
         dailyAvailable,
         quoteAvailable,
@@ -104,6 +113,7 @@ export function PunkteProvider({
         geworben,
         werbungenOffen,
         verlauf,
+        leaderboardApiBase: `${apiBase}/leaderboard`,
         refresh,
         claim,
       }}

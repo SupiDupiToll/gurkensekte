@@ -74,6 +74,9 @@ export async function GET(req: Request) {
 
   const currentPoints = (meta.punkte as number) ?? 0;
   const newPoints = currentPoints + REFERRAL_POINTS;
+  // XP-Bestand: nie fallend, wird nur nach oben geschrieben.
+  const currentTotal =
+    typeof meta.punkteGesamt === "number" ? meta.punkteGesamt : currentPoints;
   const verlauf = ((meta.punkteVerlauf as unknown[]) ?? []).slice(-9);
   verlauf.push({
     datum: new Date().toISOString(),
@@ -85,6 +88,7 @@ export async function GET(req: Request) {
   await referrer.setClientReadOnlyMetadata({
     ...meta,
     punkte: newPoints,
+    punkteGesamt: currentTotal + REFERRAL_POINTS,
     punkteVerlauf: verlauf,
     werbungen: ((meta.werbungen as number) ?? 0) + 1,
     [REFERRAL_PENDING_KEY]: pending.filter((item) => item.token !== token),

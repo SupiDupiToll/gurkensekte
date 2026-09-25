@@ -25,8 +25,14 @@ export async function GET(req: Request) {
   const quoteCountToday =
     quoteBonusDate === today ? Math.max(storedQuoteCount, quoteBonusDate ? 1 : 0) : 0;
 
+  const punkte = (meta.punkte as number) ?? 0;
+
   return Response.json({
-    punkte: (meta.punkte as number) ?? 0,
+    punkte,
+    // Fehlt das Feld noch (altes Konto), gelten die bisherigen Punkte als
+    // gesamter Stand – danach steigen die XP nur noch nach oben.
+    punkteGesamt:
+      typeof meta.punkteGesamt === "number" ? meta.punkteGesamt : punkte,
     dailyAvailable: meta.letzterDailyBonus !== today,
     quoteAvailable: quoteCountToday < 3,
     quoteRemaining: Math.max(0, 3 - quoteCountToday),
@@ -78,6 +84,11 @@ export async function POST(req: Request) {
 
   const delta = POINTS[action];
   const newPoints = currentPoints + delta;
+  // Gesammelte Punkte (XP) fallen nie – erst beim allerersten Claim eines
+  // Bestandskontos auf den aktuellen Stand initialisiert.
+  const currentTotal =
+    typeof meta.punkteGesamt === "number" ? meta.punkteGesamt : currentPoints;
+  const newTotal = delta > 0 ? currentTotal + delta : currentTotal;
   const verlauf = ((meta.punkteVerlauf as unknown[]) ?? []).slice(-9);
 
   verlauf.push({
@@ -89,6 +100,7 @@ export async function POST(req: Request) {
 
   const update: Record<string, unknown> = {
     punkte: newPoints,
+    punkteGesamt: newTotal,
     punkteVerlauf: verlauf,
   };
 
@@ -108,6 +120,7 @@ export async function POST(req: Request) {
 
   return Response.json({
     punkte: newPoints,
+    punkteGesamt: newTotal,
     delta,
     dailyAvailable: nextDailyBonusDate !== today,
     quoteAvailable: nextQuoteCountToday < 3,
