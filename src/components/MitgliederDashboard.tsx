@@ -26,7 +26,9 @@ import {
   ClockCounterClockwise,
   Flask,
   ArrowLeft,
+  DiceFive,
 } from "@phosphor-icons/react";
+import { demoPath } from "@/lib/demo";
 
 type Message = {
   role: "user" | "assistant";
@@ -828,6 +830,29 @@ export function MitgliederDashboard({
 
         {/* Gürkchen-Zitat */}
         <GurkchenQuoteCard />
+
+        {/* Gurken Casino – eigene Seite unterhalb des Mitgliederbereichs */}
+        <div className="mb-8">
+          <Link
+            href={
+              isDemo ? demoPath("/mitglieder/casino") : "/mitglieder/casino"
+            }
+            className="group flex items-center justify-between gap-4 rounded-2xl border border-yellow-400/25 bg-gradient-to-br from-yellow-400/10 via-gurken-800/40 to-gurken-900/40 px-6 py-5 transition-all duration-300 hover:border-yellow-400/50 hover:shadow-[0_0_35px_rgba(250,204,21,0.25)] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
+          >
+            <div className="min-w-0 text-left">
+              <div className="font-heading text-lg font-bold text-gurken-200">
+                🥒 Gurken Casino
+              </div>
+              <p className="mt-0.5 text-sm text-gurken-400">
+                Wage deine Punkte an der Slotmaschine – höchstens 2× Gewinn,
+                aber auch minus möglich.
+              </p>
+            </div>
+            <span className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-yellow-400 text-gurken-950 shadow-[0_0_20px_rgba(250,204,21,0.35)] transition-transform group-hover:scale-105">
+              <DiceFive size={26} weight="fill" />
+            </span>
+          </Link>
+        </div>
 
 
         {/* Sign Out / Demo Exit */}
