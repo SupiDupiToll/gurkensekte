@@ -14,7 +14,7 @@ export const REFERRAL_COOKIE = "gurken_ref";
 export const REFERRAL_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 /** So viele Punkte erhält der Werber pro neuem Mitglied. */
-export const REFERRAL_POINTS = 100;
+export const REFERRAL_POINTS = 150;
 
 /** Aktionsname im Punkte-Verlauf des Werbers. */
 export const REFERRAL_ACTIVITY = "freund-werben";
