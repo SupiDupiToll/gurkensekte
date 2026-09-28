@@ -1,5 +1,7 @@
+import { hexclaveServerApp } from "@/hexclave/server";
 import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
+import { bucheBonus, istPunkteFehler } from "@/lib/punkte";
 
 const QUOTE_SYSTEM_PROMPT =
   "Du bist Gürkchen, der selbsternannte Anführer der 'Gurken Sekte'. " +
@@ -37,23 +39,49 @@ const QUOTE_FENSTER_MS = 10 * 60 * 1000;
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
-  // Kostenschutz vor allen weiteren Checks: begrenzt Anfragen pro IP,
-  // auch innerhalb einer gültigen 30-Minuten-Captcha-Sitzung.
+  // Kostenschutz vor allen weiteren Checks: begrenzt Anfragen pro IP.
+  // fail-closed: Bei Redis-Ausfall lieber ablehnen als unbegrenzte
+  // LLM-Kosten zu riskieren.
   const ip = getClientIp(req) ?? "no-ip";
-  if (!(await rateLimit(`quote:${ip}`, QUOTE_LIMIT, QUOTE_FENSTER_MS))) {
+  if (
+    !(await rateLimit(`quote:${ip}`, QUOTE_LIMIT, QUOTE_FENSTER_MS, {
+      failClosed: true,
+    }))
+  ) {
     return rateLimitAntwort(QUOTE_FENSTER_MS);
   }
 
-  // Bot-Schutz: Das Token kommt per Query (`?turnstileToken=…`) oder Header,
-  // eine gültige 30-Minuten-Sitzung lässt die Anfrage ohne Token durch.
+  // Bot-Schutz: Jedes Zitat braucht ein frisch gelöstes Captcha (Single-Use:
+  // Das Token wird hier verbraucht und darf nicht zusätzlich an die
+  // Punkte-Route weitergereicht werden). Das Token kommt per Query
+  // (`?turnstileToken=…`) oder Header, eine frische Lösung ist Pflicht –
+  // Sitzungen gelten hier nicht. Hinweis: Query-Token landen in Access-Logs,
+  // sind aber nach der Prüfung sofort verbraucht und damit wertlos.
   const url = new URL(req.url);
   const token =
     url.searchParams.get("turnstileToken") ??
     req.headers.get("x-turnstile-token");
 
-  const captcha = await pruefeTurnstile(req, { token });
+  const captcha = await pruefeTurnstile(req, { token, frischesToken: true });
   if (!captcha.ok) {
     return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+  }
+
+  // Eingeloggte Mitglieder erhalten +5 Zitat-Punkte direkt hier (max. 3/Tag):
+  // separates Claimen würde das Single-Use-Token ein zweites Mal prüfen.
+  const mitglied = await hexclaveServerApp.getUser({
+    tokenStore: req,
+    or: "return-null",
+  });
+  if (mitglied) {
+    try {
+      await bucheBonus(req, mitglied.id, "zitat");
+    } catch (error) {
+      if (istPunkteFehler(error)) {
+        return Response.json({ error: error.message }, { status: error.status });
+      }
+      throw error;
+    }
   }
 
   const apiKeys = getApiKeys();
@@ -62,7 +90,7 @@ export async function GET(req: Request) {
     return Response.json({ quote: FALLBACK_QUOTE });
   }
 
-  for (const apiKey of apiKeys) {
+  for (const [index, apiKey] of apiKeys.entries()) {
     try {
       const response = await fetch(
         "https://openrouter.ai/api/v1/chat/completions",
@@ -86,7 +114,7 @@ export async function GET(req: Request) {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(
-          `Gürkchen-Quote: Fehler (${response.status}) mit Key ${apiKey.slice(0, 8)}...:`,
+          `Gürkchen-Quote: Fehler (${response.status}) mit Key #${index + 1}:`,
           errorText,
         );
         continue;
@@ -98,7 +126,7 @@ export async function GET(req: Request) {
       return Response.json({ quote });
     } catch (error) {
       console.error(
-        `Gürkchen-Quote: Network-Fehler mit Key ${apiKey.slice(0, 8)}...:`,
+        `Gürkchen-Quote: Network-Fehler mit Key #${index + 1}:`,
         error,
       );
     }

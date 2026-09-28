@@ -37,11 +37,16 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const res = new Response();
   const profile = getDemoProfile(req, res);
-  const body = (await req.json()) as {
-    action?: string;
-    adresse?: unknown;
-    turnstileToken?: unknown;
-  };
+  let body: { action?: string; adresse?: unknown; turnstileToken?: unknown };
+  try {
+    body = (await req.json()) as {
+      action?: string;
+      adresse?: unknown;
+      turnstileToken?: unknown;
+    };
+  } catch {
+    return Response.json({ error: "Ungültige Anfrage" }, { status: 400 });
+  }
   const action = body.action as Action | undefined;
 
   if (!action || !(action in POINTS)) {

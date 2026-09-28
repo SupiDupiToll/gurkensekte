@@ -563,8 +563,11 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
       setDelta(null);
       setZiel(data.gewinnzahl);
       setDreht(true);
-      setCaptchaPflicht(false);
-      setCaptchaHinweis(null);
+      // Jede Kugel kostet ein frisches Captcha: Widget für die nächste
+      // Runde zurücksetzen (der Server akzeptiert keine Sitzung).
+      setTurnstileToken(null);
+      setCaptchaReset((n) => n + 1);
+      setCaptchaHinweis("Für jede Runde bitte kurz das Captcha lösen.");
     } catch {
       setFehler(
         controller.signal.aborted

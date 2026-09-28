@@ -22,9 +22,10 @@ export const REFERRAL_ACTIVITY = "freund-werben";
 /**
  * An diese Adresse geht jede offene Werbung zur Prüfung. Die Sekten-Leitung
  * bestätigt sie über den Link in der E-Mail, erst danach werden die Punkte
- * gutgeschrieben.
+ * gutgeschrieben. Per Env überschreibbar (fällt sonst auf die Leitung zurück).
  */
-export const REFERRAL_REVIEW_EMAIL = "rui@sdtoll.de";
+export const REFERRAL_REVIEW_EMAIL =
+  process.env.REFERRAL_REVIEW_EMAIL ?? "rui@sdtoll.de";
 
 /** Name des Metadaten-Feldes, in dem offene (unbestätigte) Werbungen liegen. */
 export const REFERRAL_PENDING_KEY = "referralPending";

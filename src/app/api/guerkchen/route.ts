@@ -1,5 +1,7 @@
+import { hexclaveServerApp } from "@/hexclave/server";
 import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
+import { bucheBonus, istPunkteFehler } from "@/lib/punkte";
 
 const GUERKCHEN_SYSTEM_PROMPT =
   "Du bist Gürkchen, der selbsternannte, größenwahnsinnige und leicht absurde " +
@@ -67,10 +69,15 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    // Kostenschutz vor allen weiteren Checks: begrenzt Anfragen pro IP,
-    // auch innerhalb einer gültigen 30-Minuten-Captcha-Sitzung.
+    // Kostenschutz vor allen weiteren Checks: begrenzt Anfragen pro IP.
+    // fail-closed: Bei Redis-Ausfall lieber ablehnen als unbegrenzte
+    // LLM-Kosten zu riskieren.
     const ip = getClientIp(req) ?? "no-ip";
-    if (!(await rateLimit(`guerkchen:${ip}`, CHAT_LIMIT, CHAT_FENSTER_MS))) {
+    if (
+      !(await rateLimit(`guerkchen:${ip}`, CHAT_LIMIT, CHAT_FENSTER_MS, {
+        failClosed: true,
+      }))
+    ) {
       return rateLimitAntwort(CHAT_FENSTER_MS);
     }
 
@@ -84,13 +91,39 @@ export async function POST(req: Request) {
       return Response.json({ error: "Ungültiger Nachrichtenverlauf" }, { status: 400 });
     }
 
-    // Bot-Schutz: Erst mit gültigem Turnstile-Captcha (oder gültiger
-    // 30-Minuten-Sitzung) antwortet Gürkchen – sonst 403 mit Wiederholhinweis.
-    const captcha = await pruefeTurnstile(req, { token: turnstileToken });
+    // Bot-Schutz: Jede Nachricht braucht ein frisch gelöstes Captcha – eine
+    // 30-Minuten-Sitzung würde Bot-Spam pro gelöstem Captcha unbegrenzt
+    // erlauben (LLM-Kosten + Chat-Punkte-Farming).
+    const captcha = await pruefeTurnstile(req, {
+      token: turnstileToken,
+      frischesToken: true,
+    });
     if (!captcha.ok) {
       return Response.json(turnstileFehltFehler(captcha.grund), {
         status: 403,
       });
+    }
+
+    // Eingeloggte Mitglieder erhalten +5 Chat-Punkte direkt hier: Das Token
+    // ist Single-Use und darf nicht zusätzlich an die Punkte-Route zur
+    // Prüfung weitergereicht werden. Anonyme Chatter bekommen nur Antwort.
+    // Schlägt die Gutschrift fehl, antwortet Gürkchen trotzdem (der
+    // LLM-Erfolg zählt, die +5 sind dann eben verloren – fail-open für
+    // Verfügbarkeit, kein Punkte-Verlust für den Chat selbst).
+    const mitglied = await hexclaveServerApp.getUser({
+      tokenStore: req,
+      or: "return-null",
+    });
+    if (mitglied) {
+      try {
+        await bucheBonus(req, mitglied.id, "chat");
+      } catch (error) {
+        if (istPunkteFehler(error)) {
+          console.error("Gürkchen-Chat: Gutschrift fehlgeschlagen:", error.message);
+        } else {
+          throw error;
+        }
+      }
     }
 
     const apiKeys = getApiKeys();
@@ -102,7 +135,7 @@ export async function POST(req: Request) {
 
     let lastError: unknown = null;
 
-    for (const apiKey of apiKeys) {
+    for (const [index, apiKey] of apiKeys.entries()) {
       try {
         const response = await fetch(
           "https://openrouter.ai/api/v1/chat/completions",
@@ -129,7 +162,7 @@ export async function POST(req: Request) {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(
-            `Gürkchen-Chat: OpenRouter Fehler (${response.status}) mit Key ${apiKey.slice(0, 8)}...:`,
+            `Gürkchen-Chat: OpenRouter Fehler (${response.status}) mit Key #${index + 1}:`,
             errorText,
           );
           lastError = new Error(`HTTP ${response.status}: ${errorText}`);
@@ -182,7 +215,7 @@ export async function POST(req: Request) {
         });
       } catch (error) {
         console.error(
-          `Gürkchen-Chat: Network-Fehler mit Key ${apiKey.slice(0, 8)}...:`,
+          `Gürkchen-Chat: Network-Fehler mit Key #${index + 1}:`,
           error,
         );
         lastError = error;

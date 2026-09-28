@@ -18,6 +18,12 @@ export type BuchungsUser = ServerUser & {
   ) => Promise<unknown>;
 };
 
+/** Punkte pro Chat-Nachricht bzw. Zitat – jede Buchung kostet ein frisches Captcha. */
+export const PUNKTE_CHAT = 5;
+export const PUNKTE_ZITAT = 5;
+/** Max. Zitat-Boni pro Konto und Tag. */
+export const ZITAT_MAX_PRO_TAG = 3;
+
 /** Fehler mit HTTP-Status für Buchungs-Abbrüche (Quota, Guthaben, Login). */
 export class PunkteFehler extends Error {
   readonly status: number;
@@ -96,5 +102,56 @@ export async function mitFrischemBenutzer<T>(
       unknown
     >;
     return arbeit(frisch, meta);
+  });
+}
+
+export type BonusErgebnis = {
+  punkte: number;
+  punkteGesamt: number;
+  delta: number;
+  quoteRemaining: number;
+};
+
+/**
+ * Gutschrift für Chat (unbegrenzt – jede Buchung kostet ein frisches
+ * Captcha) oder Zitat (max. 3/Tag). Wirft PunkteFehler bei Quota-Verstößen.
+ * Aufrufer: Gürkchen-Chat, Zitat-Route. Die Punkte-Route bucht direkt (sie
+ * hat zusätzlich Daily/Einlösen-Flows).
+ */
+export async function bucheBonus(
+  req: Request,
+  userId: string,
+  aktion: "chat" | "zitat",
+): Promise<BonusErgebnis> {
+  const delta = aktion === "chat" ? PUNKTE_CHAT : PUNKTE_ZITAT;
+  return mitFrischemBenutzer(req, userId, async (frisch, meta) => {
+    const heute = heuteISO();
+    const zitatBisher = zitatZaehlerHeute(meta, heute);
+    if (aktion === "zitat" && zitatBisher >= ZITAT_MAX_PRO_TAG) {
+      throw new PunkteFehler(400, "Heute schon 3 Zitate generiert");
+    }
+    const stand = lesePunkte(meta);
+    const newPoints = stand + delta;
+    const newTotal = lesePunkteGesamt(meta, stand) + delta;
+    const verlauf = leseVerlauf(meta).slice(-9);
+    verlauf.push({
+      datum: new Date().toISOString(),
+      aktion,
+      punkte: delta,
+      saldo: newPoints,
+    });
+    const update: Record<string, unknown> = {
+      punkte: newPoints,
+      punkteGesamt: newTotal,
+      punkteVerlauf: verlauf,
+    };
+    let quoteRemaining = ZITAT_MAX_PRO_TAG;
+    if (aktion === "zitat") {
+      update.letzterZitatBonus = heute;
+      update.zitatBonusCount = zitatBisher + 1;
+      quoteRemaining = Math.max(0, ZITAT_MAX_PRO_TAG - (zitatBisher + 1));
+    }
+    await frisch.setClientReadOnlyMetadata({ ...meta, ...update });
+    return { punkte: newPoints, punkteGesamt: newTotal, delta, quoteRemaining };
   });
 }

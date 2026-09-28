@@ -21,8 +21,12 @@ export async function POST(req: Request) {
     // leerer Body – unten abgefangen
   }
 
-  // Gleicher Bot-Schutz wie im echten Mitgliederbereich.
-  const captcha = await pruefeTurnstile(req, { token: body.turnstileToken });
+  // Gleicher Bot-Schutz wie im echten Mitgliederbereich: jeder Dreh
+  // braucht ein frisch gelöstes Captcha.
+  const captcha = await pruefeTurnstile(req, {
+    token: body.turnstileToken,
+    frischesToken: true,
+  });
   if (!captcha.ok) {
     return mitDemoCookie(
       Response.json(turnstileFehltFehler(captcha.grund), { status: 403 }),

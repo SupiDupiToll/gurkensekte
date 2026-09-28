@@ -45,13 +45,20 @@ function requestOrigin(req: Request): string {
   // Kanonische Origin aus der Server-Config – NIEMALS aus
   // `x-forwarded-host`/`host`: Die Origin landet in der Prüf-Mail an die
   // Sekten-Leitung, ein gefälschter Header würde dort einen Phishing-Link
-  // platzieren (Host-Header-Poisoning).
+  // platzieren (Host-Header-Poisoning). Fehlt SITE_URL in Production, wird
+  // hart abgebrochen statt einen Header zu vertrauen (fail-closed).
   const kanonisch = (
     process.env.SITE_URL ??
     process.env.NEXT_PUBLIC_SITE_URL ??
     ""
   ).trim().replace(/\/+$/, "");
   if (kanonisch) return kanonisch;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "SITE_URL fehlt in Production – Referral-Link kann nicht sicher gebaut werden.",
+    );
+  }
+  // Nur Dev-Fallback: Hier darf der Request-Host helfen.
   const url = new URL(req.url);
   const first = (value: string | null) => value?.split(",")[0]?.trim() || null;
   const proto = first(req.headers.get("x-forwarded-proto")) ?? url.protocol.replace(":", "");
@@ -112,11 +119,20 @@ export async function POST(req: Request) {
   }
 
   const token = createReferralToken();
-  const confirmLink = buildReferralConfirmLink(requestOrigin(req), referrer.id, token);
+  let confirmLink: string;
+  try {
+    confirmLink = buildReferralConfirmLink(requestOrigin(req), referrer.id, token);
+  } catch (error) {
+    console.error("Referral: Prüf-Mail abgebrochen –", error);
+    return respondKeepCookie({ credited: false, reason: "config-error" }, 500);
+  }
   const inviteeEmail = user.primaryEmail ?? null;
 
   // Erst die Prüf-Mail verschicken: Ohne Link darf keine offene Werbung liegen
   // bleiben, die niemand bestätigen kann.
+  // Hinweis: `confirmLink` wird hier escaped interpoliert – rohe Origins
+  // (Header-Fallback nur im Dev) dürften sonst HTML in der Mail brechen.
+  const confirmLinkHtml = escapeHtml(confirmLink);
   try {
     await hexclaveServerApp.sendEmail({
       emails: [REFERRAL_REVIEW_EMAIL],
@@ -131,13 +147,13 @@ export async function POST(req: Request) {
           Bei Bestätigung erhält der Werber <strong>+${REFERRAL_POINTS} Punkte</strong>.
         </p>
         <p style="font-family:sans-serif">
-          <a href="${confirmLink}"
+          <a href="${confirmLinkHtml}"
              style="display:inline-block;padding:12px 24px;border-radius:10px;background:#22c55e;color:#052e16;font-weight:700;text-decoration:none">
             Werbung bestätigen &amp; +${REFERRAL_POINTS} Punkte gutschreiben
           </a>
         </p>
         <p style="font-family:sans-serif;font-size:12px;color:#666">
-          Falls der Button nicht funktioniert: ${confirmLink}
+          Falls der Button nicht funktioniert: ${confirmLinkHtml}
         </p>
       `,
     });

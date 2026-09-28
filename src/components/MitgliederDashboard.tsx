@@ -518,7 +518,7 @@ function PunkteAnzeige() {
   );
 }
 
-function GurkchenQuote() {
+function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
   const [quote, setQuote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { refresh, claim, quoteAvailable, quoteRemaining } = usePunkte();
@@ -543,21 +543,9 @@ function GurkchenQuote() {
 
       setLoading(true);
       try {
-        const result = await claim("zitat", { turnstileToken: token });
-        if (result && !result.ok && result.requiresTurnstile) {
-          setCaptchaPflicht(true);
-          setTurnstileToken(null);
-          setCaptchaReset((n) => n + 1);
-          setCaptchaHinweis("Bitte zuerst das Captcha lösen.");
-          await refresh();
-          return;
-        }
-        if (!result || !result.ok) {
-          setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder.");
-          await refresh();
-          return;
-        }
-
+        // Der Zitat-Endpunkt prüft ein frisch gelöstes Captcha und schreibt
+        // die +5 im echten Bereich direkt gut (Single-Use-Token – kein
+        // separater Claim). Nur die Demo braucht danach ihren Demo-Claim.
         const query = token
           ? `/api/guerkchen/quote?turnstileToken=${encodeURIComponent(token)}`
           : "/api/guerkchen/quote";
@@ -570,11 +558,23 @@ function GurkchenQuote() {
           await refresh();
           return;
         }
+        if (res.status === 400) {
+          setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder.");
+          await refresh();
+          return;
+        }
         if (!res.ok) throw new Error("Quote fetch failed");
         const data = await res.json();
         setQuote(data.quote);
-        setCaptchaPflicht(false);
-        setCaptchaHinweis(null);
+        if (isDemo) {
+          // Demo-Punkte nachziehen: Das Token ist verbraucht, die frische
+          // IP-Sitzung aus der Zitat-Prüfung genügt dem Demo-Claim.
+          await claim("zitat");
+        }
+        // Jedes Zitat kostet ein neues Captcha.
+        setTurnstileToken(null);
+        setCaptchaReset((n) => n + 1);
+        setCaptchaHinweis("Für jedes Zitat bitte kurz das Captcha lösen.");
         await refresh();
       } catch {
         setQuote("Die Gurke ist der Urknall in essbarer Form. – Gürkchen");
@@ -582,7 +582,7 @@ function GurkchenQuote() {
         setLoading(false);
       }
     },
-    [refresh, claim, quoteAvailable, turnstileToken, captchaPflicht],
+    [refresh, claim, quoteAvailable, turnstileToken, captchaPflicht, isDemo],
   );
 
   useEffect(() => {
@@ -635,7 +635,7 @@ function GurkchenQuote() {
   );
 }
 
-function GurkchenChat() {
+function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -744,10 +744,18 @@ function GurkchenChat() {
         setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
       }
 
-      claim("chat");
+      // Die +5 Chat-Punkte schreibt /api/guerkchen direkt gut (frisches
+      // Captcha pro Nachricht). Nur die Demo braucht ihren separaten
+      // Demo-Claim – die frische IP-Sitzung aus dem Chat genügt ihm.
+      if (isDemo) {
+        claim("chat");
+      }
       refresh();
-      setCaptchaRequired(false);
-      setTurnstileStatusText(null);
+      if (captchaKonfiguriert) {
+        captchaZuruecksetzen(
+          "Für jede Nachricht bitte kurz das Captcha lösen.",
+        );
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -894,7 +902,7 @@ function GurkchenChat() {
   );
 }
 
-function GurkchenQuoteCard() {
+function GurkchenQuoteCard({ isDemo = false }: { isDemo?: boolean }) {
   const [open, setOpen] = useState(false);
 
   if (!open) {
@@ -916,7 +924,7 @@ function GurkchenQuoteCard() {
         titel="Gürkchens Zitat"
         onClose={() => setOpen(false)}
       />
-      <GurkchenQuote />
+      <GurkchenQuote isDemo={isDemo} />
     </div>
   );
 }
@@ -995,7 +1003,7 @@ export function MitgliederDashboard({
         </Reveal>
 
         <div className="mt-5">
-          <GurkchenChat />
+          <GurkchenChat isDemo={isDemo} />
         </div>
 
         <PunkteAnzeige />
@@ -1003,7 +1011,7 @@ export function MitgliederDashboard({
 
         <ReferralBox code={user.id ?? (isDemo ? "demo-mitglied" : null)} isDemo={isDemo} />
 
-        <GurkchenQuoteCard />
+        <GurkchenQuoteCard isDemo={isDemo} />
 
         <Reveal>
           <div className="mb-5">

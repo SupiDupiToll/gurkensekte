@@ -36,9 +36,15 @@ export function parseDemoCookies(req: Request): Record<string, string> {
   for (const part of header.split(";")) {
     const idx = part.indexOf("=");
     if (idx === -1) continue;
-    cookies[part.slice(0, idx).trim()] = decodeURIComponent(
-      part.slice(idx + 1).trim(),
-    );
+    // Malformierte Cookie-Werte (z. B. einsames `%`) dürfen nie mit 500
+    // crashen – sie werden einfach übersprungen.
+    try {
+      cookies[part.slice(0, idx).trim()] = decodeURIComponent(
+        part.slice(idx + 1).trim(),
+      );
+    } catch {
+      continue;
+    }
   }
   return cookies;
 }

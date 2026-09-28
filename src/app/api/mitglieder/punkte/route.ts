@@ -87,37 +87,44 @@ export async function POST(req: Request) {
     return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
   }
 
-  const body = (await req.json()) as {
-    action?: string;
-    adresse?: unknown;
-    turnstileToken?: unknown;
-  };
+  let body: { action?: string; adresse?: unknown; turnstileToken?: unknown };
+  try {
+    body = (await req.json()) as {
+      action?: string;
+      adresse?: unknown;
+      turnstileToken?: unknown;
+    };
+  } catch {
+    return Response.json({ error: "Ungültige Anfrage" }, { status: 400 });
+  }
   const action = body.action as Action | undefined;
 
   if (!action || !(action in POINTS)) {
     return Response.json({ error: "Ungültige Aktion" }, { status: 400 });
   }
 
-  // Bot-Schutz für alle Punkte-Aktionen (Zitat, Chat, Daily, Einlösen): Erst
-  // mit gültigem Captcha – oder gültiger 30-Minuten-Sitzung – wird gebucht,
-  // damit niemand Guthaben per Skript farmt. Geprüft wird vor allen
-  // Kontingent-Checks, damit Fehlversuche kein Tageslimit verbrauchen.
+  // Bot-Schutz für alle Punkte-Aktionen: Chat und Zitat brauchen pro
+  // Buchung ein frisch gelöstes Captcha (`frischesToken`) – sonst farmt ein
+  // Skript mit einer einzigen Lösung 30 Minuten lang Punkte. Daily und
+  // Einlösen haben eigene Quoten (Tag / Rate-Limit) und nutzen die Sitzung.
+  // Geprüft wird vor allen Kontingent-Checks, damit Fehlversuche kein
+  // Tageslimit verbrauchen.
   const captcha = await pruefeTurnstile(req, {
     token: body.turnstileToken,
     userId: user.id,
+    frischesToken: action === "chat" || action === "zitat",
   });
   if (!captcha.ok) {
     return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
   }
 
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
-  const today = new Date().toISOString().split("T")[0];
-  const currentPoints = (meta.punkte as number) ?? 0;
-  const quoteBonusDate = meta.letzterZitatBonus as string | undefined;
-  const storedQuoteCount = (meta.zitatBonusCount as number) ?? 0;
-  const quoteCountToday =
-    quoteBonusDate === today ? Math.max(storedQuoteCount, quoteBonusDate ? 1 : 0) : 0;
+  const today = heuteISO();
+  const currentPoints = lesePunkte(meta);
+  const quoteCountToday = zitatZaehlerHeute(meta, today);
 
+  // Vorab-Checks auf ggf. veralteten Metadaten (schnelles UX-Feedback) –
+  // verbindlich geprüft wird erneut im Lock mit frischem Stand.
   if (action === "daily" && meta.letzterDailyBonus === today) {
     return Response.json({ error: "Heute schon abgeholt" }, { status: 400 });
   }
@@ -131,7 +138,6 @@ export async function POST(req: Request) {
   }
 
   // Erst mit vollständiger Lieferadresse wird die Gurke bestellt.
-  let lieferadresse: GurkenAdresse | null = null;
   if (action === "einloesen") {
     if (!(await rateLimit(`einloesen:${user.id}`, EINLOESEN_LIMIT, EINLOESEN_FENSTER_MS))) {
       return rateLimitAntwort(EINLOESEN_FENSTER_MS);
@@ -140,21 +146,44 @@ export async function POST(req: Request) {
     if (!pruefung.ok) {
       return Response.json({ error: pruefung.error }, { status: 400 });
     }
-    lieferadresse = pruefung.adresse;
   }
 
-  // Die Bestell-Mail mit der Lieferadresse geht per Hexclave raus, bevor die
-  // Punkte gebucht werden: Schlägt der Versand fehl, wird nichts abgezogen
-  // und die Bestellung kann einfach wiederholt werden.
-  if (action === "einloesen" && lieferadresse) {
-    try {
-      await hexclaveServerApp.sendEmail({
-        emails: [BESTELLUNG_EMAIL],
-        subject: "🥒 Neue Gurken-Bestellung",
-        html: `
+  try {
+    return await mitFrischemBenutzer(req, user.id, async (frisch, frischeMeta) => {
+      const stand = lesePunkte(frischeMeta);
+      const zitatHeute = zitatZaehlerHeute(frischeMeta, today);
+
+      // Verbindliche Re-Checks im Lock (TOCTOU-Schutz).
+      if (action === "daily" && frischeMeta.letzterDailyBonus === today) {
+        throw new PunkteFehler(400, "Heute schon abgeholt");
+      }
+      if (action === "zitat" && zitatHeute >= 3) {
+        throw new PunkteFehler(400, "Heute schon 3 Zitate generiert");
+      }
+      if (action === "einloesen" && stand < 1000) {
+        throw new PunkteFehler(400, "Nicht genug Punkte");
+      }
+
+      // Die Bestell-Mail mit der Lieferadresse geht per Hexclave raus, bevor
+      // die Punkte gebucht werden: Schlägt der Versand fehl, wird nichts
+      // abgezogen und die Bestellung kann einfach wiederholt werden. Läuft
+      // mit im Lock, damit zwei parallele Bestellungen nicht zwei Mails bei
+      // nur einer Abbuchung erzeugen.
+      let lieferadresse: GurkenAdresse | null = null;
+      if (action === "einloesen") {
+        const pruefung = adressePruefen(body.adresse);
+        if (!pruefung.ok) {
+          throw new PunkteFehler(400, pruefung.error);
+        }
+        lieferadresse = pruefung.adresse;
+        try {
+          await hexclaveServerApp.sendEmail({
+            emails: [BESTELLUNG_EMAIL],
+            subject: "🥒 Neue Gurken-Bestellung",
+            html: `
           <h2 style="font-family:sans-serif">Neue Gurken-Bestellung</h2>
           <p style="font-family:sans-serif">
-            <strong>${escapeHtml(user.primaryEmail ?? user.id)}</strong> hat
+            <strong>${escapeHtml(frisch.primaryEmail ?? frisch.id)}</strong> hat
             eine echte Gurke für
             <strong>${Math.abs(POINTS.einloesen)} Punkte</strong> bestellt.
           </p>
@@ -171,65 +200,77 @@ export async function POST(req: Request) {
             })} über die Gurken Sekte.
           </p>
         `,
-      });
-    } catch {
-      return Response.json(
-        {
-          error:
+          });
+        } catch {
+          throw new PunkteFehler(
+            502,
             "Die Bestell-Mail konnte nicht verschickt werden – es wurden keine Punkte abgezogen. Bitte versuch es gleich nochmal.",
-        },
-        { status: 502 },
+          );
+        }
+      }
+
+      const delta = POINTS[action];
+      const newPoints = stand + delta;
+      // Gesammelte Punkte (XP) fallen nie – erst beim allerersten Claim eines
+      // Bestandskontos auf den aktuellen Stand initialisiert.
+      const currentTotal = lesePunkteGesamt(frischeMeta, stand);
+      const newTotal = delta > 0 ? currentTotal + delta : currentTotal;
+      const verlauf = leseVerlauf(frischeMeta).slice(-9);
+
+      verlauf.push({
+        datum: new Date().toISOString(),
+        aktion: action,
+        punkte: delta,
+        saldo: newPoints,
+      });
+
+      const update: Record<string, unknown> = {
+        punkte: newPoints,
+        punkteGesamt: newTotal,
+        punkteVerlauf: verlauf,
+      };
+
+      if (lieferadresse) {
+        // Für die nächste Bestellung parat halten.
+        update.gurkenAdresse = lieferadresse;
+      }
+
+      if (action === "daily") {
+        update.letzterDailyBonus = today;
+      }
+      if (action === "zitat") {
+        update.letzterZitatBonus = today;
+        update.zitatBonusCount = zitatHeute + 1;
+      }
+
+      await frisch.setClientReadOnlyMetadata({ ...frischeMeta, ...update });
+
+      const nextDailyBonusDate =
+        action === "daily"
+          ? today
+          : ((frischeMeta.letzterDailyBonus as string | undefined) ?? null);
+      const nextQuoteCountToday =
+        action === "zitat" ? zitatHeute + 1 : zitatHeute;
+
+      return Response.json({
+        punkte: newPoints,
+        punkteGesamt: newTotal,
+        delta,
+        dailyAvailable: nextDailyBonusDate !== today,
+        quoteAvailable: nextQuoteCountToday < 3,
+        quoteRemaining: Math.max(0, 3 - nextQuoteCountToday),
+      });
+    });
+  } catch (error) {
+    if (istPunkteFehler(error)) {
+      return Response.json({ error: error.message }, { status: error.status });
+    }
+    if (istSperreBelegtFehler(error)) {
+      return Response.json(
+        { error: "Bitte kurz warten und erneut versuchen." },
+        { status: 409 },
       );
     }
+    throw error;
   }
-
-  const delta = POINTS[action];
-  const newPoints = currentPoints + delta;
-  // Gesammelte Punkte (XP) fallen nie – erst beim allerersten Claim eines
-  // Bestandskontos auf den aktuellen Stand initialisiert.
-  const currentTotal =
-    typeof meta.punkteGesamt === "number" ? meta.punkteGesamt : currentPoints;
-  const newTotal = delta > 0 ? currentTotal + delta : currentTotal;
-  const verlauf = ((meta.punkteVerlauf as unknown[]) ?? []).slice(-9);
-
-  verlauf.push({
-    datum: new Date().toISOString(),
-    aktion: action,
-    punkte: delta,
-    saldo: newPoints,
-  });
-
-  const update: Record<string, unknown> = {
-    punkte: newPoints,
-    punkteGesamt: newTotal,
-    punkteVerlauf: verlauf,
-  };
-
-  if (lieferadresse) {
-    // Für die nächste Bestellung parat halten.
-    update.gurkenAdresse = lieferadresse;
-  }
-
-  if (action === "daily") {
-    update.letzterDailyBonus = today;
-  }
-  if (action === "zitat") {
-    update.letzterZitatBonus = today;
-    update.zitatBonusCount = quoteCountToday + 1;
-  }
-
-  await user.setClientReadOnlyMetadata({ ...meta, ...update });
-
-  const nextDailyBonusDate =
-    action === "daily" ? today : ((meta.letzterDailyBonus as string | undefined) ?? null);
-  const nextQuoteCountToday = action === "zitat" ? quoteCountToday + 1 : quoteCountToday;
-
-  return Response.json({
-    punkte: newPoints,
-    punkteGesamt: newTotal,
-    delta,
-    dailyAvailable: nextDailyBonusDate !== today,
-    quoteAvailable: nextQuoteCountToday < 3,
-    quoteRemaining: Math.max(0, 3 - nextQuoteCountToday),
-  });
 }

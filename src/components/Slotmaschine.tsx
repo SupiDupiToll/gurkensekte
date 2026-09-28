@@ -30,8 +30,8 @@ function zahl(n: number) {
  * Spielbare Slotmaschine des Gurken Casinos: Einsatz wählen, Walzen drehen
  * lassen, serverseitiges Ergebnis anzeigen und die Punkte per refresh()
  * nachziehen. Höchster Gewinn 3×, größter Verlust 3× – deshalb braucht jeder
- * Dreh den 3-fachen Einsatz als Puffer. Vor dem ersten Dreh will der
- * Automat ein Turnstile-Captcha sehen (danach gilt die 30-Minuten-Sitzung).
+ * Dreh den 3-fachen Einsatz als Puffer. Jeder Dreh braucht ein frisch
+ * gelöstes Turnstile-Captcha (keine Sitzungswiederverwendung).
  */
 export function Slotmaschine({ apiBase }: { apiBase: string }) {
   const { punkte, loading, refresh } = usePunkte();
@@ -129,9 +129,11 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       const data = (await res.json()) as SpinErgebnis;
       setRollen(data.symbole);
       setErgebnis(data);
-      // Captcha-Sitzung angelegt: Bis zum Ablauf kein neues Rätsel nötig.
-      setCaptchaPflicht(false);
-      setCaptchaHinweis(null);
+      // Jeder Dreh kostet ein frisches Captcha: Widget für den nächsten
+      // Dreh zurücksetzen (der Server akzeptiert keine Sitzung).
+      setTurnstileToken(null);
+      setCaptchaReset((n) => n + 1);
+      setCaptchaHinweis("Für jeden Dreh bitte kurz das Captcha lösen.");
       await refresh();
     } catch {
       setFehler(

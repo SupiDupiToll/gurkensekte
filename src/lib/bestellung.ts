@@ -17,9 +17,11 @@ export type GurkenAdresse = {
 
 /**
  * An diese Adresse geht jede Gurken-Bestellung als Hexclave-E-Mail –
- * dieselbe Sekten-Leitung wie bei den Werbe-Prüf-Mails.
+ * dieselbe Sekten-Leitung wie bei den Werbe-Prüf-Mails. Per Env
+ * überschreibbar (fällt sonst auf die Leitung zurück).
  */
-export const BESTELLUNG_EMAIL = "rui@sdtoll.de";
+export const BESTELLUNG_EMAIL =
+  process.env.BESTELLUNG_EMAIL ?? "rui@sdtoll.de";
 
 /** Schutz gegen endlose Metadaten-Einträge. */
 const MAX = { name: 80, strasse: 120, plz: 10, ort: 80, land: 60 } as const;

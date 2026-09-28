@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Script from "next/script";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Reveal } from "@/components/Reveal";
@@ -11,6 +11,7 @@ import {
   Minus,
   Plus,
   ArrowSquareOut,
+  X,
 } from "@phosphor-icons/react";
 
 type Phase = "idle" | "loading" | "ready" | "error";
@@ -20,8 +21,8 @@ export function SpendenPage() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
-  const boxRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
   const abgebrochen = searchParams.get("abgebrochen") === "1";
@@ -30,28 +31,33 @@ export function SpendenPage() {
     const sdk = window.MangoePay;
     if (sdk) {
       try {
+        // Hoch einbetten (Viewport-Anteil), danach per Style auf die
+        // volle Modal-Höhe strecken – das SDK setzt sonst fixe Pixel.
         sdk.embed("#mangoe-pay-box", url, {
-          height: 800,
+          height: Math.max(700, Math.floor(window.innerHeight * 0.82)),
           title: "Mangoe Spenden-Checkout",
         });
-        return;
       } catch (error) {
         console.error("Mangoe embed fehlgeschlagen, Fallback-Iframe:", error);
       }
     }
-    // Fallback ohne mangoe.js: natives Iframe.
-    const box = document.getElementById("mangoe-pay-box");
-    if (box) {
-      box.innerHTML = "";
-      const iframe = document.createElement("iframe");
-      iframe.src = url;
-      iframe.title = "Mangoe Spenden-Checkout";
-      iframe.style.width = "100%";
-      iframe.style.height = "800px";
-      iframe.style.border = "0";
-      iframe.style.borderRadius = "12px";
-      box.appendChild(iframe);
-    }
+    // Iframe (SDK oder Fallback) auf die volle Box-Höhe strecken.
+    requestAnimationFrame(() => {
+      const box = document.getElementById("mangoe-pay-box");
+      if (!box) return;
+      if (!box.querySelector("iframe")) {
+        const iframe = document.createElement("iframe");
+        iframe.src = url;
+        iframe.title = "Mangoe Spenden-Checkout";
+        box.appendChild(iframe);
+      }
+      const frame = box.querySelector("iframe");
+      if (frame) {
+        frame.style.width = "100%";
+        frame.style.height = "100%";
+        frame.style.border = "0";
+      }
+    });
   }, []);
 
   async function starteCheckout() {
@@ -74,8 +80,10 @@ export function SpendenPage() {
       setSessionId(data.sessionId);
       setCheckoutUrl(data.checkoutUrl);
       setPhase("ready");
-      // Ein Frame weiter warten, bis #mangoe-pay-box im DOM ist.
-      requestAnimationFrame(() => embedCheckout(data.checkoutUrl!));
+      setModalOpen(true);
+      // Ein Frame weiter warten, bis das Modal im DOM ist.
+      const url = data.checkoutUrl;
+      requestAnimationFrame(() => embedCheckout(url));
     } catch (error) {
       console.error("Spenden-Checkout:", error);
       setFehler(
@@ -85,7 +93,24 @@ export function SpendenPage() {
     }
   }
 
+  function oeffneModal() {
+    setModalOpen(true);
+    // Falls die Box leer ist (z. B. SDK war beim Start blockiert), erneut einbetten.
+    if (checkoutUrl) {
+      const url = checkoutUrl;
+      requestAnimationFrame(() => {
+        const box = document.getElementById("mangoe-pay-box");
+        if (box && !box.querySelector("iframe")) embedCheckout(url);
+      });
+    }
+  }
+
+  function schliesseModal() {
+    setModalOpen(false);
+  }
+
   function reset() {
+    setModalOpen(false);
     setPhase("idle");
     setCheckoutUrl(null);
     setSessionId(null);
@@ -93,6 +118,21 @@ export function SpendenPage() {
     const box = document.getElementById("mangoe-pay-box");
     if (box) box.innerHTML = "";
   }
+
+  // Modal: Body-Scroll sperren, ESC schließt.
+  useEffect(() => {
+    if (!(phase === "ready" && modalOpen)) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setModalOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [phase, modalOpen]);
 
   // Browser-Event der eingebetteten Erfolgsseite: danach IMMER serverseitig
   // verifizieren (Status-Route), nie dem Event allein vertrauen.
@@ -118,6 +158,10 @@ export function SpendenPage() {
     return () => window.removeEventListener("message", onMessage);
   }, [phase, sessionId, router]);
 
+  const betragLabel = amountEur.toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+  });
+
   return (
     <main className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 pb-24 pt-12 md:pt-20">
       <Script src={`${MANGOE_BASE_URL}/mangoe.js`} strategy="afterInteractive" />
@@ -139,10 +183,7 @@ export function SpendenPage() {
               </span>
               <div>
                 <p className="tabular font-display text-3xl font-semibold text-[#ede8d6]">
-                  {amountEur.toLocaleString("de-DE", {
-                    minimumFractionDigits: 2,
-                  })}{" "}
-                  €
+                  {betragLabel} €
                 </p>
                 <p className="text-xs text-[#6b7565]">Deine gewählte Gabe</p>
               </div>
@@ -233,7 +274,7 @@ export function SpendenPage() {
                   >
                     {phase === "loading"
                       ? "Glas wird geöffnet …"
-                      : ` ${amountEur.toLocaleString("de-DE", { minimumFractionDigits: 2 })} € via Mangoe spenden`}
+                      : ` ${betragLabel} € via Mangoe spenden`}
                     <span className="btn-dot">
                       <ArrowRight size={16} weight="bold" />
                     </span>
@@ -241,22 +282,20 @@ export function SpendenPage() {
                 ) : (
                   <div className="mt-6 flex flex-wrap items-center gap-3">
                     <button
+                      onClick={oeffneModal}
+                      className="btn-cta btn-cta-primary"
+                    >
+                      Zahlung fortsetzen
+                      <span className="btn-dot">
+                        <ArrowRight size={16} weight="bold" />
+                      </span>
+                    </button>
+                    <button
                       onClick={reset}
                       className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-[#cfc8b0] transition-colors hover:border-[#abc189]/40 hover:text-[#faf8f1]"
                     >
                       Neuer Betrag
                     </button>
-                    {checkoutUrl && (
-                      <a
-                        href={checkoutUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-[#cfc8b0] transition-colors hover:border-[#abc189]/40 hover:text-[#faf8f1]"
-                      >
-                        <ArrowSquareOut size={16} />
-                        In neuem Tab öffnen
-                      </a>
-                    )}
                   </div>
                 )}
 
@@ -265,26 +304,66 @@ export function SpendenPage() {
                     {fehler}
                   </p>
                 )}
-
-                <div
-                  id="mangoe-pay-box"
-                  ref={boxRef}
-                  className={phase === "ready" ? "mt-6" : "hidden"}
-                  aria-live="polite"
-                />
-
-                {phase === "ready" && (
-                  <p className="mt-4 flex items-center gap-2 text-xs text-[#6b7565]">
-                    <CheckCircle size={14} />
-                    Sicherer Checkout via Mangoe Payments – du verlässt die
-                    Seite nicht.
-                  </p>
-                )}
               </div>
             </div>
           </Reveal>
         </div>
       </div>
+
+      {/* Checkout-Popup: großes Modal, Iframe füllt die Fläche */}
+      {phase === "ready" && modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mangoe Spenden-Checkout"
+        >
+          <button
+            aria-label="Checkout schließen"
+            onClick={schliesseModal}
+            className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
+          />
+          <div className="relative flex h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101b14] shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-3.5">
+              <p className="text-sm font-semibold text-[#ede8d6]">
+                <span aria-hidden="true">🥒</span> {betragLabel} € spenden{" "}
+                <span className="font-normal text-[#6b7565]">
+                  · Mangoe Payments
+                </span>
+              </p>
+              <button
+                onClick={schliesseModal}
+                aria-label="Popup schließen"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#cfc8b0] transition-colors hover:border-[#abc189]/40 hover:text-[#faf8f1]"
+              >
+                <X size={18} weight="bold" />
+              </button>
+            </div>
+            <div
+              id="mangoe-pay-box"
+              className="min-h-0 flex-1 bg-white"
+              aria-live="polite"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-5 py-3">
+              <p className="flex items-center gap-2 text-xs text-[#6b7565]">
+                <CheckCircle size={14} />
+                Sicherer Checkout – du verlässt die Seite nicht.
+              </p>
+              {checkoutUrl && (
+                <a
+                  href={checkoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-[#cfc8b0] transition-colors hover:text-[#faf8f1]"
+                >
+                  <ArrowSquareOut size={14} />
+                  In neuem Tab öffnen
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
