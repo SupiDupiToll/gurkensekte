@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { HexclaveProvider, HexclaveTheme } from "@hexclave/next";
 import { hexclaveServerApp } from "@/hexclave/server";
 import { CultHeader } from "@/components/CultHeader";
-import { CultMarquee } from "@/components/CultMarquee";
 import { Footer } from "@/components/Footer";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import "./globals.css";
@@ -11,6 +10,17 @@ export const metadata: Metadata = {
   title: "Gurken Sekte – Offizielle Kult-Website",
   description:
     "Willkommen bei der Gurken Sekte! Tritt unserem exklusiven Kult bei und spende Gurken für die Erleuchtung.",
+  applicationName: "Gurken Sekte",
+  appleWebApp: {
+    capable: true,
+    title: "Gurken Sekte",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1e3226",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -32,31 +42,30 @@ export default function RootLayout({
           <HexclaveTheme
             theme={{
               dark: {
-                background: "#052e16",
-                foreground: "#e8f5e9",
-                card: "#14532d",
-                cardForeground: "#e8f5e9",
-                popover: "#14532d",
-                popoverForeground: "#e8f5e9",
-                primary: "#22c55e",
-                primaryForeground: "#052e16",
-                secondary: "#166534",
-                secondaryForeground: "#bbf7d0",
-                muted: "#14532d",
-                mutedForeground: "#86efac",
-                accent: "#22c55e",
-                accentForeground: "#052e16",
+                background: "#1e3226",
+                foreground: "#ede8d6",
+                card: "#101b14",
+                cardForeground: "#ede8d6",
+                popover: "#182219",
+                popoverForeground: "#ede8d6",
+                primary: "#abc189",
+                primaryForeground: "#0b120d",
+                secondary: "#2b3826",
+                secondaryForeground: "#e3e9d3",
+                muted: "#1c2820",
+                mutedForeground: "#a3ad9a",
+                accent: "#abc189",
+                accentForeground: "#0b120d",
                 destructive: "#ef4444",
                 destructiveForeground: "#ffffff",
-                border: "#1f6e3a",
-                input: "#166534",
-                ring: "#22c55e",
+                border: "#2b3826",
+                input: "#2b3826",
+                ring: "#8fa96d",
               },
-              radius: "1rem",
+              radius: "0.5rem",
             }}
           >
             <CultHeader />
-            <CultMarquee />
             <main className="flex-1">{children}</main>
             <Footer />
           </HexclaveTheme>

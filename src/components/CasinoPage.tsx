@@ -1,126 +1,78 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, DiceFive, Cards, Coins, Target } from "@phosphor-icons/react";
+import { ArrowLeft, DiceFive } from "@phosphor-icons/react";
 import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
 import { Slotmaschine } from "@/components/Slotmaschine";
 import { GurkenRoulette } from "@/components/GurkenRoulette";
 import { CasinoSection } from "@/components/CasinoSection";
+import { Reveal } from "@/components/Reveal";
+import { SpinningCucumber } from "@/components/SpinningCucumber";
 
 function zahl(n: number) {
   return n.toLocaleString("de-DE");
 }
 
-/** Der eigentliche Casino-Inhalt – liegt immer in einem PunkteProvider. */
-function CasinoInhalt({
-  apiBase,
-  backHref,
-}: {
-  apiBase: string;
-  backHref: string;
-}) {
+function CasinoInhalt({ apiBase, backHref }: { apiBase: string; backHref: string }) {
   const { punkte, loading } = usePunkte();
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12 md:py-24 relative pb-safe">
+    <div className="mx-auto w-full max-w-3xl overflow-x-hidden px-4 pb-24 pt-12 md:pt-20">
       <Link
         href={backHref}
-        className="inline-flex items-center gap-1.5 text-gurken-500 hover:text-gurken-400 text-sm font-bold transition-all"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#6b7565] transition-colors hover:text-[#a3ad9a]"
       >
         <ArrowLeft size={16} />
         Zurück zum Mitgliederbereich
       </Link>
 
-      <div className="mt-6 mb-8 text-center">
-        <DiceFive size={56} weight="fill" className="text-yellow-400 mx-auto" />
-        <h1 className="text-3xl md:text-4xl font-heading font-bold text-gurken-300 mt-4">
-          🥒 Gurken Casino 🥒
-        </h1>
-        <p className="mt-2 text-sm md:text-base text-gurken-400 max-w-md mx-auto">
-          Reines Spielgeld: hier wird mit deinen Punkten gezockt, niemals mit
-          echtem Geld. Kessel und Walzen entscheiden, nicht dein Bauchgefühl.
-        </p>
-      </div>
+      <Reveal>
+        <div className="mb-8 mt-6 text-left">
+          <p className="eyebrow">Spielgeld · Punkte statt Euro</p>
+          <h1 className="font-display mt-3 text-4xl font-semibold leading-[1.05] text-[#faf8f1] md:text-5xl">
+            Gurken Casino
+          </h1>
+          <p className="mt-3 max-w-[54ch] text-[15px] leading-relaxed text-[#a3ad9a]">
+            Reines Spielgeld: Hier wird mit deinen Punkten gezockt, niemals mit echtem
+            Geld. Kessel und Walzen entscheiden, nicht dein Bauchgefühl.
+          </p>
+        </div>
+      </Reveal>
 
-      {/* Glühendes Guthaben */}
-      <div className="mb-6 flex justify-center">
-        <div className="flex items-center gap-2 rounded-xl border border-yellow-400/25 bg-yellow-400/5 px-5 py-3 shadow-[0_0_25px_rgba(250,204,21,0.15)]">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gurken-500">
-            Dein Guthaben
+      <div className="mb-6 flex justify-start">
+        <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-5 pr-6">
+          <SpinningCucumber size="text-2xl" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
+            Guthaben
           </span>
-          <span className="font-heading text-xl font-bold text-yellow-300 [text-shadow:0_0_14px_rgba(250,204,21,0.55)]">
+          <span className="tabular font-display text-xl font-semibold text-[#ede8d6]">
             {loading ? "…" : zahl(punkte)}
           </span>
-          <span className="text-sm text-gurken-400">Punkte</span>
         </div>
       </div>
 
-      {/* Slotmaschine – auf- und zuklappbar wie auf der Mitgliederseite */}
       <CasinoSection
-        icon={<Coins size={56} weight="fill" className="text-yellow-400" />}
-        titel="🎰 Slotmaschine 🎰"
-        teaser="Einsatz wählen, Walzen drehen lassen, bis zu 3× kassieren – aber Vorsicht, bis zu 3× kann auch baden gehen."
+        icon={<DiceFive size={40} weight="fill" className="text-[#c9a86a]" />}
+        titel="Slotmaschine"
+        teaser="Einsatz wählen, Walzen drehen lassen, bis zu 3× kassieren. Vorsicht: 3× kann auch baden gehen."
         cta="Slot öffnen"
       >
         <Slotmaschine apiBase={apiBase} />
       </CasinoSection>
 
-      {/* Gurken Roulette – ebenfalls auf- und zuklappbar */}
       <CasinoSection
-        icon={<Target size={56} weight="fill" className="text-gurken-400" />}
-        titel="🎡 Gurken Roulette 🎡"
-        teaser="Europäischer Kessel mit einer Null: Felder antippen, Kugel rollen lassen, Punkte kassieren – die Gewinnzahl zieht der Server."
+        icon={<SpinningCucumber size="text-5xl" />}
+        titel="Gurken Roulette"
+        teaser="Europäischer Kessel mit einer Null: Felder antippen, Kugel rollen lassen. Die Gewinnzahl zieht der Server."
         cta="Roulette öffnen"
       >
         <GurkenRoulette apiBase={apiBase} />
       </CasinoSection>
-
-      {/* Weitere Spiele */}
-      <div className="card p-6 md:p-8 mb-8">
-        <div className="mb-1 flex items-center gap-2">
-          <Cards size={20} weight="fill" className="text-gurken-400" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🎲 Mehr im Casino 🎲
-          </h2>
-        </div>
-        <p className="mb-4 text-sm leading-relaxed text-gurken-500">
-          Slotmaschine und Roulette sind bespielbar – weitere Tische sind
-          bereits in der Werkstatt der Sekte.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex items-center justify-between rounded-xl border border-gurken-500/15 bg-gurken-800/20 px-4 py-3">
-            <span className="text-sm font-semibold text-gurken-400">
-              🎲 Gurken-Würfel
-            </span>
-            <span className="rounded border border-gurken-500/30 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gurken-500">
-              bald
-            </span>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border border-gurken-500/15 bg-gurken-800/20 px-4 py-3">
-            <span className="text-sm font-semibold text-gurken-400">
-              🃏 Gurken-Poker
-            </span>
-            <span className="rounded border border-gurken-500/30 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gurken-500">
-              bald
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
 
-/**
- * Hülle der Casino-Seite: liefert den PunkteProvider, damit Guthaben und
- * Slotmaschine denselben Stand sehen wie der Mitgliederbereich.
- */
-export function CasinoPage({
-  punkteApiBase,
-  backHref,
-}: {
-  punkteApiBase: string;
-  backHref: string;
-}) {
+export function CasinoPage({ punkteApiBase, backHref }: { punkteApiBase: string; backHref: string }) {
   return (
     <PunkteProvider apiBase={punkteApiBase}>
       <CasinoInhalt apiBase={punkteApiBase} backHref={backHref} />

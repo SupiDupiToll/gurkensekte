@@ -3,11 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, SignIn } from "@hexclave/next";
-import {
-  WigglingCucumber,
-  SpinningCucumber,
-  FloatingCucumber,
-} from "@/components/SpinningCucumber";
+import { SpinningCucumber } from "@/components/SpinningCucumber";
 
 export default function LoginPage() {
   const user = useUser();
@@ -24,27 +20,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 py-12 md:py-20 relative pb-safe">
-      {/* Decorative */}
-      <div className="hidden md:block absolute -left-8 top-20 opacity-20 pointer-events-none">
-        <FloatingCucumber size="text-5xl" />
-      </div>
-      <div className="hidden md:block absolute -right-8 bottom-20 opacity-20 pointer-events-none">
-        <SpinningCucumber size="text-5xl" />
-      </div>
+    <div className="mx-auto max-w-md px-4 py-12 md:py-20">
+      <div className="auth-signin shell">
+        <div className="core p-8 md:p-10">
+          <div className="mb-6 text-center">
+            <div className="flex justify-center">
+              <SpinningCucumber size="text-6xl" />
+            </div>
+            <p className="eyebrow mt-4 justify-center">Willkommen zurück</p>
+            <h1 className="font-display mt-2 text-3xl font-semibold text-[#faf8f1]">
+              Mitglieder-Login
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-[#a3ad9a]">
+              Melde dich an, um in den exklusiven Mitgliederbereich zu gelangen.
+            </p>
+          </div>
 
-      <div className="auth-signin glass rounded-3xl p-8 md:p-10 glow-green">
-        <div className="text-center mb-6">
-          <WigglingCucumber size="text-6xl" />
-          <h1 className="text-2xl font-heading font-bold text-gurken-300 mt-4 mb-2">
-            🥒 Mitglieder-Login 🥒
-          </h1>
-          <p className="text-gurken-400">
-            Melde dich an, um in den exklusiven Mitgliederbereich zu gelangen.
-          </p>
+          <SignIn automaticRedirect firstTab="password" />
         </div>
-
-        <SignIn automaticRedirect firstTab="password" />
       </div>
     </div>
   );

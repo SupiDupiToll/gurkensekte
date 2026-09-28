@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { SpendenPage } from "@/components/SpendenPage";
 
 export default function DemoSpendenPage() {
-  return <SpendenPage />;
+  return (
+    <Suspense>
+      <SpendenPage />
+    </Suspense>
+  );
 }

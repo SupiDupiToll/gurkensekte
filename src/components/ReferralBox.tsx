@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   ArrowsInSimple,
+  ArrowRight,
   Check,
   Clock,
   Copy,
@@ -64,33 +65,29 @@ export function ReferralBox({
     }
   }, [link]);
 
-  const shareText = `🥒 Tritt der Gurken Sekte bei! Nutze meinen Link und ich bekomme Gurken-Punkte: ${link}`;
+  const shareText = `Tritt der Gurken Sekte bei! Nutze meinen Link und ich bekomme Gurken-Punkte: ${link}`;
   const whatsappHref = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
   const shareHref = `mailto:?subject=${encodeURIComponent(
-    "🥒 Einladung in die Gurken Sekte",
+    "Einladung in die Gurken Sekte",
   )}&body=${encodeURIComponent(shareText)}`;
 
   if (!open) {
     return (
-      <div className="mb-8">
+      <div className="mb-5">
         <button
           onClick={() => setOpen(true)}
-          className="relative w-full group overflow-hidden rounded-2xl border border-gurken-500/20 bg-gradient-to-br from-gurken-700/40 via-gurken-800/30 to-gurken-900/40 p-8 md:p-10 text-center transition-all duration-300 hover:border-gurken-400/40 hover:shadow-[0_0_40px_#22c55e33] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
+          className="shell group block w-full text-center transition-colors duration-200 active:scale-[0.99]"
         >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#22c55e0a_0%,_transparent_70%)] group-hover:bg-[radial-gradient(ellipse_at_center,_#22c55e15_0%,_transparent_70%)] transition-all duration-500" />
-          <div className="relative">
-            <div className="text-6xl mb-4">
-              <Gift size={56} weight="fill" className="text-yellow-400 mx-auto" />
-            </div>
-            <h2 className="text-2xl md:text-3xl font-heading font-bold text-gurken-200 mb-2">
-              🥒 Freunde werben Freunde 🥒
+          <div className="core flex flex-col items-center gap-4 p-6 md:p-8">
+            <Gift size={40} weight="fill" className="text-[#c9a86a]" />
+            <h2 className="font-display text-2xl font-semibold text-[#faf8f1] md:text-[1.7rem]">
+              Freunde werben Freunde
             </h2>
-            <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
-              Lade unbegrenzt viele Freunde in die Sekte ein und kassiere{" "}
-              {REFERRAL_POINTS} Punkte für jedes neue Mitglied.
-            </p>            <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
-              <Gift size={22} weight="fill" className="text-yellow-400" />
+            <span className="btn-cta btn-cta-primary !text-base">
               Werbe-Link anzeigen
+              <span className="btn-dot">
+                <ArrowRight size={17} weight="bold" />
+              </span>
             </span>
           </div>
         </button>
@@ -99,68 +96,68 @@ export function ReferralBox({
   }
 
   return (
-    <div className="card p-6 md:p-8 mb-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="card mb-5 p-6 md:p-8">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Gift size={24} weight="fill" className="text-yellow-400" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🥒 Freunde werben Freunde 🥒
+          <Gift size={22} weight="fill" className="text-[#c9a86a]" />
+          <h2 className="font-display text-xl font-semibold text-[#faf8f1]">
+            Freunde werben Freunde
           </h2>
         </div>
         <button
           onClick={() => setOpen(false)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-gurken-400 hover:text-gurken-200 hover:bg-gurken-800/50 text-sm font-bold transition-all touch-manipulation min-h-[44px]"
+          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] transition-colors hover:border-white/20 hover:text-[#ede8d6]"
         >
-          <ArrowsInSimple size={18} />
+          <ArrowsInSimple size={16} />
           Schließen
         </button>
       </div>
 
-      <p className="text-gurken-300/80 text-sm leading-relaxed mb-4">
+      <p className="mb-4 text-sm leading-relaxed text-[#a3ad9a]">
         Teile deinen heiligen Werbe-Link. Für jede Person, die sich darüber
         registriert, segnet Gürkchen dich mit{" "}
-        <strong className="text-yellow-300">+{REFERRAL_POINTS} Punkten</strong>.
+        <strong className="text-[#e2d9bf]">+{REFERRAL_POINTS} Punkten</strong>.
         Der Segen gilt für jedes neue Mitglied – du kannst{" "}
-        <strong className="text-gurken-200">unbegrenzt viele Freunde</strong>{" "}
-        einladen, es gibt keine Obergrenze. 🥒
+        <strong className="text-[#ede8d6]">unbegrenzt viele Freunde</strong>{" "}
+        einladen, es gibt keine Obergrenze.
       </p>
 
-      <p className="text-gurken-400/70 text-xs leading-relaxed mb-4">
+      <p className="mb-4 text-xs leading-relaxed text-[#6b7565]">
         Jede Werbung wird von der Sekten-Leitung geprüft, bevor die Punkte
         gutgeschrieben werden.
       </p>
 
-      <div className="flex items-center gap-2 mb-4">
+      <div className="mb-4 flex items-center gap-2">
         <input
           readOnly
           value={link}
           onFocus={(e) => e.currentTarget.select()}
           aria-label="Dein Werbe-Link"
-          className="flex-1 min-w-0 rounded-xl border border-gurken-500/20 bg-gurken-800/50 px-3 py-2.5 text-sm text-gurken-100 outline-none focus:border-gurken-400"
+          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-[#ede8d6] outline-none focus:border-[#8fa96d]"
         />
         <button
           onClick={copyLink}
           disabled={!link}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-sm transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] disabled:opacity-50 touch-manipulation min-h-[44px] flex-shrink-0"
+          className="flex min-h-[44px] flex-shrink-0 items-center gap-2 rounded-lg bg-[#ede8d6] px-4 py-2.5 text-sm font-semibold text-[#0b120d] transition-all duration-300 active:scale-[0.97] disabled:opacity-50"
         >
           {copied ? <Check size={18} weight="bold" /> : <Copy size={18} weight="bold" />}
-          {copied ? "Kopiert" : "Link kopieren"}
+          {copied ? "Kopiert" : "Kopieren"}
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 mb-5">
+      <div className="mb-5 flex flex-wrap items-center gap-2">
         <a
           href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gurken-600 hover:bg-gurken-500 text-white font-bold text-sm transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] touch-manipulation min-h-[44px]"
+          className="flex min-h-[44px] items-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-semibold text-[#ede8d6] transition-colors hover:border-white/25"
         >
           <WhatsappLogo size={18} weight="fill" />
           Per WhatsApp teilen
         </a>
         <a
           href={shareHref}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gurken-500/30 text-gurken-300 hover:text-gurken-100 hover:border-gurken-400 hover:bg-gurken-800/40 font-bold text-sm transition-all duration-200 touch-manipulation min-h-[44px]"
+          className="flex min-h-[44px] items-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
         >
           <ShareNetwork size={18} weight="fill" />
           Per E-Mail
@@ -171,34 +168,34 @@ export function ReferralBox({
         <ReferralQrCode data={link} />
       </div>
 
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-        <div className="flex items-center gap-3 rounded-xl border border-gurken-500/10 bg-gurken-800/30 px-4 py-3">
-          <UsersThree size={22} weight="fill" className="text-gurken-300 flex-shrink-0" />
-          <div className="text-sm">
-            <span className="text-gurken-400">Bestätigt geworben: </span>
-            <span className="text-gurken-100 font-bold">{geworben}</span>
-            <span className="text-gurken-400">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+          <UsersThree size={22} weight="fill" className="flex-shrink-0 text-[#8fa96d]" />
+          <div className="tabular text-sm">
+            <span className="text-[#6b7565]">Bestätigt geworben: </span>
+            <span className="font-semibold text-[#ede8d6]">{geworben}</span>
+            <span className="text-[#6b7565]">
               {" "}
               {geworben === 1 ? "Mitglied" : "Mitglieder"}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-gurken-500/10 bg-gurken-800/30 px-4 py-3">
-          <Gift size={22} weight="fill" className="text-yellow-400 flex-shrink-0" />
-          <div className="text-sm">
-            <span className="text-gurken-400">Punkte durch Werbung: </span>
-            <span className="text-yellow-300 font-bold">
+        <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+          <Gift size={22} weight="fill" className="flex-shrink-0 text-[#c9a86a]" />
+          <div className="tabular text-sm">
+            <span className="text-[#6b7565]">Punkte durch Werbung: </span>
+            <span className="font-semibold text-[#e2d9bf]">
               +{geworben * REFERRAL_POINTS}
             </span>
           </div>
         </div>
         {werbungenOffen > 0 && (
-          <div className="flex items-center gap-3 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3 sm:col-span-2">
-            <Clock size={22} weight="fill" className="text-yellow-400 flex-shrink-0" />
-            <div className="text-sm">
-              <span className="text-gurken-400">In Prüfung: </span>
-              <span className="text-gurken-100 font-bold">{werbungenOffen}</span>
-              <span className="text-gurken-400">
+          <div className="flex items-center gap-3 rounded-xl border border-[#c9a86a]/20 bg-[#c9a86a]/[0.05] px-4 py-3 sm:col-span-2">
+            <Clock size={22} weight="fill" className="flex-shrink-0 text-[#c9a86a]" />
+            <div className="tabular text-sm">
+              <span className="text-[#6b7565]">In Prüfung: </span>
+              <span className="font-semibold text-[#ede8d6]">{werbungenOffen}</span>
+              <span className="text-[#6b7565]">
                 {" "}
                 {werbungenOffen === 1 ? "Werbung" : "Werbungen"} – warten auf
                 Bestätigung durch die Sekten-Leitung.

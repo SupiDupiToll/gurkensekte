@@ -87,16 +87,11 @@ export function BouncingCucumber({
 
 export function CucumberSwarm({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex gap-3 flex-wrap justify-center ${className}`}>
-      <SpinningCucumber size="text-3xl" />
-      <FloatingCucumber size="text-4xl" />
+    <div className={`flex gap-4 items-center justify-center ${className}`} aria-hidden="true">
+      <FloatingCucumber size="text-2xl" />
+      <SpinningCucumber size="text-4xl" />
       <WigglingCucumber size="text-3xl" />
-      <ShakingCucumber size="text-2xl" />
-      <BouncingCucumber size="text-3xl" />
       <SpinningCucumber size="text-2xl" reverse />
-      <WigglingCucumber size="text-4xl" />
-      <FloatingCucumber size="text-3xl" />
-      <ShakingCucumber size="text-2xl" />
       <BouncingCucumber size="text-3xl" />
     </div>
   );

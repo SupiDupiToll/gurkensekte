@@ -67,7 +67,7 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       return;
     }
     if (captchaPflicht && !turnstileToken) {
-      setCaptchaHinweis("Bitte zuerst das Captcha lösen – dann darfst du drehen. 🥒");
+      setCaptchaHinweis("Bitte zuerst das Captcha lösen, dann darfst du drehen.");
       return;
     }
 
@@ -108,7 +108,7 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
           setTurnstileToken(null);
           setCaptchaReset((n) => n + 1);
           setCaptchaHinweis(
-            "Captcha erforderlich – bitte erneut bestätigen, dann nochmal drehen. 🥒",
+            "Captcha erforderlich – bitte erneut bestätigen, dann nochmal drehen.",
           );
           setFehler(null);
           await refresh();
@@ -156,12 +156,12 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
     <div className="card p-6 md:p-8 mb-8">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <Coins size={24} weight="fill" className="text-yellow-400" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🎰 Slotmaschine
+          <Coins size={22} weight="fill" className="text-[#c9a86a]" />
+          <h2 className="font-display text-xl font-semibold text-[#faf8f1]">
+            Slotmaschine
           </h2>
         </div>
-        <span className="rounded-lg border border-yellow-400/25 bg-yellow-400/5 px-3 py-1.5 text-sm font-bold text-yellow-300">
+        <span className="tabular rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm font-semibold text-[#e2d9bf]">
           {zahl(punkte)} Punkte
         </span>
       </div>
@@ -171,14 +171,14 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
         {rollen.map((symbol, i) => (
           <div
             key={i}
-            className={`flex items-center justify-center rounded-2xl border text-5xl md:text-6xl h-24 md:h-28 transition-all duration-300 ${
+            className={`flex items-center justify-center rounded-lg border text-5xl md:text-6xl h-24 md:h-28 transition-all duration-300 ${
               ergebnis
                 ? ergebnis.delta > 0
-                  ? "border-yellow-400/50 bg-yellow-400/10 shadow-[0_0_25px_rgba(250,204,21,0.25)]"
+                  ? "border-[#c9a86a]/40 bg-[#c9a86a]/[0.07]"
                   : ergebnis.delta < 0
-                    ? "border-red-500/40 bg-red-950/30"
-                    : "border-gurken-500/30 bg-gurken-800/40"
-                : "border-gurken-500/20 bg-gurken-800/40"
+                    ? "border-red-500/30 bg-red-950/25"
+                    : "border-white/10 bg-white/[0.03]"
+                : "border-white/10 bg-white/[0.03]"
             } ${dreht ? "animate-pulse" : ""}`}
           >
             <span className={dreht ? "opacity-70 blur-[1px]" : ""}>{symbol}</span>
@@ -189,44 +189,44 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       {/* Ergebnis */}
       {ergebnis && (
         <div
-          className={`mb-5 rounded-xl border px-4 py-3 text-center ${
+          className={`mb-5 rounded-lg border px-4 py-3 text-center ${
             ergebnis.delta > 0
-              ? "border-yellow-400/40 bg-yellow-400/10"
+              ? "border-[#c9a86a]/30 bg-[#c9a86a]/[0.07]"
               : ergebnis.delta < 0
-                ? "border-red-500/30 bg-red-950/30"
-                : "border-gurken-500/20 bg-gurken-800/40"
+                ? "border-red-500/25 bg-red-950/25"
+                : "border-white/10 bg-white/[0.03]"
           }`}
         >
           <p
-            className={`font-heading text-lg font-bold ${
+            className={`tabular font-display text-lg font-semibold ${
               ergebnis.delta > 0
-                ? "text-yellow-300"
+                ? "text-[#e2d9bf]"
                 : ergebnis.delta < 0
                   ? "text-red-300"
-                  : "text-gurken-300"
+                  : "text-[#ede8d6]"
             }`}
           >
             {ergebnis.delta > 0 ? "+" : ""}
             {zahl(ergebnis.delta)} Punkte
-            <span className="ml-2 text-sm font-semibold opacity-80">
+            <span className="ml-2 text-sm font-semibold opacity-70">
               ({ergebnis.faktor > 0 ? "+" : ""}
               {zahl(ergebnis.faktor)}× Einsatz)
             </span>
           </p>
-          <p className="mt-0.5 text-xs text-gurken-400">{ergebnis.label}</p>
+          <p className="mt-0.5 text-xs text-[#a3ad9a]">{ergebnis.label}</p>
         </div>
       )}
 
       {fehler && (
-        <div className="mb-5 rounded-xl border border-red-500/30 bg-red-950/30 px-4 py-3 text-center text-sm text-red-200">
+        <div className="mb-5 rounded-lg border border-red-500/25 bg-red-950/20 px-4 py-3 text-center text-sm text-red-200">
           {fehler}
         </div>
       )}
 
       {/* Einsatz */}
       <div className="mb-4">
-        <div className="mb-2 text-xs uppercase tracking-wider text-gurken-500">
-          Einsatz (braucht {CASINO_MAX_VERLUST_FAKTOR}× Puffer)
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
+          Einsatz (braucht 3× Puffer)
         </div>
         <div className="flex flex-wrap gap-2">
           {CASINO_EINSAETZE.map((wert) => {
@@ -242,13 +242,13 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
                     ? `${zahl(wert)} Punkte Einsatz`
                     : `Braucht ${zahl(braucht)} Punkte Puffer`
                 }
-                className={`min-h-[44px] rounded-xl border px-5 py-2.5 text-sm font-bold transition-all touch-manipulation disabled:opacity-50 ${
+                className={`tabular min-h-[44px] rounded-lg border px-5 py-2.5 text-sm font-semibold transition-all duration-300 active:scale-[0.97] disabled:opacity-50 ${
                   einsatz === wert
-                    ? "border-yellow-400/50 bg-yellow-400/15 text-yellow-300"
-                    : "border-gurken-500/20 bg-gurken-800/40 text-gurken-400 hover:border-gurken-500 hover:text-gurken-300"
+                    ? "border-transparent bg-[#ede8d6] text-[#0b120d]"
+                    : "border-white/10 bg-white/[0.03] text-[#a3ad9a] hover:border-white/25 hover:text-[#ede8d6]"
                 } ${reicht ? "" : "opacity-60"}`}
               >
-                {zahl(wert)} Punkte
+                {zahl(wert)}
               </button>
             );
           })}
@@ -282,7 +282,7 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
             }}
           />
           {captchaHinweis && (
-            <p className="mt-2 text-center text-xs text-gurken-400">
+            <p className="mt-2 text-center text-xs text-[#a3ad9a]">
               {captchaHinweis}
             </p>
           )}
@@ -292,21 +292,21 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       <button
         onClick={drehen}
         disabled={!kannDrehen}
-        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 px-6 py-4 font-bold text-gurken-950 transition-all duration-200 hover:bg-yellow-300 hover:shadow-[0_0_25px_rgba(250,204,21,0.4)] disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-0 touch-manipulation min-h-[52px] text-base"
+        className="btn-cta btn-cta-primary min-h-[52px] w-full !text-base disabled:cursor-not-allowed disabled:opacity-50"
       >
         {dreht ? (
           <>
             <Spinner size={20} weight="fill" className="animate-spin" />
-            Dreht…
+            Dreht …
           </>
         ) : (
-          <>🎰 Drehen für {zahl(einsatz)} Punkte</>
+          <>Drehen für {zahl(einsatz)} Punkte</>
         )}
       </button>
 
-      <p className="mt-3 text-center text-xs leading-relaxed text-gurken-500">
-        Spielgeld-Regeln: höchstens <strong className="text-gurken-400">3×</strong>{" "}
-        Gewinn, aber auch bis zu <strong className="text-gurken-400">3×</strong>{" "}
+      <p className="mt-3 text-center text-xs leading-relaxed text-[#6b7565]">
+        Spielgeld-Regeln: höchstens <strong className="text-[#a3ad9a]">3×</strong>{" "}
+        Gewinn, aber auch bis zu <strong className="text-[#a3ad9a]">3×</strong>{" "}
         Verlust. Für den Totalverlust brauchst du den 3-fachen Einsatz als
         Puffer auf dem Konto.
       </p>

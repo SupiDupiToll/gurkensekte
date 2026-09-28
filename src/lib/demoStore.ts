@@ -47,9 +47,12 @@ export function getDemoProfile(req: Request, res: Response): DemoProfile {
   let id = parseDemoCookies(req)[DEMO_COOKIE_NAME];
   if (!id) {
     id = randomUUID();
+    // Secure nur in Production: Lokal läuft die Demo auch über http.
+    const secure =
+      process.env.NODE_ENV === "production" ? "; Secure" : "";
     res.headers.set(
       "Set-Cookie",
-      `${DEMO_COOKIE_NAME}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,
+      `${DEMO_COOKIE_NAME}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure}`,
     );
   }
   let profile = stores.get(id);

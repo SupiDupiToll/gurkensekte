@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { Trophy } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
-import { SpinningCucumber } from "@/components/SpinningCucumber";
 import {
   type LeaderboardDaten,
   type LeaderboardEintrag,
   rangTitelFuer,
 } from "@/lib/leaderboard";
 
-const MEDAILLEN = ["🥇", "🥈", "🥉"];
+const MEDAILLEN = ["1", "2", "3"];
 
 function zahl(n: number) {
   return n.toLocaleString("de-DE");
@@ -27,56 +26,47 @@ function RangZeile({
 }) {
   return (
     <li
-      className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${
-        istDu
-          ? "border-yellow-400/40 bg-yellow-400/5"
-          : "border-transparent bg-gurken-800/20"
+      className={`flex items-center gap-3 border-b border-white/[0.05] px-3 py-2.5 last:border-0 ${
+        istDu ? "bg-[#c9a86a]/[0.06]" : ""
       }`}
     >
       <span
-        className={`w-7 flex-shrink-0 text-center font-heading font-bold ${
-          rang <= 3 ? "text-base" : "text-sm text-gurken-500"
+        className={`tabular flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-center font-display font-semibold ${
+          rang <= 3
+            ? "bg-[#c9a86a]/15 text-sm text-[#e2d9bf]"
+            : "bg-white/[0.04] text-xs text-[#6b7565]"
         }`}
       >
         {rang <= 3 ? MEDAILLEN[rang - 1] : rang}
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm text-gurken-200 uppercase tracking-wide">
-        {/* Nur die ersten zwei Buchstaben – den vollen Namen zeigt die Rangliste bewusst nicht. */}
+      <span className="min-w-0 flex-1 truncate text-sm uppercase tracking-[0.06em] text-[#ede8d6]">
         {eintrag.name.trim().slice(0, 2)}
         <span
-          className="ml-2 inline-block rounded border border-gurken-500/30 bg-gurken-800/40 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-gurken-300"
+          className="ml-2 inline-block rounded-lg border border-white/10 bg-white/[0.04] px-2 py-0.5 align-middle text-[10px] font-semibold normal-case tracking-normal text-[#a3ad9a]"
           title={`${zahl(eintrag.punkte)} Punkte`}
         >
           {rangTitelFuer(eintrag.punkte)}
         </span>
         {istDu && (
-          <span className="ml-2 rounded border border-yellow-400/30 px-1 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-yellow-400">
+          <span className="ml-2 rounded-lg border border-[#c9a86a]/30 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-[0.1em] text-[#c9a86a]">
             du
           </span>
         )}
       </span>
-      <span className="flex-shrink-0 text-right leading-tight">
-        <span className="block text-sm font-bold text-yellow-300">
-          {zahl(eintrag.punkte)} Punkte
-        </span>
+      <span className="tabular block flex-shrink-0 text-sm font-semibold text-[#e2d9bf]">
+        {zahl(eintrag.punkte)}
       </span>
     </li>
   );
 }
 
-/**
- * Gurken-Rangliste in der Punkte-Sektion: zeigt die Top-Mitglieder nach den
- * normalen Punkten und heftet die eigene Position darunter fest an.
- */
 export function Leaderboard() {
   const { leaderboardApiBase, punkte } = usePunkte();
   const [daten, setDaten] = useState<LeaderboardDaten | null>(null);
   const [fehler, setFehler] = useState(false);
   const [geladen, setGeladen] = useState(false);
-  // Zähler, damit der Neuladen-Button denselben Effekt erneut anstößt.
   const [ladung, setLadung] = useState(0);
 
-  // Nach jedem Punkte-Claim neu ziehen, damit der eigene Rang sofort stimmt.
   useEffect(() => {
     let aktiv = true;
     fetch(leaderboardApiBase)
@@ -102,44 +92,40 @@ export function Leaderboard() {
 
   const du = daten?.du ?? null;
   const duInTop =
-    du !== null &&
-    daten !== null &&
-    daten.eintraege.some((e) => e.id === du.eintrag.id);
+    du !== null && daten !== null && daten.eintraege.some((e) => e.id === du.eintrag.id);
 
   return (
-    <div className="mb-4 rounded-xl border border-gurken-500/10 bg-gurken-800/30 p-4">
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
       <div className="mb-1 flex items-center gap-2">
-        <Trophy size={18} weight="fill" className="text-yellow-400" />
-        <h3 className="text-sm font-bold text-gurken-200">Gurken-Rangliste</h3>
+        <Trophy size={17} weight="fill" className="text-[#c9a86a]" />
+        <h3 className="text-sm font-semibold text-[#ede8d6]">Gurken-Rangliste</h3>
         {daten && (
-          <span className="ml-auto text-[11px] text-gurken-500">
+          <span className="tabular ml-auto text-[11px] text-[#6b7565]">
             {zahl(daten.gesamt)} {daten.gesamt === 1 ? "Mitglied" : "Mitglieder"}
           </span>
         )}
       </div>
-      <p className="mb-3 text-xs leading-relaxed text-gurken-500">
-        Geranking nach den <strong className="text-gurken-400">normalen Punkten</strong>{" "}
-        – bei Gleichstand gewinnt das ältere Mitglied. Je mehr Punkte, desto
-        höher das <strong className="text-gurken-400">Rangzeichen</strong>: von
-        Nano Gurke bis Extremst riesige Gurke. Wer eine echte Gurke einlöst,
-        verliert 1000 Punkte und kann dafür rutschen.
+      <p className="mb-4 text-xs leading-relaxed text-[#6b7565]">
+        Nach Punkten sortiert, bei Gleichstand gewinnt das ältere Mitglied. Wer eine echte
+        Gurke einlöst, verliert 1.000 Punkte und kann rutschen.
       </p>
 
       {!geladen && (
-        <div className="py-4 text-center">
-          <SpinningCucumber size="text-2xl" />
+        <div className="space-y-2 py-1" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="shimmer h-11 rounded-xl" />
+          ))}
         </div>
       )}
 
       {geladen && fehler && (
         <div className="py-3 text-center">
-          <p className="text-xs text-gurken-400">
-            Die Rangliste harrt hinter eingelegtem Glas – versuch es gleich noch
-            einmal.
+          <p className="text-xs text-[#a3ad9a]">
+            Die Rangliste harrt hinter eingelegtem Glas. Versuch es gleich noch einmal.
           </p>
           <button
             onClick={() => setLadung((n) => n + 1)}
-            className="mt-2 rounded-lg border border-gurken-600/40 px-4 py-2 text-xs font-bold text-gurken-400 transition-all hover:border-gurken-500 hover:text-gurken-300 touch-manipulation"
+            className="mt-2 rounded-lg border border-white/12 px-4 py-2 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
           >
             Erneut versuchen
           </button>
@@ -148,25 +134,22 @@ export function Leaderboard() {
 
       {geladen && !fehler && daten && (
         <>
-          <ul className="space-y-1.5">
+          <ul className="overflow-hidden rounded-xl border border-white/[0.07]">
             {daten.eintraege.map((eintrag, i) => (
-              <RangZeile
-                key={eintrag.id}
-                eintrag={eintrag}
-                rang={i + 1}
-                istDu={du?.eintrag.id === eintrag.id}
-              />
+              <RangZeile key={eintrag.id} eintrag={eintrag} rang={i + 1} istDu={du?.eintrag.id === eintrag.id} />
             ))}
             {daten.eintraege.length === 0 && (
-              <li className="py-2 text-center text-xs text-gurken-500">
-                Noch kein Mitglied gesammelt – du kannst die Rangliste eröffnen!
+              <li className="py-3 text-center text-xs text-[#6b7565]">
+                Noch kein Mitglied gesammelt. Du kannst die Rangliste eröffnen.
               </li>
             )}
           </ul>
 
           {du && !duInTop && (
-            <div className="mt-2 border-t border-dashed border-gurken-500/20 pt-2">
-              <RangZeile eintrag={du.eintrag} rang={du.rang} istDu />
+            <div className="mt-2 border-t border-dashed border-white/10 pt-2">
+              <ul className="overflow-hidden rounded-xl border border-[#c9a86a]/25">
+                <RangZeile eintrag={du.eintrag} rang={du.rang} istDu />
+              </ul>
             </div>
           )}
         </>

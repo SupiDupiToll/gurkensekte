@@ -26,9 +26,24 @@ export function turnstileFehltFehler(grund: "fehlt" | "ungueltig" = "fehlt") {
 }
 
 export function getClientIp(req: Request): string | null {
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  if (forwardedFor) return forwardedFor.split(",")[0]?.trim() ?? null;
-  return req.headers.get("x-real-ip");
+  // Infrastruktur-gesetzte Header zuerst: Hinter Cloudflare/Vercel stammen
+  // diese vom Proxy und nicht vom Client. `x-forwarded-for` kann der Client
+  // fälschen – deshalb wird dort der LETZTE Eintrag genommen (vom nächsten
+  // vertrauenswürdigen Proxy angehängt), nicht der erste.
+  const direkt =
+    req.headers.get("cf-connecting-ip")?.trim() ||
+    req.headers.get("x-real-ip")?.trim();
+  if (direkt) return direkt;
+  const weitergeleitet = req.headers.get("x-forwarded-for");
+  if (weitergeleitet) {
+    const eintraege = weitergeleitet
+      .split(",")
+      .map((eintrag) => eintrag.trim())
+      .filter(Boolean);
+    const letzte = eintraege[eintraege.length - 1];
+    if (letzte) return letzte;
+  }
+  return null;
 }
 
 /**
@@ -82,31 +97,64 @@ async function verifiziereToken(
  * lässt die Anfrage ohne Token durch, sonst wird `token` einmalig gegen die
  * Cloudflare-API geprüft und bei Erfolg eine neue Sitzung angelegt.
  *
- * Damit ein gelöstes Captcha überall gilt (z. B. Chat und Punkte-Buchung
- * teilen sich die Sitzung), werden User-Schlüssel und IP-Schlüssel gemeinsam
- * geprüft und gemeinsam gesetzt.
+ * Anonyme Anfragen (Chat) nutzen die IP-Sitzung, eingeloggte Mitglieder die
+ * User-Sitzung – bewusst getrennt, damit sich niemand an fremden Captchas
+ * bedient (siehe Härtung unten).
+ *
+ * Härtung:
+ * - Ohne Secret schlägt die Prüfung in Production fehl (fail-closed), damit
+ *   eine fehlende Env nicht lautlos allen Bot-Schutz abschaltet. Nur in
+ *   Non-Production (Dev) wird mit Warnung durchgelassen.
+ * - Mit eingeloggtem Nutzer zählt nur die User-Sitzung, nicht die IP-Sitzung:
+ *   Sonst könnte sich jeder hinter derselben IP/User-Agent (NAT, Proxy) oder
+ *   mit gefälschtem `x-forwarded-for` an fremden Captchas bedienen.
+ * - `frischesToken: true` schaltet den Sitzungs-Shortcut ab: Jede Anfrage
+ *   braucht ein frisch gelöstes, noch unverbrauchtes Token, das immer live
+ *   gegen Cloudflare geprüft wird. Nötig für Chat (jede Nachricht) und
+ *   Casino/Roulette (jeder Dreh) – sonst farmt ein Skript mit einer einzigen
+ *   Lösung 30 Minuten lang Punkte. Hintergrund: Turnstile-Tokens sind
+ *   Single-Use (`timeout-or-duplicate` bei Zweitprüfung), deshalb darf ein
+ *   Token nie an zwei Routen zur Prüfung weitergereicht werden.
  */
 export async function pruefeTurnstile(
   req: Request,
-  opts: { token?: unknown; userId?: string | null } = {},
+  opts: {
+    token?: unknown;
+    userId?: string | null;
+    frischesToken?: boolean;
+  } = {},
 ): Promise<{ ok: true } | { ok: false; grund: "fehlt" | "ungueltig" }> {
   const now = Date.now();
-  const schluessel = [getTurnstileSessionKey(req, opts.userId)];
-  // Zweit-Schlüssel: Der Chat kennt keine User-ID (nur IP), die Punkte-API
-  // kennt die User-ID – beide Sitzungen gelten gegenseitig.
-  const ipSchluessel = getTurnstileSessionKey(req, null);
-  if (!schluessel.includes(ipSchluessel)) schluessel.push(ipSchluessel);
-
-  if (schluessel.some((k) => (turnstileSessions.get(k) ?? 0) > now)) {
-    return { ok: true };
-  }
 
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "Turnstile: TURNSTILE_SECRET_KEY fehlt in Production – Anfragen werden abgelehnt (fail-closed).",
+      );
+      return { ok: false, grund: "fehlt" };
+    }
     console.warn(
-      "Turnstile: TURNSTILE_SECRET_KEY fehlt, Prüfung übersprungen.",
+      "Turnstile: TURNSTILE_SECRET_KEY fehlt, Prüfung übersprungen (nur Dev).",
     );
     return { ok: true };
+  }
+
+  // Eingeloggt: Nur die eigene User-Sitzung gilt – die IP-Sitzung fremder
+  // Nutzer hinter derselben IP (oder mit gespooftem x-forwarded-for) darf
+  // nicht für fremde Konten zählen.
+  const gueltigeSchluessel = opts.userId
+    ? [getTurnstileSessionKey(req, opts.userId)]
+    : [
+        getTurnstileSessionKey(req, null),
+      ];
+
+  // Frisch-Token-Modus (Chat, Casino, Roulette): Die Sitzung wird bewusst
+  // ignoriert – jede Anfrage braucht ein neues, live geprüftes Token.
+  if (!opts.frischesToken) {
+    if (gueltigeSchluessel.some((k) => (turnstileSessions.get(k) ?? 0) > now)) {
+      return { ok: true };
+    }
   }
 
   const token = typeof opts.token === "string" ? opts.token.trim() : "";
@@ -126,7 +174,9 @@ export async function pruefeTurnstile(
     return { ok: false, grund: "ungueltig" };
   }
 
-  for (const k of schluessel) {
+  // Nur der jeweils passende Schlüssel wird gesetzt: Eine als Mitglied
+  // gelöste Challenge schaltet nicht zusätzlich die ganze IP (NAT) frei.
+  for (const k of gueltigeSchluessel) {
     turnstileSessions.set(k, now + TURNSTILE_VALID_MS);
   }
   cleanupTurnstileSessions(now);

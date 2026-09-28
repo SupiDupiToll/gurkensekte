@@ -6,30 +6,27 @@ import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
 import { Leaderboard } from "@/components/Leaderboard";
 import { RangKopf, Rangstufen } from "@/components/Rangstufen";
 import { ReferralBox } from "@/components/ReferralBox";
+import { Reveal } from "@/components/Reveal";
+import { SpinningCucumber } from "@/components/SpinningCucumber";
 import {
   TurnstileWidget,
   turnstileKonfiguriert,
 } from "@/components/TurnstileWidget";
 import {
-  SpinningCucumber,
-  FloatingCucumber,
-  WigglingCucumber,
-  BouncingCucumber,
-  ShakingCucumber,
-} from "@/components/SpinningCucumber";
-import {
   PaperPlaneTilt,
   SignOut,
   CalendarBlank,
   ShieldCheck,
-  ChatDots,
+  ChatCircleText,
   ArrowsInSimple,
-  Coin,
+  Coins,
   Gift,
   Basket,
   ClockCounterClockwise,
   Flask,
   ArrowLeft,
+  ArrowRight,
+  Quotes,
   DiceFive,
 } from "@phosphor-icons/react";
 import { demoPath } from "@/lib/demo";
@@ -47,6 +44,68 @@ export type MitgliedInfo = {
   signedUpAt?: string | Date | null;
 };
 
+/** Einheitlicher Teaser für zugeklappte Sektionen (Chat, Punkte, Zitat). */
+function SektionTeaser({
+  icon,
+  titel,
+  cta,
+  onOpen,
+}: {
+  icon: React.ReactNode;
+  titel: string;
+  teaser: string;
+  cta: string;
+  onOpen: () => void;
+}) {
+  return (
+    <div className="mb-5">
+      <button
+        onClick={onOpen}
+        className="shell group block w-full text-center transition-colors duration-200 active:scale-[0.99]"
+      >
+        <div className="core flex flex-col items-center gap-4 p-6 md:p-8">
+          {icon}
+          <h2 className="font-display text-2xl font-semibold text-[#faf8f1] md:text-[1.7rem]">
+            {titel}
+          </h2>
+          <span className="btn-cta btn-cta-primary !text-base">
+            {cta}
+            <span className="btn-dot">
+              <ArrowRight size={17} weight="bold" />
+            </span>
+          </span>
+        </div>
+      </button>
+    </div>
+  );
+}
+
+function SektionKopf({
+  icon,
+  titel,
+  onClose,
+}: {
+  icon: React.ReactNode;
+  titel: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        {icon}
+        <h2 className="font-display text-xl font-semibold text-[#faf8f1]">{titel}</h2>
+      </div>
+      <button
+        onClick={onClose}
+        className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] transition-colors hover:border-white/20 hover:text-[#ede8d6]"
+      >
+        <ArrowsInSimple size={16} />
+        Schließen
+      </button>
+    </div>
+  );
+}
+
 function PunkteInhalt() {
   const {
     punkte,
@@ -61,14 +120,12 @@ function PunkteInhalt() {
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [claimingRedeem, setClaimingRedeem] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  // Bot-Schutz für Punkte-Aktionen: Ein gelöstes Captcha gilt 30 Minuten.
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
   const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
     turnstileKonfiguriert() ? "Bitte löse kurz das Captcha für Punkte-Aktionen." : null,
   );
   const [captchaReset, setCaptchaReset] = useState(0);
-  // Bestellformular: ohne vollständige Lieferadresse wird nicht eingelöst.
   const [showAdresse, setShowAdresse] = useState(false);
   const [adresseFehler, setAdresseFehler] = useState<string | null>(null);
   const [bestellt, setBestellt] = useState(false);
@@ -80,12 +137,11 @@ function PunkteInhalt() {
     land: "",
   });
 
-  /** Meldet ein fehlgeschlagenes Captcha und setzt das Widget zurück. */
   function captchaFehlt() {
     setCaptchaPflicht(true);
     setTurnstileToken(null);
     setCaptchaReset((n) => n + 1);
-    setCaptchaHinweis("Bitte zuerst das Captcha lösen – dann gibt's Punkte. 🥒");
+    setCaptchaHinweis("Bitte zuerst das Captcha lösen, dann gibt es Punkte.");
   }
 
   async function handleDaily() {
@@ -105,7 +161,6 @@ function PunkteInhalt() {
     setClaimingDaily(false);
   }
 
-  /** Öffnet das Adressformular, möglichst mit der gespeicherten Adresse. */
   function starteBestellung() {
     setAdresseFehler(null);
     setAdresseForm({
@@ -132,7 +187,7 @@ function PunkteInhalt() {
       return;
     }
     if (captchaPflicht && !turnstileToken) {
-      setAdresseFehler("Bitte löse zuerst das Captcha weiter unten. 🥒");
+      setAdresseFehler("Bitte löse zuerst das Captcha weiter unten.");
       captchaFehlt();
       return;
     }
@@ -164,60 +219,65 @@ function PunkteInhalt() {
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <SpinningCucumber size="text-3xl" />
+      <div className="space-y-3 py-4" aria-busy="true">
+        <div className="shimmer h-24 rounded-2xl" />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="shimmer h-20 rounded-2xl" />
+          <div className="shimmer h-20 rounded-2xl" />
+        </div>
       </div>
     );
   }
 
+  const inputClass =
+    "mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-base text-[#ede8d6] placeholder-[#6b7565]/70 outline-none transition-colors focus:border-[#8fa96d]";
+
   return (
     <>
-      {/* Points Balance */}
-      <div className="bg-gurken-800/40 rounded-2xl p-6 text-center mb-6 border border-gurken-500/10">
-        <div className="text-gurken-500 text-xs uppercase tracking-wider mb-1">
+      {/* Kontostand */}
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 text-center md:p-8">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6b7565]">
           Dein Gurkensegen
-        </div>
-        <div className="text-5xl font-heading font-bold text-yellow-300 mb-1">
-          {punkte}
-        </div>
-        <div className="text-gurken-400 text-sm">🥒 Punkte</div>
-        <div className="mt-1.5 text-xs text-gurken-500">
-          Gesammelt: {" "}
-          <span className="font-bold text-gurken-300">
+        </p>
+        <p className="tabular font-display mt-1 text-6xl font-semibold text-[#faf8f1]">
+          {punkte.toLocaleString("de-DE")}
+        </p>
+        <p className="mt-1 text-sm text-[#a3ad9a]">Punkte</p>
+        <p className="mt-2 text-xs text-[#6b7565]">
+          Gesammelt{" "}
+          <span className="tabular font-semibold text-[#cfc8b0]">
             {punkteGesamt.toLocaleString("de-DE")} XP
           </span>{" "}
-          – die fallen nie, auch beim Einlösen nicht.
-        </div>
+          · XP verfallen nie, auch beim Einlösen nicht.
+        </p>
 
         {bestellt && (
-          <div className="mt-4 rounded-xl border border-gurken-400/40 bg-gurken-500/10 px-4 py-3 text-sm text-gurken-200">
-            🥒 Deine Gurke ist bestellt! Sie geht an{" "}
-            <strong className="text-gurken-100">
-              {gurkenAdresse
-                ? adresseFormatieren(gurkenAdresse)
-                : "deine gespeicherte Adresse"}
+          <div className="mt-5 rounded-xl border border-[#8fa96d]/30 bg-[#8fa96d]/[0.07] px-4 py-3 text-sm text-[#e3e9d3]">
+            Deine Gurke ist bestellt und geht an{" "}
+            <strong>
+              {gurkenAdresse ? adresseFormatieren(gurkenAdresse) : "deine gespeicherte Adresse"}
             </strong>
             .
           </div>
         )}
 
         {punkte >= 1000 ? (
-          <div className="mt-4 space-y-3">
-            <div className="text-gurken-300 text-sm">
-              🥒 Du hast genug Punkte für eine <strong>echte Gurke</strong>!
-              Gürkchen persönlich schickt sie dir per Post. 🥒
-            </div>
+          <div className="mt-5 space-y-3">
+            <p className="text-sm text-[#cfc8b0]">
+              Genug für eine <strong className="text-[#faf8f1]">echte Gurke</strong>.
+              Gürkchen schickt sie dir persönlich per Post.
+            </p>
 
             {showAdresse ? (
               <form
                 onSubmit={handleRedeem}
-                className="space-y-3 rounded-xl border border-gurken-500/20 bg-gurken-800/40 p-4 text-left"
+                className="space-y-3 rounded-2xl border border-white/10 bg-[#0b120d]/60 p-4 text-left"
               >
-                <div className="text-xs uppercase tracking-wider text-gurken-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
                   Lieferadresse (Pflicht)
-                </div>
+                </p>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-xs font-semibold text-gurken-400 sm:col-span-2">
+                  <label className="text-xs font-semibold text-[#a3ad9a] sm:col-span-2">
                     Name
                     <input
                       type="text"
@@ -225,10 +285,10 @@ function PunkteInhalt() {
                       onChange={(e) => setzeFeld("name", e.target.value)}
                       placeholder="Vor- und Nachname"
                       autoComplete="name"
-                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                      className={inputClass}
                     />
                   </label>
-                  <label className="text-xs font-semibold text-gurken-400 sm:col-span-2">
+                  <label className="text-xs font-semibold text-[#a3ad9a] sm:col-span-2">
                     Straße und Hausnummer
                     <input
                       type="text"
@@ -236,10 +296,10 @@ function PunkteInhalt() {
                       onChange={(e) => setzeFeld("strasse", e.target.value)}
                       placeholder="Gurkenweg 1"
                       autoComplete="street-address"
-                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                      className={inputClass}
                     />
                   </label>
-                  <label className="text-xs font-semibold text-gurken-400">
+                  <label className="text-xs font-semibold text-[#a3ad9a]">
                     PLZ
                     <input
                       type="text"
@@ -248,10 +308,10 @@ function PunkteInhalt() {
                       onChange={(e) => setzeFeld("plz", e.target.value)}
                       placeholder="12345"
                       autoComplete="postal-code"
-                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                      className={inputClass}
                     />
                   </label>
-                  <label className="text-xs font-semibold text-gurken-400">
+                  <label className="text-xs font-semibold text-[#a3ad9a]">
                     Ort
                     <input
                       type="text"
@@ -259,10 +319,10 @@ function PunkteInhalt() {
                       onChange={(e) => setzeFeld("ort", e.target.value)}
                       placeholder="Gurkenstadt"
                       autoComplete="address-level2"
-                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                      className={inputClass}
                     />
                   </label>
-                  <label className="text-xs font-semibold text-gurken-400 sm:col-span-2">
+                  <label className="text-xs font-semibold text-[#a3ad9a] sm:col-span-2">
                     Land (optional)
                     <input
                       type="text"
@@ -270,13 +330,13 @@ function PunkteInhalt() {
                       onChange={(e) => setzeFeld("land", e.target.value)}
                       placeholder="Deutschland"
                       autoComplete="country-name"
-                      className="mt-1 w-full rounded-xl border border-gurken-500/20 bg-gurken-800/60 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all focus:border-gurken-400"
+                      className={inputClass}
                     />
                   </label>
                 </div>
 
                 {adresseFehler && (
-                  <p className="text-xs font-semibold text-red-300">
+                  <p role="alert" className="text-xs font-semibold text-red-300">
                     {adresseFehler}
                   </p>
                 )}
@@ -285,12 +345,10 @@ function PunkteInhalt() {
                   <button
                     type="submit"
                     disabled={claimingRedeem}
-                    className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-gurken-500 px-5 py-3 text-sm font-bold text-gurken-950 transition-all duration-200 hover:bg-gurken-400 hover:shadow-[0_0_20px_#22c55e] disabled:opacity-50 touch-manipulation"
+                    className="btn-cta btn-cta-primary min-h-[48px] flex-1 !text-[15px] disabled:opacity-50"
                   >
                     <Basket size={18} weight="fill" />
-                    {claimingRedeem
-                      ? "Wird bestellt…"
-                      : "🥒 Jetzt bestellen (1000 Punkte)"}
+                    {claimingRedeem ? "Wird bestellt …" : "Jetzt bestellen · 1.000 Punkte"}
                   </button>
                   <button
                     type="button"
@@ -299,7 +357,7 @@ function PunkteInhalt() {
                       setAdresseFehler(null);
                     }}
                     disabled={claimingRedeem}
-                    className="min-h-[48px] rounded-xl border border-gurken-600/40 px-5 py-3 text-sm font-bold text-gurken-400 transition-all hover:text-gurken-200 disabled:opacity-50 touch-manipulation"
+                    className="min-h-[48px] rounded-lg border border-white/12 px-5 py-3 text-sm font-semibold text-[#a3ad9a] transition-colors hover:text-[#ede8d6] disabled:opacity-50"
                   >
                     Abbrechen
                   </button>
@@ -308,19 +366,19 @@ function PunkteInhalt() {
             ) : (
               <button
                 onClick={starteBestellung}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-base transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation min-h-[48px]"
+                className="btn-cta btn-cta-primary min-h-[48px]"
               >
-                <Basket size={20} weight="fill" />
-                🥒 Jetzt echte Gurke bestellen
+                <Basket size={18} weight="fill" />
+                Echte Gurke bestellen
               </button>
             )}
 
             {!showAdresse && gurkenAdresse && (
-              <p className="text-xs text-gurken-500">
+              <p className="text-xs text-[#6b7565]">
                 Lieferadresse: {adresseFormatieren(gurkenAdresse)}{" "}
                 <button
                   onClick={starteBestellung}
-                  className="font-semibold text-gurken-400 underline hover:text-gurken-300"
+                  className="font-semibold text-[#abc189] underline underline-offset-2 hover:text-[#c9d6ae]"
                 >
                   ändern
                 </button>
@@ -328,14 +386,14 @@ function PunkteInhalt() {
             )}
           </div>
         ) : (
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-xs text-gurken-500 mb-1.5">
-              <span>Nächste Belohnung: Echte Gurke 🥒</span>
-              <span>{punkte} / 1000 Punkte</span>
+          <div className="mx-auto mt-5 max-w-sm">
+            <div className="tabular mb-1.5 flex items-center justify-between text-xs text-[#6b7565]">
+              <span>Nächste Belohnung: echte Gurke</span>
+              <span>{punkte} / 1.000</span>
             </div>
-            <div className="w-full h-2 rounded-full bg-gurken-800/60 overflow-hidden">
+            <div className="h-1.5 w-full overflow-hidden rounded-lg bg-white/[0.07]">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-gurken-600 to-yellow-400 transition-all duration-500"
+                className="h-full rounded-lg bg-[#8fa96d] transition-all duration-500"
                 style={{ width: `${Math.min((punkte / 1000) * 100, 100)}%` }}
               />
             </div>
@@ -343,48 +401,40 @@ function PunkteInhalt() {
         )}
       </div>
 
-      {/* Actions */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-4">
-        <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10 flex items-center justify-between">
+      {/* Aktionen */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
           <div>
-            <div className="text-gurken-400 text-xs uppercase tracking-wider mb-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
               Täglicher Bonus
-            </div>
-            <div className="text-gurken-200 font-bold text-lg">+20 🥒</div>
+            </p>
+            <p className="tabular mt-1 text-xl font-semibold text-[#ede8d6]">+20</p>
           </div>
           <button
             onClick={handleDaily}
             disabled={!dailyAvailable || claimingDaily}
-            className="px-4 py-2.5 rounded-xl bg-gurken-600 hover:bg-gurken-500 text-white font-bold text-sm transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px] flex items-center gap-1.5"
+            className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-[#ede8d6] px-5 py-2.5 text-sm font-semibold text-[#0b120d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 "
           >
-            <Gift size={18} weight="fill" />
-            {claimingDaily
-              ? "…"
-              : dailyAvailable
-                ? "Abholen"
-                : "✅ Erledigt"}
+            <Gift size={17} weight="fill" />
+            {claimingDaily ? "…" : dailyAvailable ? "Abholen" : "Erledigt"}
           </button>
         </div>
 
-        <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10">
-          <div className="text-gurken-400 text-xs uppercase tracking-wider mb-1">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
             So sammelst du Punkte
-          </div>
-          <ul className="text-gurken-300 text-sm space-y-1">
-            <li>🥒 Zitat generieren (max. 3× täglich): +5</li>
-            <li>🥒 Chat-Nachricht: +5</li>
-            <li>🥒 Täglicher Bonus: +20</li>
-            <li>🥒 Freund werben: +100 (unbegrenzt oft, nach Prüfung)</li>
-            <li className="text-yellow-400/80 font-bold pt-1 border-t border-gurken-500/10 mt-1">
-              🎁 1000 Punkte → Echte Gurke bestellen
-            </li>
+          </p>
+          <ul className="tabular mt-2 space-y-1 text-[13px] text-[#a3ad9a]">
+            <li>Zitat generieren (3× täglich): +5</li>
+            <li>Chat-Nachricht: +5</li>
+            <li>Täglicher Bonus: +20</li>
+            <li>Freund werben: +100</li>
           </ul>
         </div>
       </div>
 
-      {/* Bot-Schutz für Punkte-Aktionen */}
       {captchaPflicht && (
-        <div className="mb-4">
+        <div className="mt-4">
           <TurnstileWidget
             resetKey={captchaReset}
             onVerify={(token) => {
@@ -397,46 +447,39 @@ function PunkteInhalt() {
             }}
             onError={() => {
               setTurnstileToken(null);
-              setCaptchaHinweis(
-                "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
-              );
+              setCaptchaHinweis("Captcha konnte nicht geladen werden. Bitte erneut versuchen.");
             }}
           />
-          {captchaHinweis && (
-            <p className="mt-2 text-xs text-gurken-400">{captchaHinweis}</p>
-          )}
+          {captchaHinweis && <p className="mt-2 text-xs text-[#a3ad9a]">{captchaHinweis}</p>}
         </div>
       )}
 
-      {/* Gurken-Rangliste */}
-      <Leaderboard />
+      <div className="mt-4">
+        <Leaderboard />
+      </div>
 
-      {/* History toggle */}
       <button
         onClick={() => setShowHistory(!showHistory)}
-        className="flex items-center gap-1.5 text-gurken-500 hover:text-gurken-400 text-xs font-bold transition-all"
+        className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#6b7565] transition-colors hover:text-[#a3ad9a]"
+        aria-expanded={showHistory}
       >
         <ClockCounterClockwise size={14} />
         {showHistory ? "Verlauf ausblenden" : "Verlauf anzeigen"}
       </button>
 
       {showHistory && (
-        <div className="mt-3 space-y-1 max-h-48 overflow-y-auto">
+        <div className="mt-3 max-h-48 space-y-px overflow-y-auto rounded-xl border border-white/[0.07]">
           {verlauf.length === 0 && (
-            <p className="text-gurken-500 text-xs">Noch keine Aktivität</p>
+            <p className="px-3 py-3 text-xs text-[#6b7565]">Noch keine Aktivität</p>
           )}
           {[...verlauf].reverse().map((e, i) => (
             <div
               key={i}
-              className="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-gurken-800/20"
+              className="tabular flex items-center justify-between gap-2 border-b border-white/[0.05] px-3 py-2 text-xs last:border-0"
             >
-              <span className="text-gurken-400">
-                {new Date(e.datum).toLocaleString("de-DE")}
-              </span>
-              <span className="text-gurken-300 capitalize">{e.aktion}</span>
-              <span
-                className={`font-bold ${e.punkte > 0 ? "text-yellow-400" : "text-red-400"}`}
-              >
+              <span className="text-[#6b7565]">{new Date(e.datum).toLocaleString("de-DE")}</span>
+              <span className="capitalize text-[#a3ad9a]">{e.aktion}</span>
+              <span className={`font-semibold ${e.punkte > 0 ? "text-[#e2d9bf]" : "text-red-300"}`}>
                 {e.punkte > 0 ? "+" : ""}
                 {e.punkte}
               </span>
@@ -453,51 +496,23 @@ function PunkteAnzeige() {
 
   if (!open) {
     return (
-      <div className="mb-8">
-        <button
-          onClick={() => setOpen(true)}
-          className="relative w-full group overflow-hidden rounded-2xl border border-gurken-500/20 bg-gradient-to-br from-gurken-700/40 via-gurken-800/30 to-gurken-900/40 p-8 md:p-10 text-center transition-all duration-300 hover:border-gurken-400/40 hover:shadow-[0_0_40px_#22c55e33] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#22c55e0a_0%,_transparent_70%)] group-hover:bg-[radial-gradient(ellipse_at_center,_#22c55e15_0%,_transparent_70%)] transition-all duration-500" />
-          <div className="relative">
-            <div className="text-6xl mb-4">
-              <Coin size={56} weight="fill" className="text-yellow-400 mx-auto" />
-            </div>
-            <h2 className="text-2xl md:text-3xl font-heading font-bold text-gurken-200 mb-2">
-              🥒 Punkte & Belohnungen 🥒
-            </h2>
-            <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
-              Sammle Punkte durch Zitate, Chats und tägliche Boni, vergleiche
-              dich in der Gurken-Rangliste und ab 1000 Punkten gibt es eine
-              echte Gurke!
-            </p>
-            <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
-              <Coin size={22} weight="fill" className="text-yellow-400" />
-              Punkte anzeigen
-            </span>
-          </div>
-        </button>
-      </div>
+      <SektionTeaser
+        icon={<Coins size={40} weight="fill" className="text-[#c9a86a]" />}
+        titel="Punkte und Belohnungen"
+        teaser="Zitate, Chats und Boni sammeln, in der Rangliste aufsteigen und ab 1.000 Punkten eine echte Gurke einlösen."
+        cta="Punkte anzeigen"
+        onOpen={() => setOpen(true)}
+      />
     );
   }
 
   return (
-    <div className="card p-6 md:p-8 mb-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Coin size={24} weight="fill" className="text-yellow-400" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🥒 Punkte & Belohnungen 🥒
-          </h2>
-        </div>
-        <button
-          onClick={() => setOpen(false)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-gurken-400 hover:text-gurken-200 hover:bg-gurken-800/50 text-sm font-bold transition-all touch-manipulation min-h-[44px]"
-        >
-          <ArrowsInSimple size={18} />
-          Schließen
-        </button>
-      </div>
+    <div className="card mb-5 p-6 md:p-8">
+      <SektionKopf
+        icon={<Coins size={22} weight="fill" className="text-[#c9a86a]" />}
+        titel="Punkte und Belohnungen"
+        onClose={() => setOpen(false)}
+      />
       <PunkteInhalt />
     </div>
   );
@@ -507,7 +522,6 @@ function GurkchenQuote() {
   const [quote, setQuote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { refresh, claim, quoteAvailable, quoteRemaining } = usePunkte();
-  // Bot-Schutz: Ohne Captcha gibt's weder Punkte noch KI-Zitat.
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
   const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
@@ -518,12 +532,12 @@ function GurkchenQuote() {
   const fetchQuote = useCallback(
     async (tokenOverride?: string | null) => {
       if (!quoteAvailable) {
-        setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder! 🥒");
+        setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder.");
         return;
       }
       const token = tokenOverride !== undefined ? tokenOverride : turnstileToken;
       if (captchaPflicht && !token) {
-        setCaptchaHinweis("Bitte zuerst das Captcha lösen. 🥒");
+        setCaptchaHinweis("Bitte zuerst das Captcha lösen.");
         return;
       }
 
@@ -534,12 +548,12 @@ function GurkchenQuote() {
           setCaptchaPflicht(true);
           setTurnstileToken(null);
           setCaptchaReset((n) => n + 1);
-          setCaptchaHinweis("Bitte zuerst das Captcha lösen. 🥒");
+          setCaptchaHinweis("Bitte zuerst das Captcha lösen.");
           await refresh();
           return;
         }
         if (!result || !result.ok) {
-          setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder! 🥒");
+          setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder.");
           await refresh();
           return;
         }
@@ -552,7 +566,7 @@ function GurkchenQuote() {
           setCaptchaPflicht(true);
           setTurnstileToken(null);
           setCaptchaReset((n) => n + 1);
-          setCaptchaHinweis("Bitte zuerst das Captcha lösen. 🥒");
+          setCaptchaHinweis("Bitte zuerst das Captcha lösen.");
           await refresh();
           return;
         }
@@ -563,7 +577,7 @@ function GurkchenQuote() {
         setCaptchaHinweis(null);
         await refresh();
       } catch {
-        setQuote("Die Gurke ist der Urknall in essbarer Form. – Gürkchen 🥒");
+        setQuote("Die Gurke ist der Urknall in essbarer Form. – Gürkchen");
       } finally {
         setLoading(false);
       }
@@ -579,22 +593,19 @@ function GurkchenQuote() {
   return (
     <div>
       {loading ? (
-        <div className="flex justify-center py-4">
-          <SpinningCucumber size="text-3xl" />
-        </div>
+        <div className="shimmer mx-auto h-16 max-w-md rounded-xl" aria-busy="true" />
       ) : (
-        <blockquote className="text-gurken-200 text-lg italic leading-relaxed mb-4 min-h-[3rem]">
-          &bdquo;{quote}&rdquo;
+        <blockquote className="font-display mx-auto min-h-[3rem] max-w-xl text-xl italic leading-relaxed text-[#ede8d6]">
+          „{quote}“
         </blockquote>
       )}
       {captchaPflicht && (
-        <div className="mb-3 text-left">
+        <div className="mx-auto mb-3 mt-4 max-w-md text-left">
           <TurnstileWidget
             resetKey={captchaReset}
             onVerify={(token) => {
               setTurnstileToken(token);
               setCaptchaHinweis(null);
-              // Direkt nach dem Lösen das Zitat nachladen.
               fetchQuote(token);
             }}
             onExpire={() => {
@@ -603,26 +614,23 @@ function GurkchenQuote() {
             }}
             onError={() => {
               setTurnstileToken(null);
-              setCaptchaHinweis(
-                "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
-              );
+              setCaptchaHinweis("Captcha konnte nicht geladen werden. Bitte erneut versuchen.");
             }}
           />
-          {captchaHinweis && (
-            <p className="mt-2 text-xs text-gurken-400">{captchaHinweis}</p>
-          )}
+          {captchaHinweis && <p className="mt-2 text-xs text-[#a3ad9a]">{captchaHinweis}</p>}
         </div>
       )}
-      <button
-        onClick={() => fetchQuote()}
-        disabled={loading || !quoteAvailable}
-        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gurken-600 hover:bg-gurken-500 text-white font-bold text-sm transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px]"
-      >
-        {quoteAvailable ? "🥒 Neues Zitat" : "⏳ Morgen wieder"}
-      </button>
-      <p className="mt-2 text-xs text-gurken-400">
-        Heute noch verfügbar: {quoteRemaining} / 3
-      </p>
+      <div className="mt-5 flex flex-col items-center gap-2">
+        <button
+          onClick={() => fetchQuote()}
+          disabled={loading || !quoteAvailable}
+          className="flex min-h-[44px] items-center gap-2 rounded-lg bg-[#ede8d6] px-6 py-2.5 text-sm font-semibold text-[#0b120d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 "
+        >
+          <Quotes size={17} weight="fill" />
+          {quoteAvailable ? "Neues Zitat" : "Morgen wieder"}
+        </button>
+        <p className="tabular text-xs text-[#6b7565]">Heute noch verfügbar: {quoteRemaining} / 3</p>
+      </div>
     </div>
   );
 }
@@ -632,15 +640,13 @@ function GurkchenChat() {
     {
       role: "assistant",
       content:
-        "🥒 Sei gegrüßt, mein Gurken-Kind! 🥒 Ich bin Gürkchen, der allmächtige Anführer der einen wahren Sekte. Was bedrückt deine eingelegte Seele?",
+        "Sei gegrüßt, mein Gurken-Kind. Ich bin Gürkchen, Stimme des einen wahren Einlegeglases. Was bedrückt deine eingelegte Seele?",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [captchaRequired, setCaptchaRequired] = useState(
-    turnstileKonfiguriert(),
-  );
+  const [captchaRequired, setCaptchaRequired] = useState(turnstileKonfiguriert());
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileStatusText, setTurnstileStatusText] = useState<string | null>(
     turnstileKonfiguriert() ? "Bitte bestätige kurz das Captcha." : null,
@@ -669,8 +675,7 @@ function GurkchenChat() {
         ...prev,
         {
           role: "assistant",
-          content:
-            "🥒 Turnstile ist noch nicht eingerichtet (NEXT_PUBLIC_TURNSTILE_SITE_KEY fehlt).",
+          content: "Turnstile ist noch nicht eingerichtet (NEXT_PUBLIC_TURNSTILE_SITE_KEY fehlt).",
         },
       ]);
       return;
@@ -736,10 +741,7 @@ function GurkchenChat() {
         }
       } else {
         const data = await res.json();
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: data.reply },
-        ]);
+        setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
       }
 
       claim("chat");
@@ -751,8 +753,7 @@ function GurkchenChat() {
         ...prev,
         {
           role: "assistant",
-          content:
-            "🥒 Gürkchen meditiert gerade im Glas und ist nicht erreichbar. Versuch's gleich nochmal. 🥒",
+          content: "Gürkchen meditiert gerade im Glas und ist nicht erreichbar. Versuch es gleich noch einmal.",
         },
       ]);
     } finally {
@@ -776,83 +777,65 @@ function GurkchenChat() {
 
   if (!open) {
     return (
-      <div className="flex justify-center mb-8">
-        <button
-          onClick={() => setOpen(true)}
-          className="relative group overflow-hidden rounded-2xl border border-gurken-500/20 bg-gradient-to-br from-gurken-700/40 via-gurken-800/30 to-gurken-900/40 p-8 md:p-10 w-full text-center transition-all duration-300 hover:border-gurken-400/40 hover:shadow-[0_0_40px_#22c55e33] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#22c55e0a_0%,_transparent_70%)] group-hover:bg-[radial-gradient(ellipse_at_center,_#22c55e15_0%,_transparent_70%)] transition-all duration-500" />
-          <div className="relative">
-            <div className="text-6xl mb-4">
-              <SpinningCucumber size="text-6xl" />
-            </div>
-            <h2 className="text-2xl md:text-3xl font-heading font-bold text-gurken-200 mb-2">
-              🥒 Chat mit Gürkchen 🥒
-            </h2>
-            <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
-              Tausche dich mit dem allmächtigen Gürkchen aus. Er hört deine
-              Gebete und antwortet mit Gurken-Weisheit.
-            </p>
-            <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
-              <ChatDots size={22} weight="fill" />
-              Chat öffnen
-            </span>
-          </div>
-        </button>
-      </div>
+      <SektionTeaser
+        icon={<SpinningCucumber size="text-5xl" />}
+        titel="Chat mit Gürkchen"
+        teaser="Tausche dich mit dem Erleuchteten aus. Er hört deine Gebete und antwortet mit Gurken-Weisheit."
+        cta="Chat öffnen"
+        onOpen={() => setOpen(true)}
+      />
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gurken-950 shadow-2xl md:inset-6 md:rounded-2xl md:border md:border-gurken-500/15">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3 border-b border-gurken-500/15">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0b120d] shadow-2xl md:inset-6 md:rounded-xl md:border md:border-white/10">
+      <div className="flex items-center justify-between border-b border-white/[0.08] px-4 pb-3 pt-4 md:px-6 md:pt-6">
         <div className="flex items-center gap-3">
-          <WigglingCucumber size="text-3xl" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🥒 Gürkchen-Chat 🥒
-          </h2>
+          <span className="text-3xl" aria-hidden="true">🥒</span>
+          <h2 className="font-display text-xl font-semibold text-[#faf8f1]">Gürkchen-Chat</h2>
         </div>
         <button
           onClick={() => setOpen(false)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-gurken-400 hover:text-gurken-200 hover:bg-gurken-800/50 text-sm font-bold transition-all touch-manipulation min-h-[44px]"
+          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] transition-colors hover:border-white/20 hover:text-[#ede8d6]"
           aria-label="Chat schließen"
         >
-          <ArrowsInSimple size={18} />
+          <ArrowsInSimple size={16} />
           Schließen
         </button>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 px-4 md:px-6 py-4">
+      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 md:px-6">
         {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[88%] md:max-w-[75%] rounded-2xl px-4 py-2.5 ${
+              className={`max-w-[88%] rounded-2xl px-4 py-2.5 md:max-w-[75%] ${
                 msg.role === "user"
-                  ? "bg-gurken-600/80 text-gurken-100 rounded-br-md"
-                  : "bg-gurken-800/60 text-gurken-200 rounded-bl-md border border-gurken-500/15"
+                  ? "rounded-br-md bg-[#ede8d6] text-[#0b120d]"
+                  : "rounded-bl-md border border-white/[0.08] bg-white/[0.04] text-[#ede8d6]"
               }`}
             >
               {msg.role === "assistant" && (
-                <span className="flex items-center gap-1 text-gurken-400 text-[10px] font-bold tracking-wide uppercase block mb-1">
-                  🥒 Gürkchen
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8fa96d]">
+                  Gürkchen
                 </span>
               )}
-              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                {msg.content}
-              </p>
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.content}</p>
             </div>
           </div>
         ))}
 
         {showSpinner && (
           <div className="flex justify-start">
-            <div className="rounded-2xl px-3 py-2 bg-gurken-800/60 border border-gurken-500/15 rounded-bl-md">
-              <SpinningCucumber size="text-xl" />
+            <div className="rounded-2xl rounded-bl-md border border-white/[0.08] bg-white/[0.04] px-4 py-3">
+              <span className="flex gap-1" aria-label="Gürkchen schreibt">
+                {[0, 1, 2].map((d) => (
+                  <span
+                    key={d}
+                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#8fa96d]"
+                    style={{ animationDelay: `${d * 150}ms` }}
+                  />
+                ))}
+              </span>
             </div>
           </div>
         )}
@@ -860,10 +843,9 @@ function GurkchenChat() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="px-4 md:px-6 py-3 border-t border-gurken-500/15">
+      <div className="border-t border-white/[0.08] px-4 py-3 md:px-6">
         {captchaKonfiguriert ? (
-          <div className="max-w-4xl mx-auto w-full mb-2">
+          <div className="mx-auto mb-2 w-full max-w-4xl">
             {captchaRequired && (
               <div>
                 <TurnstileWidget
@@ -872,46 +854,36 @@ function GurkchenChat() {
                     setTurnstileToken(token);
                     setTurnstileStatusText(null);
                   }}
-                  onExpire={() =>
-                    captchaZuruecksetzen(
-                      "Captcha abgelaufen. Bitte erneut bestätigen.",
-                    )
-                  }
+                  onExpire={() => captchaZuruecksetzen("Captcha abgelaufen. Bitte erneut bestätigen.")}
                   onError={() =>
-                    captchaZuruecksetzen(
-                      "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
-                    )
+                    captchaZuruecksetzen("Captcha konnte nicht geladen werden. Bitte erneut versuchen.")
                   }
                 />
-                {turnstileStatusText && (
-                  <p className="text-xs text-gurken-400 mt-2">{turnstileStatusText}</p>
-                )}
+                {turnstileStatusText && <p className="mt-2 text-xs text-[#a3ad9a]">{turnstileStatusText}</p>}
               </div>
             )}
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto w-full mb-2 rounded-xl border border-red-500/30 bg-red-900/20 p-3 text-xs text-red-200">
+          <div className="mx-auto mb-2 w-full max-w-4xl rounded-xl border border-red-500/30 bg-red-900/20 p-3 text-xs text-red-200">
             Turnstile ist nicht konfiguriert (NEXT_PUBLIC_TURNSTILE_SITE_KEY fehlt).
           </div>
         )}
-        <div className="flex gap-2 items-end max-w-4xl mx-auto w-full">
-          {/* text-base (16px): iOS/Android zoomen bei fokussierten Feldern mit
-              kleinerer Schrift automatisch rein – 16px verhindert das. */}
+        <div className="mx-auto flex w-full max-w-4xl items-end gap-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="🥒 Schreib deine Nachricht an Gürkchen..."
+            placeholder="Schreib deine Nachricht an Gürkchen …"
             rows={2}
             disabled={loading}
             inputMode="text"
             enterKeyHint="send"
-            className="flex-1 min-h-[44px] resize-none rounded-xl border border-gurken-500/20 bg-gurken-800/50 px-3 py-2.5 text-base text-gurken-100 placeholder-gurken-500/40 outline-none transition-all duration-200 focus:border-gurken-400 focus:shadow-[0_0_16px_#22c55e]/20 disabled:opacity-50"
+            className="min-h-[44px] flex-1 resize-none rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2.5 text-base text-[#ede8d6] outline-none transition-colors placeholder:text-[#6b7565]/70 focus:border-[#8fa96d] disabled:opacity-50"
           />
           <button
             onClick={sendMessage}
             disabled={loading || !input.trim() || (captchaRequired && !turnstileToken)}
-            className="rounded-xl bg-gurken-600 px-5 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:bg-gurken-500 hover:shadow-[0_0_20px_#22c55e]/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+            className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg bg-[#ede8d6] text-[#0b120d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 "
             aria-label="Nachricht senden"
           >
             <PaperPlaneTilt size={20} weight="fill" />
@@ -927,48 +899,23 @@ function GurkchenQuoteCard() {
 
   if (!open) {
     return (
-      <div className="mb-8">
-        <button
-          onClick={() => setOpen(true)}
-          className="relative w-full group overflow-hidden rounded-2xl border border-gurken-500/20 bg-gradient-to-br from-gurken-700/40 via-gurken-800/30 to-gurken-900/40 p-8 md:p-10 text-center transition-all duration-300 hover:border-gurken-400/40 hover:shadow-[0_0_40px_#22c55e33] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#22c55e0a_0%,_transparent_70%)] group-hover:bg-[radial-gradient(ellipse_at_center,_#22c55e15_0%,_transparent_70%)] transition-all duration-500" />
-          <div className="relative">
-            <div className="text-6xl mb-4">
-              <FloatingCucumber size="text-6xl" />
-            </div>
-            <h2 className="text-2xl md:text-3xl font-heading font-bold text-gurken-200 mb-2">
-              🥒 Gürkchens Zitat 🥒
-            </h2>
-            <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
-              Lausche den heiligen Gurken-Weisheiten des allmächtigen Gürkchen.
-            </p>
-            <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
-              Zitat anzeigen
-            </span>
-          </div>
-        </button>
-      </div>
+      <SektionTeaser
+        icon={<Quotes size={40} weight="fill" className="text-[#8fa96d]" />}
+        titel="Gürkchens Zitat"
+        teaser="Lausche den heiligen Gurken-Weisheiten. Drei frische Zitate pro Tag, jedes gibt +5 Punkte."
+        cta="Zitat anzeigen"
+        onOpen={() => setOpen(true)}
+      />
     );
   }
 
   return (
-    <div className="card p-6 md:p-8 mb-8 text-center">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <FloatingCucumber size="text-3xl" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🥒 Gürkchens Zitat 🥒
-          </h2>
-        </div>
-        <button
-          onClick={() => setOpen(false)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-gurken-400 hover:text-gurken-200 hover:bg-gurken-800/50 text-sm font-bold transition-all touch-manipulation min-h-[44px]"
-        >
-          <ArrowsInSimple size={18} />
-          Schließen
-        </button>
-      </div>
+    <div className="card mb-5 p-6 text-center md:p-8">
+      <SektionKopf
+        icon={<Quotes size={22} weight="fill" className="text-[#8fa96d]" />}
+        titel="Gürkchens Zitat"
+        onClose={() => setOpen(false)}
+      />
       <GurkchenQuote />
     </div>
   );
@@ -989,154 +936,116 @@ export function MitgliederDashboard({
 
   return (
     <PunkteProvider apiBase={punkteApiBase}>
-      <div className="max-w-2xl mx-auto px-4 py-12 md:py-24 relative pb-safe">
-        {/* Decorative cucumbers */}
-        <div className="hidden md:flex flex-col gap-6 fixed left-4 top-1/3 opacity-25 pointer-events-none">
-          <SpinningCucumber size="text-3xl" />
-          <WigglingCucumber size="text-2xl" />
-          <BouncingCucumber size="text-3xl" />
-        </div>
-        <div className="hidden md:flex flex-col gap-6 fixed right-4 top-1/3 opacity-25 pointer-events-none">
-          <FloatingCucumber size="text-3xl" />
-          <ShakingCucumber size="text-2xl" />
-          <SpinningCucumber size="text-3xl" reverse />
-        </div>
-
+      <div className="mx-auto w-full max-w-3xl overflow-x-hidden px-4 pb-24 pt-12 md:pt-20">
         {isDemo && (
-          <div className="mb-6 rounded-2xl border border-gurken-400/30 bg-gurken-700/30 px-4 py-3 text-sm text-gurken-200 flex items-start gap-3">
-            <Flask size={20} weight="fill" className="text-gurken-300 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-[#c9a86a]/25 bg-[#c9a86a]/[0.06] px-4 py-3 text-sm text-[#e2d9bf]">
+            <Flask size={20} weight="fill" className="mt-0.5 flex-shrink-0 text-[#c9a86a]" />
             <p>
-              <strong className="text-gurken-100">Demo-Modus:</strong> Du bist
-              nicht eingeloggt &mdash; alle Funktionen sind frei testbar. Deine
-              Punkte werden nur für diese Demo gespeichert.
+              <strong>Demo-Modus:</strong> Du bist nicht eingeloggt — alle Funktionen sind frei
+              testbar. Punkte werden nur für diese Demo gespeichert.
             </p>
           </div>
         )}
 
-        <div className="text-center mb-10">
-          <SpinningCucumber size="text-5xl" />
-          <h1 className="text-3xl md:text-4xl font-heading font-bold text-gurken-300 mt-4">
-            🥒 Mitgliederbereich 🥒
+        <Reveal>
+          <p className="eyebrow">Mitgliederbereich</p>
+          <h1 className="font-display mt-3 text-4xl font-semibold leading-[1.05] text-[#faf8f1] md:text-5xl">
+            Willkommen zurück, {user.displayName ?? "Gurkenfreund"}.
           </h1>
-          <p className="text-gurken-400 mt-2">
-            Willkommen, erleuchtete(r) {user.displayName ?? "Gurkenfreund"}! 🥒
-          </p>
-          <p className="text-gurken-500 text-xs mt-1">E-Mail: {email}</p>
-        </div>
+          <p className="tabular mt-3 text-sm text-[#6b7565]">{email}</p>
+        </Reveal>
 
-        {/* Member Dashboard */}
-        <div className="card p-6 md:p-8 mb-8">
-          <div className="flex items-center gap-3 mb-6">
-            <FloatingCucumber size="text-3xl" />
-            <h2 className="text-xl font-heading font-bold text-gurken-200">
-              🥒 Dein spirituelles Dashboard 🥒
-            </h2>
-          </div>
+        <Reveal delay={1}>
+          <div className="shell mt-8">
+            <div className="core p-6 md:p-8">
+              <div className="mb-6 flex items-center gap-3">
+                <span className="text-3xl" aria-hidden="true">🥒</span>
+                <h2 className="font-display text-xl font-semibold text-[#faf8f1]">
+                  Dein spirituelles Dashboard
+                </h2>
+              </div>
 
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-4">
-            <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10">
-              <div className="flex items-center gap-2 text-gurken-500 text-xs uppercase tracking-wider mb-1">
-                <CalendarBlank size={14} />
-                🥒 Mitglied seit
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6b7565]">
+                    <CalendarBlank size={14} />
+                    Mitglied seit
+                  </p>
+                  <p className="mt-1 text-[15px] font-semibold text-[#ede8d6]">
+                    {user.signedUpAt
+                      ? new Date(user.signedUpAt).toLocaleDateString("de-DE")
+                      : "Urzeiten der Gurke"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6b7565]">
+                    <ShieldCheck size={14} />
+                    Status
+                  </p>
+                  <p className="mt-1 flex items-center gap-1.5 text-[15px] font-semibold text-[#ede8d6]">
+                    Erleuchtet
+                    <ShieldCheck size={16} weight="fill" className="text-[#8fa96d]" />
+                  </p>
+                </div>
               </div>
-              <p className="text-gurken-200 font-bold text-base">
-                {user.signedUpAt
-                  ? new Date(user.signedUpAt).toLocaleDateString("de-DE")
-                  : "Urzeiten der Gurke"}
-              </p>
-            </div>
-            <div className="bg-gurken-800/30 rounded-xl p-4 border border-gurken-500/10">
-              <div className="flex items-center gap-2 text-gurken-500 text-xs uppercase tracking-wider mb-1">
-                <ShieldCheck size={14} />
-                🥒 Status
-              </div>
-              <p className="text-gurken-200 font-bold text-base flex items-center gap-1.5 flex-wrap">
-                Erleuchtet 🥒
-                <ShieldCheck
-                  size={16}
-                  weight="fill"
-                  className="text-gurken-400"
-                />
-              </p>
+
+              <RangKopf />
             </div>
           </div>
+        </Reveal>
 
-          {/* Glühendes Rangzeichen: Titel + Rest bis zur nächsten Stufe */}
-          <RangKopf />
+        <div className="mt-5">
+          <GurkchenChat />
         </div>
 
-
-
-        {/* Gürkchen-Chat */}
-        <GurkchenChat />
-
-        {/* Punkte & Belohnungen */}
         <PunkteAnzeige />
-
-        {/* Rangzeichen – eigene Karte, bewusst außerhalb von Punkte & Belohnungen */}
         <Rangstufen />
 
-        {/* Freunde werben Freunde */}
-        <ReferralBox
-          code={user.id ?? (isDemo ? "demo-mitglied" : null)}
-          isDemo={isDemo}
-        />
+        <ReferralBox code={user.id ?? (isDemo ? "demo-mitglied" : null)} isDemo={isDemo} />
 
-        {/* Gürkchen-Zitat */}
         <GurkchenQuoteCard />
 
-        {/* Gurken Casino – eigene Seite unterhalb des Mitgliederbereichs */}
-        <div className="mb-8">
-          <Link
-            href={
-              isDemo ? demoPath("/mitglieder/casino") : "/mitglieder/casino"
-            }
-            className="group flex items-center justify-between gap-4 rounded-2xl border border-yellow-400/25 bg-gradient-to-br from-yellow-400/10 via-gurken-800/40 to-gurken-900/40 px-6 py-5 transition-all duration-300 hover:border-yellow-400/50 hover:shadow-[0_0_35px_rgba(250,204,21,0.25)] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
-          >
-            <div className="min-w-0 text-left">
-              <div className="font-heading text-lg font-bold text-gurken-200">
-                🥒 Gurken Casino
+        <Reveal>
+          <div className="mb-5">
+            <Link
+              href={isDemo ? demoPath("/mitglieder/casino") : "/mitglieder/casino"}
+              className="shell group block"
+            >
+              <div className="core flex items-center gap-4 p-6 md:p-7">
+                <DiceFive size={32} weight="fill" className="shrink-0 text-[#c9a86a]" />
+                <div className="min-w-0 text-left">
+                  <p className="font-display text-xl font-semibold text-[#faf8f1]">
+                    Gurken Casino
+                  </p>
+                </div>
               </div>
-              <p className="mt-0.5 text-sm text-gurken-400">
-                Wage deine Punkte an der Slotmaschine oder am Roulette-Kessel –
-                bis zu 3× am Automaten, bis zu 35:1 auf eine Zahl. Mit
-                Captcha-Schutz pro Dreh.
-              </p>
-            </div>
-            <span className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-yellow-400 text-gurken-950 shadow-[0_0_20px_rgba(250,204,21,0.35)] transition-transform group-hover:scale-105">
-              <DiceFive size={26} weight="fill" />
-            </span>
-          </Link>
-        </div>
+            </Link>
+          </div>
+        </Reveal>
 
-
-        {/* Sign Out / Demo Exit */}
-        <div className="text-center">
+        <div className="mt-8 text-center">
           {isDemo ? (
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gurken-600/40 text-gurken-500 hover:text-gurken-400 hover:border-gurken-500 text-sm font-bold transition-all hover:bg-gurken-800/30 touch-manipulation"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-white/12 px-5 py-2.5 text-sm font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
             >
               <ArrowLeft size={16} />
-              🥒 Zur echten Gurken Sekte 🥒
+              Zur echten Gurken Sekte
             </Link>
           ) : (
             <button
               onClick={onSignOut}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gurken-600/40 text-gurken-500 hover:text-gurken-400 hover:border-gurken-500 text-sm font-bold transition-all hover:bg-gurken-800/30 touch-manipulation"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-white/12 px-5 py-2.5 text-sm font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
             >
               <SignOut size={16} />
-              🥒 Ausloggen 🥒
+              Ausloggen
             </button>
           )}
         </div>
 
-        <div className="flex justify-center mt-8 gap-3 opacity-40">
-          <FloatingCucumber size="text-2xl" />
-          <WigglingCucumber size="text-2xl" />
-          <SpinningCucumber size="text-2xl" />
-          <BouncingCucumber size="text-2xl" />
-          <ShakingCucumber size="text-2xl" />
+        <div className="mt-10 flex items-center justify-center gap-2 text-xs text-[#4a5548]">
+          <ChatCircleText size={15} />
+          Gürkchen wacht über dein Glas.
         </div>
       </div>
     </PunkteProvider>

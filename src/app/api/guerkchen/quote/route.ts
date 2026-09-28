@@ -1,4 +1,5 @@
-import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 
 const QUOTE_SYSTEM_PROMPT =
   "Du bist Gürkchen, der selbsternannte Anführer der 'Gurken Sekte'. " +
@@ -12,9 +13,12 @@ const FALLBACK_QUOTE =
 
 function getApiKeys(): string[] {
   const keys: string[] = [];
+  // Enges Muster (OPENROUTER_API_KEY, _2, _3, …), damit keine versehentlich
+  // ähnlich benannten Env-Variablen als API-Key verwendet werden.
+  const muster = /^OPENROUTER_API_KEY(_\d+)?$/;
   for (const [key, value] of Object.entries(process.env)) {
     if (
-      key.startsWith("OPENROUTER_API_KEY") &&
+      muster.test(key) &&
       value &&
       value !== "your_openrouter_api_key_here"
     ) {
@@ -24,9 +28,22 @@ function getApiKeys(): string[] {
   return keys;
 }
 
+/** Antwort-Deckel pro Zitat-Anfrage (Kostenschutz). */
+const MAX_ANTOWORT_TOKENS = 150;
+/** Höchstens so viele Zitat-Anfragen pro IP im Zeitfenster. */
+const QUOTE_LIMIT = 100;
+const QUOTE_FENSTER_MS = 10 * 60 * 1000;
+
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+  // Kostenschutz vor allen weiteren Checks: begrenzt Anfragen pro IP,
+  // auch innerhalb einer gültigen 30-Minuten-Captcha-Sitzung.
+  const ip = getClientIp(req) ?? "no-ip";
+  if (!(await rateLimit(`quote:${ip}`, QUOTE_LIMIT, QUOTE_FENSTER_MS))) {
+    return rateLimitAntwort(QUOTE_FENSTER_MS);
+  }
+
   // Bot-Schutz: Das Token kommt per Query (`?turnstileToken=…`) oder Header,
   // eine gültige 30-Minuten-Sitzung lässt die Anfrage ohne Token durch.
   const url = new URL(req.url);
@@ -60,6 +77,7 @@ export async function GET(req: Request) {
           body: JSON.stringify({
             model: "openrouter/free",
             stream: false,
+            max_tokens: MAX_ANTOWORT_TOKENS,
             messages: [{ role: "user", content: QUOTE_SYSTEM_PROMPT }],
           }),
         },

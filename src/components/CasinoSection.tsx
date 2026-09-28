@@ -1,17 +1,11 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ArrowsInSimple } from "@phosphor-icons/react";
+import { ArrowsInSimple, ArrowRight } from "@phosphor-icons/react";
 
-/**
- * Auf- und zuklappbare Casino-Sektion – derselbe Mechanismus wie die Karten
- * auf der Mitgliederseite (z. B. Punkte & Belohnungen): zugeklappt ein
- * Teaser zum Öffnen, aufgeklappt das Spiel plus Schließen-Knopf.
- */
 export function CasinoSection({
   icon,
   titel,
-  teaser,
   cta,
   children,
 }: {
@@ -25,22 +19,19 @@ export function CasinoSection({
 
   if (!offen) {
     return (
-      <div className="mb-8">
+      <div className="mb-5">
         <button
           onClick={() => setOffen(true)}
-          className="relative w-full group overflow-hidden rounded-2xl border border-gurken-500/20 bg-gradient-to-br from-gurken-700/40 via-gurken-800/30 to-gurken-900/40 p-8 md:p-10 text-center transition-all duration-300 hover:border-gurken-400/40 hover:shadow-[0_0_40px_#22c55e33] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
+          className="shell group block w-full text-center transition-colors duration-200 active:scale-[0.99]"
         >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#22c55e0a_0%,_transparent_70%)] group-hover:bg-[radial-gradient(ellipse_at_center,_#22c55e15_0%,_transparent_70%)] transition-all duration-500" />
-          <div className="relative">
-            <div className="text-6xl mb-4 flex justify-center">{icon}</div>
-            <h2 className="text-2xl md:text-3xl font-heading font-bold text-gurken-200 mb-2">
-              {titel}
-            </h2>
-            <p className="text-gurken-400 text-sm md:text-base mb-6 max-w-md mx-auto">
-              {teaser}
-            </p>
-            <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gurken-500 hover:bg-gurken-400 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_#22c55e33] group-hover:shadow-[0_0_30px_#22c55e66]">
+          <div className="core flex flex-col items-center gap-4 p-6 md:p-8">
+            {icon}
+            <h2 className="font-display text-2xl font-semibold text-[#faf8f1]">{titel}</h2>
+            <span className="btn-cta btn-cta-primary !text-base">
               {cta}
+              <span className="btn-dot">
+                <ArrowRight size={17} weight="bold" />
+              </span>
             </span>
           </div>
         </button>
@@ -49,13 +40,13 @@ export function CasinoSection({
   }
 
   return (
-    <div className="mb-8">
+    <div className="mb-5">
       <div className="mb-2 flex justify-end">
         <button
           onClick={() => setOffen(false)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-gurken-400 hover:text-gurken-200 hover:bg-gurken-800/50 text-sm font-bold transition-all touch-manipulation min-h-[44px]"
+          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] transition-colors hover:border-white/20 hover:text-[#ede8d6]"
         >
-          <ArrowsInSimple size={18} />
+          <ArrowsInSimple size={16} />
           Schließen
         </button>
       </div>

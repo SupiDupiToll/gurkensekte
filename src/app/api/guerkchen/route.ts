@@ -1,4 +1,5 @@
-import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 
 const GUERKCHEN_SYSTEM_PROMPT =
   "Du bist Gürkchen, der selbsternannte, größenwahnsinnige und leicht absurde " +
@@ -14,9 +15,12 @@ const FALLBACK_REPLY =
 
 function getApiKeys(): string[] {
   const keys: string[] = [];
+  // Enges Muster (OPENROUTER_API_KEY, _2, _3, …), damit keine versehentlich
+  // ähnlich benannten Env-Variablen als API-Key verwendet werden.
+  const muster = /^OPENROUTER_API_KEY(_\d+)?$/;
   for (const [key, value] of Object.entries(process.env)) {
     if (
-      key.startsWith("OPENROUTER_API_KEY") &&
+      muster.test(key) &&
       value &&
       value !== "your_openrouter_api_key_here"
     ) {
@@ -26,14 +30,59 @@ function getApiKeys(): string[] {
   return keys;
 }
 
+/** Begrenzt Kosten-Exhaustion: maximal diese Nachrichtenzahl … */
+const MAX_NACHRICHTEN = 20;
+/** … mit je höchstens so vielen Zeichen pro Nachricht. */
+const MAX_NACHRICHT_LAENGE = 2000;
+/** Antwort-Deckel pro Chat-Anfrage (Kostenschutz). */
+const MAX_ANTOWORT_TOKENS = 300;
+/** Höchstens so viele Chat-Anfragen pro IP im Zeitfenster. */
+const CHAT_LIMIT = 100;
+const CHAT_FENSTER_MS = 10 * 60 * 1000;
+
+type ChatNachricht = { role: "user" | "assistant"; content: string };
+
+/**
+ * Validiert den Nachrichtenverlauf vom Client: Nur user/assistant-Rollen
+ * (keine injizierten system-Prompts), begrenzte Anzahl und Länge.
+ */
+function validiereNachrichten(value: unknown): ChatNachricht[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_NACHRICHTEN) {
+    return null;
+  }
+  const geprüft: ChatNachricht[] = [];
+  for (const roh of value) {
+    if (typeof roh !== "object" || roh === null) return null;
+    const { role, content } = roh as Record<string, unknown>;
+    if (role !== "user" && role !== "assistant") return null;
+    if (typeof content !== "string") return null;
+    const text = content.trim().slice(0, MAX_NACHRICHT_LAENGE);
+    if (!text) return null;
+    geprüft.push({ role, content: text });
+  }
+  return geprüft;
+}
+
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    // Kostenschutz vor allen weiteren Checks: begrenzt Anfragen pro IP,
+    // auch innerhalb einer gültigen 30-Minuten-Captcha-Sitzung.
+    const ip = getClientIp(req) ?? "no-ip";
+    if (!(await rateLimit(`guerkchen:${ip}`, CHAT_LIMIT, CHAT_FENSTER_MS))) {
+      return rateLimitAntwort(CHAT_FENSTER_MS);
+    }
+
     const { messages, turnstileToken } = (await req.json()) as {
       messages?: unknown[];
       turnstileToken?: string;
     };
+
+    const verlauf = validiereNachrichten(messages);
+    if (!verlauf) {
+      return Response.json({ error: "Ungültiger Nachrichtenverlauf" }, { status: 400 });
+    }
 
     // Bot-Schutz: Erst mit gültigem Turnstile-Captcha (oder gültiger
     // 30-Minuten-Sitzung) antwortet Gürkchen – sonst 403 mit Wiederholhinweis.
@@ -68,9 +117,10 @@ export async function POST(req: Request) {
             body: JSON.stringify({
               model: "openrouter/free",
               stream: true,
+              max_tokens: MAX_ANTOWORT_TOKENS,
               messages: [
                 { role: "system", content: GUERKCHEN_SYSTEM_PROMPT },
-                ...(messages ?? []),
+                ...verlauf,
               ],
             }),
           },

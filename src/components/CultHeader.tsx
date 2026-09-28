@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { House, HandCoins, UsersThree, Flask } from "@phosphor-icons/react";
 import { SpinningCucumber } from "./SpinningCucumber";
-import { House, HandCoins, Users, Flask } from "@phosphor-icons/react";
 import { demoPath } from "@/lib/demo";
 
 const navLinks = [
   { href: "/", label: "Startseite", icon: House },
   { href: "/spenden", label: "Spenden", icon: HandCoins },
-  { href: "/mitglieder", label: "Mitglieder", icon: Users },
+  { href: "/mitglieder", label: "Mitglieder", icon: UsersThree },
 ];
 
 export function CultHeader() {
@@ -18,34 +18,31 @@ export function CultHeader() {
   const homeHref = isDemo ? demoPath("/") : "/";
 
   return (
-    <header className="sticky top-0 z-50 glass-strong border-b border-gurken-500/20">
-      <div className="max-w-6xl mx-auto px-3 md:px-4 py-2 md:py-3 flex items-center justify-between">
-        <Link
-          href={homeHref}
-          className="flex items-center gap-2 md:gap-3 group min-h-[44px]"
-          aria-label="Zur Startseite"
-        >
-          <SpinningCucumber size="text-2xl md:text-3xl" />
-          <div>
-            <h1 className="text-base md:text-xl font-heading font-bold text-gurken-300 tracking-wide leading-tight">
+    <header className="glass-strong sticky top-0 z-40 border-b border-white/[0.07]">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3">
+        <Link href={homeHref} className="flex items-center gap-2.5" aria-label="Zur Startseite">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#ede8d6] text-xl">
+            <SpinningCucumber size="text-xl" />
+          </span>
+          <span className="leading-none">
+            <span className="font-display block text-[17px] font-semibold text-[#ede8d6]">
               Gurken Sekte
-            </h1>
-            <p className="text-[9px] md:text-xs text-gurken-500 -mt-0.5 leading-tight">
-              {isDemo ? "Demo-Version" : "Offizielle Kult-Website"}
-            </p>
-          </div>
+            </span>
+            <span className="block text-[11px] font-medium text-[#6b7565]">
+              {isDemo ? "Demo" : "Satire · seit 2026"}
+            </span>
+          </span>
         </Link>
 
-        <nav className="flex items-center gap-0.5 md:gap-2" aria-label="Hauptnavigation">
+        <nav className="flex items-center gap-1" aria-label="Hauptnavigation">
           {isDemo && (
             <Link
               href="/"
-              className="flex items-center justify-center gap-1 min-w-[44px] min-h-[44px] px-2 md:px-3 rounded-lg text-[10px] md:text-xs font-bold text-gurken-100 bg-gurken-600/70 hover:bg-gurken-500 border border-gurken-400/40 transition-all duration-200"
+              className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#c9a86a]/25 px-3 text-xs font-semibold text-[#e2d9bf] transition-colors hover:bg-[#c9a86a]/10"
               aria-label="Zur echten Gurken Sekte"
-              title="Zur echten Gurken Sekte"
             >
-              <Flask size={16} weight="fill" />
-              <span>Demo</span>
+              <Flask size={15} />
+              <span className="hidden sm:inline">Echt</span>
             </Link>
           )}
           {navLinks.map((link) => {
@@ -56,14 +53,14 @@ export function CultHeader() {
               <Link
                 key={link.href}
                 href={href}
-                className={`flex items-center justify-center gap-1 md:gap-1.5 min-w-[44px] min-h-[44px] px-2 md:px-4 rounded-lg text-xs md:text-sm font-bold transition-all duration-200 ${
-                  isActive
-                    ? "bg-gurken-600/80 text-white shadow-[0_0_12px_#22c55e]"
-                    : "text-gurken-200 hover:bg-gurken-800/60 hover:text-gurken-100"
-                }`}
                 aria-current={isActive ? "page" : undefined}
+                className={`flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-colors md:px-3.5 ${
+                  isActive
+                    ? "bg-white/[0.07] text-[#faf8f1]"
+                    : "text-[#a3ad9a] hover:bg-white/[0.04] hover:text-[#ede8d6]"
+                }`}
               >
-                <Icon size={20} weight={isActive ? "fill" : "regular"} />
+                <Icon size={17} weight={isActive ? "fill" : "regular"} />
                 <span className="hidden sm:inline">{link.label}</span>
               </Link>
             );

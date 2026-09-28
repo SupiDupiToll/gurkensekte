@@ -12,6 +12,8 @@
  * dem Konto, damit das Guthaben nie ins Minus rutscht.
  */
 
+import { zufallsAnteil } from "@/lib/zufall";
+
 /** Erlaubte Einsätze in Punkten. */
 export const CASINO_EINSAETZE = [10, 25, 50] as const;
 export type CasinoEinsatz = (typeof CASINO_EINSAETZE)[number];
@@ -54,7 +56,7 @@ export const CASINO_MAX_VERLUST_FAKTOR = 3;
 /** Serverseitiger Wurf: zieht nach Gewicht einen der acht Faktoren. */
 export function casinoWurf(): CasinoFaktor {
   const gesamt = CASINO_FAKTOREN.reduce((summe, f) => summe + f.gewicht, 0);
-  let zufall = Math.random() * gesamt;
+  let zufall = zufallsAnteil() * gesamt;
   for (const f of CASINO_FAKTOREN) {
     zufall -= f.gewicht;
     if (zufall < 0) return f;

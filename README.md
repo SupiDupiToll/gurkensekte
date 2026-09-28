@@ -7,7 +7,7 @@ Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder kön
 ## Features
 
 - **Landing Page** – Kult-Startseite mit Zitaten von „Gürkchen“
-- **Spenden** – Spenden-System via Tippie (PayPal, Karte, Apple Pay, Klarna)
+- **Spenden** – Spenden via Mangoe Payments (eingebetteter Checkout, `amountCents` frei wählbar)
 - **Mitgliederbereich** – Authentifizierter Dashboard mit:
   - Punktesystem („Gurkensegen“)
   - Täglicher Bonus (+20 Punkte)
@@ -25,7 +25,7 @@ Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder kön
 | **Tailwind CSS v4** | Styling |
 | **Hexclave** | Authentifizierung & E-Mails |
 | **OpenRouter** | KI-Chat & Zitate (mit API-Key-Fallback) |
-| **Tippie** | Zahlungs-Links |
+| **Mangoe Payments** | Spenden-Checkout (Session-API + Iframe-Einbettung) |
 | **Phosphor Icons** | Icons |
 | **pnpm** | Package Manager |
 

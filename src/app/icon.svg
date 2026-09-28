@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Hintergrund: beige Kachel wie im Header-Logo, gut sichtbar in hellen + dunklen Tabs -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#ede8d6"/>
+  <!-- Gurkenkoerper, diagonal -->
+  <g transform="rotate(-28 32 32)">
+    <rect x="9" y="24" width="36" height="15" rx="7.5" fill="#2f5d33" stroke="#1e3226" stroke-width="2.5"/>
+    <!-- helle Laengsstreifen -->
+    <rect x="15" y="27" width="24" height="3" rx="1.5" fill="#8fa96d" opacity="0.95"/>
+    <rect x="15" y="32.5" width="16" height="2.2" rx="1.1" fill="#1e3226" opacity="0.35"/>
+    <!-- Stielansatz links -->
+    <rect x="6.5" y="27.5" width="6" height="8" rx="3" fill="#1e3226"/>
+    <rect x="8" y="29" width="3.5" height="5" rx="1.75" fill="#8fa96d"/>
+  </g>
+  <!-- Gurkenscheibe rechts vorne: Querschnitt -->
+  <g>
+    <circle cx="46.5" cy="37" r="10.5" fill="#2f5d33" stroke="#1e3226" stroke-width="2.5"/>
+    <circle cx="46.5" cy="37" r="7" fill="#dce8b8"/>
+    <circle cx="46.5" cy="37" r="4.2" fill="#eef3d8"/>
+    <!-- Kerne -->
+    <ellipse cx="46.5" cy="34.2" rx="1.3" ry="1.8" fill="#8fa96d"/>
+    <ellipse cx="44.2" cy="38.6" rx="1.3" ry="1.8" fill="#8fa96d" transform="rotate(-40 44.2 38.6)"/>
+    <ellipse cx="48.8" cy="38.6" rx="1.3" ry="1.8" fill="#8fa96d" transform="rotate(40 48.8 38.6)"/>
+  </g>
+</svg>

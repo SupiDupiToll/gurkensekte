@@ -12,7 +12,9 @@
   "dependencies": {
     "@hexclave/next": "^1.0.43",
     "@phosphor-icons/react": "^2.1.10",
-    "next": "16.2.10",
+    "@upstash/ratelimit": "^2.2.0",
+    "@upstash/redis": "^1.39.0",
+    "next": "^16.3.6",
     "qr-code-styling": "^1.9.2",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -24,7 +26,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "^16.3.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

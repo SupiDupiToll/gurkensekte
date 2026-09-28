@@ -66,15 +66,15 @@ function GurkenKessel({
       const randFarbverlauf = ctx.createRadialGradient(
         mitteX, mitteY, aussen * 0.9, mitteX, mitteY, aussen,
       );
-      randFarbverlauf.addColorStop(0, "#052e16");
-      randFarbverlauf.addColorStop(0.5, "#14532d");
-      randFarbverlauf.addColorStop(1, "#03170c");
+      randFarbverlauf.addColorStop(0, "#182219");
+      randFarbverlauf.addColorStop(0.5, "#2b3826");
+      randFarbverlauf.addColorStop(1, "#0b120d");
       ctx.beginPath();
       ctx.arc(mitteX, mitteY, aussen, 0, Math.PI * 2);
       ctx.fillStyle = randFarbverlauf;
       ctx.fill();
-      ctx.strokeStyle = "#facc15";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#c9a86a";
+      ctx.lineWidth = 1.5;
       ctx.stroke();
 
       const segment = (Math.PI * 2) / 37;
@@ -84,10 +84,10 @@ function GurkenKessel({
         const nummer = ROULETTE_RAD_REIHENFOLGE[i];
         const farbe =
           nummer === 0
-            ? "#16a34a"
+            ? "#5c7345"
             : ROULETTE_ROT.includes(nummer)
-              ? "#b91c1c"
-              : "#0a1f14";
+              ? "#7a3b32"
+              : "#131c15";
 
         ctx.beginPath();
         ctx.moveTo(mitteX, mitteY);
@@ -95,8 +95,8 @@ function GurkenKessel({
         ctx.closePath();
         ctx.fillStyle = farbe;
         ctx.fill();
-        ctx.strokeStyle = "#facc15";
-        ctx.lineWidth = 0.75;
+        ctx.strokeStyle = "#c9a86a";
+        ctx.lineWidth = 0.5;
         ctx.stroke();
 
         ctx.save();
@@ -104,8 +104,8 @@ function GurkenKessel({
         ctx.rotate(start + segment / 2);
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = "#ffffff";
-        ctx.font = `bold ${Math.min(14, aussen / 15)}px Nunito, sans-serif`;
+        ctx.fillStyle = "#ede8d6";
+        ctx.font = `600 ${Math.min(13, aussen / 16)}px Outfit, sans-serif`;
         ctx.fillText(nummer.toString(), innen - 20, 0);
         ctx.restore();
       }
@@ -113,16 +113,16 @@ function GurkenKessel({
       // Goldring + grüne Mitte mit Gurke
       ctx.beginPath();
       ctx.arc(mitteX, mitteY, zentrum, 0, Math.PI * 2);
-      ctx.strokeStyle = "#facc15";
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#c9a86a";
+      ctx.lineWidth = 2;
       ctx.stroke();
 
       const mitteVerlauf = ctx.createRadialGradient(
         mitteX, mitteY, 0, mitteX, mitteY, zentrum,
       );
-      mitteVerlauf.addColorStop(0, "#15803d");
-      mitteVerlauf.addColorStop(0.6, "#052e16");
-      mitteVerlauf.addColorStop(1, "#15803d");
+      mitteVerlauf.addColorStop(0, "#2b3826");
+      mitteVerlauf.addColorStop(0.6, "#111a13");
+      mitteVerlauf.addColorStop(1, "#2b3826");
       ctx.beginPath();
       ctx.arc(mitteX, mitteY, zentrum * 0.9, 0, Math.PI * 2);
       ctx.fillStyle = mitteVerlauf;
@@ -174,9 +174,9 @@ function GurkenKessel({
       ctx.lineTo(mitteX - 10, oben);
       ctx.lineTo(mitteX + 10, oben);
       ctx.closePath();
-      ctx.fillStyle = "#fefce8";
+      ctx.fillStyle = "#e2d9bf";
       ctx.fill();
-      ctx.strokeStyle = "#facc15";
+      ctx.strokeStyle = "#c9a86a";
       ctx.lineWidth = 2;
       ctx.stroke();
     },
@@ -336,16 +336,16 @@ function Setztisch({
 
   const zellFarbe = (n: number) =>
     n === 0
-      ? "bg-gurken-600"
+      ? "bg-[#2b3826] text-[#ede8d6]"
       : istRoteZahl(n)
-        ? "bg-red-700"
-        : "bg-gurken-950 border border-gurken-500/25";
+        ? "bg-[#4a2b26] text-[#ede8d6]"
+        : "bg-white/[0.04] border border-white/10 text-[#ede8d6]";
 
   const badge = (nummern: number[]) => {
     const summe = summeAuf(nummern);
     if (summe <= 0) return null;
     return (
-      <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-gurken-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">
+      <span className="tabular absolute -top-1.5 -right-1.5 bg-[#ede8d6] text-[#0b120d] text-[10px] font-semibold px-1.5 py-0.5 rounded-md">
         {summe}
       </span>
     );
@@ -357,8 +357,8 @@ function Setztisch({
       <button
         onClick={() => klick([0], "0", "straight")}
         disabled={deaktiviert}
-        className={`relative w-full mb-1.5 rounded-lg bg-gurken-600 py-2.5 text-white font-bold text-sm hover:brightness-110 transition-all disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation min-h-[44px] ${
-          gewinnzahl === 0 ? "ring-2 ring-yellow-300" : ""
+        className={`relative w-full mb-1.5 rounded-lg bg-[#2b3826] py-2.5 text-[#ede8d6] font-semibold text-sm transition-colors hover:bg-[#35492f] disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px] ${
+          gewinnzahl === 0 ? "ring-1 ring-[#c9a86a]" : ""
         }`}
       >
         0 {badge([0])}
@@ -371,8 +371,8 @@ function Setztisch({
             key={n}
             onClick={() => klick([n], n.toString(), "straight")}
             disabled={deaktiviert}
-            className={`relative aspect-square rounded-lg flex items-center justify-center text-white font-bold text-sm hover:brightness-125 transition-all disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation ${zellFarbe(n)} ${
-              gewinnzahl === n ? "ring-2 ring-yellow-300" : ""
+            className={`tabular relative aspect-square rounded-lg flex items-center justify-center font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${zellFarbe(n)} ${
+              gewinnzahl === n ? "ring-1 ring-[#c9a86a]" : ""
             }`}
           >
             {n}
@@ -388,7 +388,7 @@ function Setztisch({
             key={k.label}
             onClick={() => klick(k.numbers, k.label, "column")}
             disabled={deaktiviert}
-            className="relative rounded-lg bg-gurken-800/60 border border-gurken-500/20 py-2 text-gurken-200 text-xs font-bold hover:bg-gurken-700/60 transition-colors disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation min-h-[44px]"
+            className="relative rounded-lg bg-white/[0.04] border border-white/10 py-2 text-[#cfc8b0] text-xs font-semibold hover:border-white/25 transition-colors disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px]"
           >
             2:1 · {k.label}
             {badge(k.numbers)}
@@ -403,7 +403,7 @@ function Setztisch({
             key={d.label}
             onClick={() => klick(d.numbers, d.label, "dozen")}
             disabled={deaktiviert}
-            className="relative rounded-lg bg-gurken-800/60 border border-gurken-500/20 py-2 text-gurken-200 text-xs font-bold hover:bg-gurken-700/60 transition-colors disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation min-h-[44px]"
+            className="relative rounded-lg bg-white/[0.04] border border-white/10 py-2 text-[#cfc8b0] text-xs font-semibold hover:border-white/25 transition-colors disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px]"
           >
             {d.label}
             {badge(d.numbers)}
@@ -421,12 +421,12 @@ function Setztisch({
               key={c.label}
               onClick={() => klick(c.numbers, c.label, "outside")}
               disabled={deaktiviert}
-              className={`relative rounded-lg py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation min-h-[44px] ${
+              className={`relative rounded-lg py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 min-h-[44px] ${
                 rot
-                  ? "bg-red-700/70 text-red-100 hover:bg-red-700"
+                  ? "bg-[#4a2b26] text-[#e8c9c2] hover:bg-[#55332c]"
                   : schwarz
-                    ? "bg-black/60 text-gurken-100 border border-gurken-500/25 hover:bg-black/80"
-                    : "bg-gurken-800/60 border border-gurken-500/20 text-gurken-200 hover:bg-gurken-700/60"
+                    ? "bg-white/[0.04] text-[#ede8d6] border border-white/10 hover:border-white/25"
+                    : "bg-white/[0.04] border border-white/10 text-[#cfc8b0] hover:border-white/25"
               }`}
             >
               {c.label.toUpperCase()}
@@ -506,7 +506,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
   async function drehen() {
     if (dreht || loading || einsaetze.length === 0) return;
     if (captchaPflicht && !turnstileToken) {
-      setCaptchaHinweis("Bitte zuerst das Captcha lösen – dann rollt die Kugel. 🥒");
+      setCaptchaHinweis("Bitte zuerst das Captcha lösen, dann rollt die Kugel.");
       return;
     }
     if (punkte < gesamtEinsatz) {
@@ -537,7 +537,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
           setTurnstileToken(null);
           setCaptchaReset((n) => n + 1);
           setCaptchaHinweis(
-            "Captcha erforderlich – bitte erneut bestätigen, dann nochmal drehen. 🥒",
+            "Captcha erforderlich – bitte erneut bestätigen, dann nochmal drehen.",
           );
           await refresh();
           return;
@@ -604,24 +604,24 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
     <div className="card p-6 md:p-8 mb-8">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <Target size={24} weight="fill" className="text-gurken-400" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🎡 Gurken Roulette
+          <Target size={22} weight="fill" className="text-[#8fa96d]" />
+          <h2 className="font-display text-xl font-semibold text-[#faf8f1]">
+            Gurken Roulette
           </h2>
         </div>
-        <span className="rounded-lg border border-yellow-400/25 bg-yellow-400/5 px-3 py-1.5 text-sm font-bold text-yellow-300">
+        <span className="tabular rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm font-semibold text-[#e2d9bf]">
           {zahl(punkte)} Punkte
         </span>
       </div>
 
-      <p className="mb-5 text-sm leading-relaxed text-gurken-400">
+      <p className="mb-5 text-sm leading-relaxed text-[#a3ad9a]">
         Europäischer Kessel mit einer Null. Tippe Felder an, die Kugel
         entscheidet – die Gewinnzahl zieht der Server, nicht dein
         Bauchgefühl.
       </p>
 
       {/* Kessel */}
-      <div className="mb-5 rounded-2xl border border-gurken-500/20 bg-gurken-950/40 p-2 sm:p-4">
+      <div className="mb-5 rounded-lg border border-white/10 bg-[#0b120d]/60 p-2 sm:p-4">
         <GurkenKessel
           dreht={dreht}
           ziel={ziel}
@@ -633,34 +633,34 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
       {/* Ergebnis */}
       {gewinnzahl !== null && delta !== null && auszahlung !== null && (
         <div
-          className={`mb-5 rounded-xl border px-4 py-3 text-center ${
+          className={`mb-5 rounded-lg border px-4 py-3 text-center ${
             delta > 0
-              ? "border-yellow-400/40 bg-yellow-400/10"
-              : "border-red-500/30 bg-red-950/30"
+              ? "border-[#c9a86a]/30 bg-[#c9a86a]/[0.07]"
+              : "border-red-500/25 bg-red-950/25"
           }`}
         >
-          <p className="text-xs text-gurken-400 mb-1">Gewinnzahl</p>
+          <p className="text-xs text-[#6b7565] mb-1">Gewinnzahl</p>
           <p
-            className={`text-4xl font-bold ${
+            className={`tabular text-4xl font-semibold ${
               gewinnzahl === 0
-                ? "text-gurken-400"
+                ? "text-[#8fa96d]"
                 : istRoteZahl(gewinnzahl)
                   ? "text-red-400"
-                  : "text-gurken-100"
+                  : "text-[#ede8d6]"
             }`}
           >
             {gewinnzahl}
           </p>
           <p
-            className={`mt-2 font-heading text-lg font-bold ${
-              delta > 0 ? "text-yellow-300" : "text-red-300"
+            className={`tabular mt-2 font-display text-lg font-semibold ${
+              delta > 0 ? "text-[#e2d9bf]" : "text-red-300"
             }`}
           >
             {delta > 0 ? "+" : ""}
             {zahl(delta)} Punkte
           </p>
           {delta > 0 && (
-            <p className="mt-0.5 text-xs text-gurken-400">
+            <p className="mt-0.5 text-xs text-[#a3ad9a]">
               Auszahlung {zahl(auszahlung)} Punkte (Einsatz zurück inklusive)
             </p>
           )}
@@ -668,7 +668,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
       )}
 
       {fehler && (
-        <div className="mb-5 rounded-xl border border-red-500/30 bg-red-950/30 px-4 py-3 text-center text-sm text-red-200">
+        <div className="mb-5 rounded-lg border border-red-500/25 bg-red-950/20 px-4 py-3 text-center text-sm text-red-200">
           {fehler}
         </div>
       )}
@@ -686,7 +686,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
 
       {/* Chips */}
       <div className="mb-4">
-        <div className="mb-2 text-xs uppercase tracking-wider text-gurken-500">
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
           Chip wählen
         </div>
         <div className="flex flex-wrap gap-2">
@@ -695,10 +695,10 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
               key={wert}
               onClick={() => setChip(wert)}
               disabled={dreht}
-              className={`min-h-[44px] min-w-[64px] rounded-full border px-5 py-2.5 text-sm font-bold transition-all touch-manipulation disabled:opacity-50 ${
+              className={`tabular min-h-[44px] min-w-[64px] rounded-lg border px-5 py-2.5 text-sm font-semibold transition-all duration-300 active:scale-[0.97] disabled:opacity-50 ${
                 chip === wert
-                  ? "border-yellow-400/60 bg-yellow-400 text-gurken-950 shadow-[0_0_18px_rgba(250,204,21,0.35)] scale-105"
-                  : "border-gurken-500/20 bg-gurken-800/40 text-gurken-300 hover:border-gurken-500 hover:text-gurken-100"
+                  ? "border-transparent bg-[#ede8d6] text-[#0b120d]"
+                  : "border-white/10 bg-white/[0.03] text-[#a3ad9a] hover:border-white/25 hover:text-[#ede8d6]"
               }`}
             >
               {zahl(wert)}
@@ -728,7 +728,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
             }}
           />
           {captchaHinweis && (
-            <p className="mt-2 text-center text-xs text-gurken-400">
+            <p className="mt-2 text-center text-xs text-[#a3ad9a]">
               {captchaHinweis}
             </p>
           )}
@@ -738,14 +738,14 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
       {/* Steuerung */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs text-gurken-500">Gesamteinsatz</p>
-          <p className="text-2xl font-bold text-gurken-100">
+          <p className="text-xs text-[#6b7565]">Gesamteinsatz</p>
+          <p className="tabular text-2xl font-semibold text-[#ede8d6]">
             {zahl(gesamtEinsatz)}{" "}
-            <span className="text-sm font-semibold text-gurken-400">
+            <span className="text-sm font-medium text-[#6b7565]">
               Punkte
             </span>
           </p>
-          <p className="text-[11px] text-gurken-500">
+          <p className="tabular text-[11px] text-[#6b7565]">
             {einsaetze.length} {einsaetze.length === 1 ? "Einsatz" : "Einsätze"}
           </p>
         </div>
@@ -753,51 +753,51 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
           <button
             onClick={zuruecknehmen}
             disabled={dreht || einsaetze.length === 0}
-            className="min-h-[48px] px-4 rounded-xl border border-gurken-500/25 bg-gurken-800/40 text-gurken-200 font-bold text-sm hover:bg-gurken-700/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all touch-manipulation"
+            className="min-h-[48px] px-4 rounded-lg border border-white/10 bg-white/[0.03] text-[#cfc8b0] font-semibold text-sm hover:border-white/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Zurück
           </button>
           <button
             onClick={drehen}
             disabled={!kannDrehen}
-            className="min-h-[48px] px-6 rounded-xl bg-yellow-400 text-gurken-950 font-bold text-sm hover:bg-yellow-300 hover:shadow-[0_0_25px_rgba(250,204,21,0.4)] disabled:opacity-50 disabled:cursor-not-allowed transition-all touch-manipulation inline-flex items-center gap-2"
+            className="btn-cta btn-cta-primary min-h-[48px] !text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {dreht ? (
               <>
                 <Spinner size={18} weight="fill" className="animate-spin" />
-                Rollt…
+                Rollt …
               </>
             ) : (
-              <>🎡 Drehen</>
+              <>Drehen</>
             )}
           </button>
         </div>
       </div>
 
       {/* Auszahlungen */}
-      <details className="mt-5 rounded-xl border border-gurken-500/15 bg-gurken-800/30 px-4 py-3">
-        <summary className="text-gurken-300 font-semibold text-sm cursor-pointer touch-manipulation">
-          Auszahlungen (antippen)
+      <details className="mt-5 rounded-lg border border-white/[0.08] bg-white/[0.02] px-4 py-3">
+        <summary className="text-[#cfc8b0] font-semibold text-sm cursor-pointer">
+          Auszahlungen
         </summary>
-        <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs">
+        <div className="tabular mt-2 grid grid-cols-2 gap-1.5 text-xs">
           <div className="flex justify-between">
-            <span className="text-gurken-500">Plein (1 Zahl)</span>
-            <span className="text-gurken-200 font-bold">35 : 1</span>
+            <span className="text-[#6b7565]">Plein (1 Zahl)</span>
+            <span className="text-[#ede8d6] font-semibold">35 : 1</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gurken-500">Dutzend / Spalte</span>
-            <span className="text-gurken-200 font-bold">2 : 1</span>
+            <span className="text-[#6b7565]">Dutzend / Spalte</span>
+            <span className="text-[#ede8d6] font-semibold">2 : 1</span>
           </div>
           <div className="flex justify-between col-span-2">
-            <span className="text-gurken-500">
+            <span className="text-[#6b7565]">
               Einfache Chance (Rot/Schwarz, Gerade/Ungerade, 1–18/19–36)
             </span>
-            <span className="text-gurken-200 font-bold">1 : 1</span>
+            <span className="text-[#ede8d6] font-semibold">1 : 1</span>
           </div>
         </div>
       </details>
 
-      <p className="mt-3 text-center text-xs leading-relaxed text-gurken-500">
+      <p className="mt-3 text-center text-xs leading-relaxed text-[#6b7565]">
         Spielgeld-Regeln: Die Auszahlung enthält deinen Einsatz zurück. Wer auf
         viele Felder setzt, gewinnt öfter, aber kleiner. Maximal{" "}
         {zahl(ROULETTE_MAX_GESAMTEINSATZ)} Punkte pro Dreh – wie am Automaten.

@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowsInSimple, Check, Lock, Medal } from "@phosphor-icons/react";
+import { ArrowsInSimple, ArrowRight, Check, Lock, Medal } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
-import { SpinningCucumber } from "@/components/SpinningCucumber";
 import {
   RANG_TITEL,
   naechsterRang,
@@ -15,10 +14,6 @@ function zahl(n: number) {
   return n.toLocaleString("de-DE");
 }
 
-/**
- * Glühender Rang-Balken für den Kopfbereich des Dashboards: eigener Titel,
- * wie viele Punkte bis zur nächsten Stufe fehlen und ein Fortschrittsbalken.
- */
 export function RangKopf() {
   const { punkte, loading } = usePunkte();
   if (loading) return null;
@@ -34,28 +29,24 @@ export function RangKopf() {
   })();
 
   return (
-    <div className="flex flex-col items-center rounded-xl border border-yellow-400/25 bg-yellow-400/5 px-5 py-4 text-center shadow-[0_0_25px_rgba(250,204,21,0.15)]">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-gurken-500">
+    <div className="rounded-2xl border border-[#c9a86a]/20 bg-[#c9a86a]/[0.05] px-5 py-4 text-center">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6b7565]">
         Dein Rang
-      </span>
-      <span className="font-heading text-xl font-bold text-yellow-300 [text-shadow:0_0_14px_rgba(250,204,21,0.55)]">
-        {titel}
-      </span>
-      <span className="mt-0.5 text-[11px] text-gurken-400">
+      </p>
+      <p className="font-display mt-0.5 text-2xl font-semibold text-[#e2d9bf]">{titel}</p>
+      <p className="tabular mt-0.5 text-xs text-[#a3ad9a]">
         {naechster ? (
           <>
-            Noch{" "}
-            <strong className="text-yellow-300">{zahl(naechster.fehlt)}</strong>{" "}
-            Punkte bis{" "}
-            <strong className="text-gurken-200">{naechster.titel}</strong>
+            Noch <strong className="text-[#e2d9bf]">{zahl(naechster.fehlt)}</strong> Punkte bis{" "}
+            <strong className="text-[#ede8d6]">{naechster.titel}</strong>
           </>
         ) : (
-          <>Höchster Rang erreicht 🏆</>
+          <>Höchster Rang erreicht</>
         )}
-      </span>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gurken-800/60">
+      </p>
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-lg bg-white/[0.07]">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-gurken-600 to-yellow-400 transition-all duration-500"
+          className="h-full rounded-lg bg-[#8fa96d] transition-all duration-500"
           style={{ width: `${fortschritt}%` }}
         />
       </div>
@@ -63,11 +54,6 @@ export function RangKopf() {
   );
 }
 
-/**
- * Eingeklappte Karte aller Rangzeichen – im selben Stil wie „Punkte &
- * Belohnungen“ und „Chat mit Gürkchen“: zuklappen, Inhalt aufklappen.
- * Bewusst eine eigene Karte außerhalb von „Punkte & Belohnungen“.
- */
 export function Rangstufen() {
   const { punkte, loading } = usePunkte();
   const [open, setOpen] = useState(false);
@@ -77,32 +63,21 @@ export function Rangstufen() {
 
   if (!open) {
     return (
-      <div className="mb-8">
+      <div className="mb-5">
         <button
           onClick={() => setOpen(true)}
-          className="relative w-full group overflow-hidden rounded-2xl border border-gurken-500/20 bg-gradient-to-br from-gurken-700/40 via-gurken-800/30 to-gurken-900/40 p-8 md:p-10 text-center transition-all duration-300 hover:border-yellow-400/40 hover:shadow-[0_0_40px_rgba(250,204,21,0.2)] hover:-translate-y-0.5 active:translate-y-0 touch-manipulation"
+          className="shell group block w-full text-center transition-colors duration-200 active:scale-[0.99]"
         >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#facc150a_0%,_transparent_70%)] group-hover:bg-[radial-gradient(ellipse_at_center,_#facc151f_0%,_transparent_70%)] transition-all duration-500" />
-          <div className="relative">
-            <div className="text-6xl mb-4">
-              <Medal size={56} weight="fill" className="text-yellow-400 mx-auto" />
-            </div>
-            <h2 className="text-2xl md:text-3xl font-heading font-bold text-gurken-200 mb-2">
-              🥒 Rangzeichen 🥒
+          <div className="core flex flex-col items-center gap-4 p-6 md:p-8">
+            <Medal size={40} weight="fill" className="text-[#c9a86a]" />
+            <h2 className="font-display text-2xl font-semibold text-[#faf8f1] md:text-[1.7rem]">
+              Rangzeichen
             </h2>
-            <p className="text-gurken-400 text-sm md:text-base mb-4 max-w-md mx-auto">
-              Von Nano Gurke bis Extremst riesige Gurke – sieh alle Stufen, deine
-              aktuelle und wie viele Punkte dir bis zur nächsten fehlen.
-            </p>
-            {!loading && (
-              <p className="mb-6 text-sm text-gurken-500">
-                Dein Rang:{" "}
-                <strong className="text-yellow-300">{aktuell}</strong>
-              </p>
-            )}
-            <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-gurken-950 font-bold text-lg transition-all duration-200 shadow-[0_0_20px_rgba(250,204,21,0.3)] group-hover:shadow-[0_0_30px_rgba(250,204,21,0.5)]">
-              <Medal size={22} weight="fill" />
+            <span className="btn-cta btn-cta-primary !text-base">
               Ränge anzeigen
+              <span className="btn-dot">
+                <ArrowRight size={17} weight="bold" />
+              </span>
             </span>
           </div>
         </button>
@@ -111,89 +86,68 @@ export function Rangstufen() {
   }
 
   return (
-    <div className="card p-6 md:p-8 mb-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="card mb-5 p-6 md:p-8">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Medal size={24} weight="fill" className="text-yellow-400" />
-          <h2 className="text-xl font-heading font-bold text-gurken-200">
-            🥒 Rangzeichen 🥒
-          </h2>
+          <Medal size={22} weight="fill" className="text-[#c9a86a]" />
+          <h2 className="font-display text-xl font-semibold text-[#faf8f1]">Rangzeichen</h2>
         </div>
         <button
           onClick={() => setOpen(false)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-gurken-400 hover:text-gurken-200 hover:bg-gurken-800/50 text-sm font-bold transition-all touch-manipulation min-h-[44px]"
+          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] transition-colors hover:border-white/20 hover:text-[#ede8d6]"
         >
-          <ArrowsInSimple size={18} />
+          <ArrowsInSimple size={16} />
           Schließen
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center py-8">
-          <SpinningCucumber size="text-3xl" />
+        <div className="space-y-2 py-2" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="shimmer h-10 rounded-xl" />
+          ))}
         </div>
       ) : (
         <>
-          <p className="mb-4 text-sm leading-relaxed text-gurken-500">
-            Je mehr Punkte du sammelst, desto höher steigst du – von Nano Gurke
-            bis Extremst riesige Gurke. Aktuell trägst du{" "}
-            <strong className="text-yellow-300">{aktuell}</strong> mit{" "}
-            <strong className="text-gurken-300">{zahl(punkte)}</strong> Punkten.
+          <p className="tabular mb-4 text-sm leading-relaxed text-[#a3ad9a]">
+            Je mehr Punkte du sammelst, desto höher steigst du. Aktuell trägst du{" "}
+            <strong className="text-[#e2d9bf]">{aktuell}</strong> mit{" "}
+            <strong className="text-[#ede8d6]">{zahl(punkte)}</strong> Punkten.
           </p>
 
-          <ol className="space-y-1.5">
+          <ol className="space-y-px overflow-hidden rounded-xl border border-white/[0.07]">
             {RANG_TITEL.map((stufe) => {
               const erreicht = punkte >= stufe.ab;
               const traegtMan = stufe.titel === aktuell;
               return (
                 <li
                   key={stufe.titel}
-                  className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
-                    traegtMan
-                      ? "border-yellow-400/40 bg-yellow-400/5"
-                      : erreicht
-                        ? "border-gurken-500/15 bg-gurken-800/20"
-                        : "border-transparent bg-gurken-800/10"
+                  className={`flex items-center gap-3 border-b border-white/[0.05] px-3 py-2.5 last:border-0 ${
+                    traegtMan ? "bg-[#c9a86a]/[0.07]" : erreicht ? "bg-white/[0.02]" : ""
                   }`}
                 >
                   <span
                     className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ${
-                      erreicht
-                        ? "bg-gurken-500/20 text-gurken-300"
-                        : "bg-gurken-800/60 text-gurken-600"
+                      erreicht ? "bg-[#8fa96d]/20 text-[#abc189]" : "bg-white/[0.05] text-[#6b7565]"
                     }`}
                   >
-                    {erreicht ? (
-                      <Check size={13} weight="bold" />
-                    ) : (
-                      <Lock size={12} weight="bold" />
-                    )}
+                    {erreicht ? <Check size={13} weight="bold" /> : <Lock size={12} weight="bold" />}
                   </span>
-
                   <span
-                    className={`min-w-0 flex-1 truncate text-sm font-semibold ${
-                      traegtMan
-                        ? "text-yellow-300"
-                        : erreicht
-                          ? "text-gurken-200"
-                          : "text-gurken-500"
+                    className={`min-w-0 flex-1 truncate text-sm font-medium ${
+                      traegtMan ? "text-[#e2d9bf]" : erreicht ? "text-[#ede8d6]" : "text-[#6b7565]"
                     }`}
                   >
                     {stufe.titel}
                     {traegtMan && (
-                      <span className="ml-2 rounded border border-yellow-400/30 px-1 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-yellow-400">
+                      <span className="ml-2 rounded-lg border border-[#c9a86a]/30 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-[0.1em] text-[#c9a86a]">
                         du
                       </span>
                     )}
                   </span>
-
                   <span
-                    className={`flex-shrink-0 text-right text-[11px] font-bold ${
-                      traegtMan
-                        ? "text-yellow-300"
-                        : erreicht
-                          ? "text-gurken-500"
-                          : "text-gurken-600"
+                    className={`tabular flex-shrink-0 text-right text-[11px] font-semibold ${
+                      traegtMan ? "text-[#e2d9bf]" : "text-[#6b7565]"
                     }`}
                   >
                     {traegtMan
@@ -207,23 +161,14 @@ export function Rangstufen() {
             })}
           </ol>
 
-          <div className="mt-3 border-t border-dashed border-gurken-500/20 pt-3 text-xs text-gurken-400">
+          <div className="tabular mt-3 border-t border-dashed border-white/10 pt-3 text-xs text-[#a3ad9a]">
             {naechster ? (
               <>
-                Noch{" "}
-                <span className="font-bold text-yellow-300">
-                  {zahl(naechster.fehlt)} Punkte
-                </span>{" "}
-                bis{" "}
-                <strong className="text-gurken-200">{naechster.titel}</strong>
+                Noch <span className="font-semibold text-[#e2d9bf]">{zahl(naechster.fehlt)} Punkte</span>{" "}
+                bis <strong className="text-[#ede8d6]">{naechster.titel}</strong>
               </>
             ) : (
-              <>
-                <span className="font-bold text-yellow-300">
-                  Höchster Rang erreicht
-                </span>{" "}
-                – die Sekte verbeugt sich. 🏆
-              </>
+              <span className="font-semibold text-[#e2d9bf]">Höchster Rang erreicht.</span>
             )}
           </div>
         </>

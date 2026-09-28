@@ -19,6 +19,8 @@
  * - Einfache Chance (18 Zahlen): 2×
  */
 
+import { zufallsAnteil, zufallsInt } from "@/lib/zufall";
+
 /** Europäische Kessel-Reihenfolge (nur Optik – gezogen wird uniform 0–36). */
 export const ROULETTE_RAD_REIHENFOLGE: number[] = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5,
@@ -131,9 +133,9 @@ export function istGueltigerRouletteChip(
   );
 }
 
-/** Serverseitige Ziehung: uniform 0–36. */
+/** Serverseitige Ziehung: uniform 0–36 (CSPRNG – Punkte haben Gegenwert). */
 export function rouletteGewinnzahl(): number {
-  return Math.floor(Math.random() * 37);
+  return zufallsInt(37);
 }
 
 /**
@@ -174,13 +176,13 @@ export function rouletteGewinnzahlGezinkt(
 ): number {
   const fair = rouletteGewinnzahl();
   if (rouletteAuszahlung(fair, einsaetze) <= 0) return fair;
-  if (Math.random() >= ROULETTE_HAUS_STORNO_WAHRSCHEINLICHKEIT) return fair;
+  if (zufallsAnteil() >= ROULETTE_HAUS_STORNO_WAHRSCHEINLICHKEIT) return fair;
   const nieten: number[] = [];
   for (let n = 0; n < 37; n++) {
     if (rouletteAuszahlung(n, einsaetze) <= 0) nieten.push(n);
   }
   if (nieten.length === 0) return fair;
-  return nieten[Math.floor(Math.random() * nieten.length)];
+  return nieten[zufallsInt(nieten.length)];
 }
 
 /**

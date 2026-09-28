@@ -1,5 +1,6 @@
 import { hexclaveServerApp } from "@/hexclave/server";
 import { getPendingReferrals } from "@/lib/referral";
+import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import {
   BESTELLUNG_EMAIL,
@@ -25,8 +26,13 @@ function escapeHtml(value: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
 }
+
+/** Höchstens so viele Gurken-Bestellungen pro Konto und Stunde (Mail-Spam-Schutz). */
+const EINLOESEN_LIMIT = 10;
+const EINLOESEN_FENSTER_MS = 60 * 60 * 1000;
 
 export async function GET(req: Request) {
   const user = await hexclaveServerApp.getUser({ tokenStore: req, or: "return-null" });
@@ -112,6 +118,9 @@ export async function POST(req: Request) {
   // Erst mit vollständiger Lieferadresse wird die Gurke bestellt.
   let lieferadresse: GurkenAdresse | null = null;
   if (action === "einloesen") {
+    if (!(await rateLimit(`einloesen:${user.id}`, EINLOESEN_LIMIT, EINLOESEN_FENSTER_MS))) {
+      return rateLimitAntwort(EINLOESEN_FENSTER_MS);
+    }
     const pruefung = adressePruefen(body.adresse);
     if (!pruefung.ok) {
       return Response.json({ error: pruefung.error }, { status: 400 });

@@ -1,4 +1,5 @@
 import { hexclaveServerApp } from "@/hexclave/server";
+import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 import {
   REFERRAL_CLAIMED_KEY,
   REFERRAL_COOKIE,
@@ -32,10 +33,25 @@ function escapeHtml(value: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
 }
 
+/** Höchstens so viele Werbe-Meldungen pro Konto und Stunde (Mail-Spam-Schutz). */
+const REFERRAL_LIMIT = 10;
+const REFERRAL_FENSTER_MS = 60 * 60 * 1000;
+
 function requestOrigin(req: Request): string {
+  // Kanonische Origin aus der Server-Config – NIEMALS aus
+  // `x-forwarded-host`/`host`: Die Origin landet in der Prüf-Mail an die
+  // Sekten-Leitung, ein gefälschter Header würde dort einen Phishing-Link
+  // platzieren (Host-Header-Poisoning).
+  const kanonisch = (
+    process.env.SITE_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    ""
+  ).trim().replace(/\/+$/, "");
+  if (kanonisch) return kanonisch;
   const url = new URL(req.url);
   const first = (value: string | null) => value?.split(",")[0]?.trim() || null;
   const proto = first(req.headers.get("x-forwarded-proto")) ?? url.protocol.replace(":", "");
@@ -60,6 +76,10 @@ export async function POST(req: Request) {
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
   if (meta.referralCredited || meta[REFERRAL_CLAIMED_KEY]) {
     return respond({ credited: false, reason: "already" });
+  }
+
+  if (!(await rateLimit(`referral:${user.id}`, REFERRAL_LIMIT, REFERRAL_FENSTER_MS))) {
+    return rateLimitAntwort(REFERRAL_FENSTER_MS);
   }
 
   const referral = decodeReferralCookie(

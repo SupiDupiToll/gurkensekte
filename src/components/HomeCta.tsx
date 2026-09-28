@@ -3,13 +3,12 @@
 import { Suspense, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useUser } from "@hexclave/next";
-import { ArrowRight, Heart } from "@phosphor-icons/react";
+import { ArrowRight, ArrowUpRight, HeartStraight } from "@phosphor-icons/react";
 
 type CtaVariant = "hero" | "join";
 
 const noopSubscribe = () => () => {};
 
-/** `false` while server-rendering/hydrating, `true` once running in the browser. */
 function useIsHydrated() {
   return useSyncExternalStore(
     noopSubscribe,
@@ -32,29 +31,28 @@ function CtaLinks({
   if (variant === "join") {
     return (
       <Link href={mitgliederHref} className="btn-cta btn-cta-primary">
-        <Heart size={20} weight="fill" />
-        {signedIn
-          ? "Zum Mitgliederbereich 🥒"
-          : "Jetzt der GurkenSekte beitreten 🥒"}
+        {signedIn ? "Zum Mitgliederbereich" : "Der Sekte beitreten"}
+        <span className="btn-dot">
+          <ArrowRight size={18} weight="bold" />
+        </span>
       </Link>
     );
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
-      <Link
-        href={mitgliederHref}
-        className="btn-cta btn-cta-primary w-full sm:w-auto text-center"
-      >
+    <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+      <Link href={mitgliederHref} className="btn-cta btn-cta-lg btn-cta-primary">
         {signedIn ? "Zum Mitgliederbereich" : "Mitglied werden"}
-        <ArrowRight size={20} />
+        <span className="btn-dot">
+          <ArrowRight size={20} weight="bold" />
+        </span>
       </Link>
-      <Link
-        href={`${base}/spenden`}
-        className="btn-cta btn-cta-secondary w-full sm:w-auto text-center"
-      >
-        <Heart size={20} weight="fill" />
-        Spende jetzt 🥒
+      <Link href={`${base}/spenden`} className="btn-cta btn-cta-lg btn-cta-secondary">
+        <HeartStraight size={20} weight="fill" />
+        Spenden
+        <span className="btn-dot">
+          <ArrowUpRight size={18} weight="bold" />
+        </span>
       </Link>
     </div>
   );
@@ -71,13 +69,6 @@ function SignedInCta({
   return <CtaLinks base={base} variant={variant} signedIn={Boolean(user)} />;
 }
 
-/**
- * Member CTA that reflects the auth state.
- *
- * The session is only read after mount: Hexclave's `useUser()` bails out of
- * server rendering entirely, which would strip the public landing page of its
- * markup. Until then the logged-out variant is used.
- */
 export function HomeCta({
   base = "",
   variant,
@@ -86,13 +77,8 @@ export function HomeCta({
   variant: CtaVariant;
 }) {
   const hydrated = useIsHydrated();
-
   const loggedOut = <CtaLinks base={base} variant={variant} signedIn={false} />;
-
-  if (!hydrated) {
-    return loggedOut;
-  }
-
+  if (!hydrated) return loggedOut;
   return (
     <Suspense fallback={loggedOut}>
       <SignedInCta base={base} variant={variant} />

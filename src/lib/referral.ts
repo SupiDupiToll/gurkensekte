@@ -90,7 +90,16 @@ export function decodeReferralCookie(
 ): { code: string; at: number } | null {
   const [encoded, timestamp] = (raw ?? "").trim().split("|");
   if (!encoded) return null;
-  return { code: decodeURIComponent(encoded), at: Number(timestamp) || 0 };
+  // Malformierte Cookie-Werte (z. B. einsames `%`) dürfen nie mit 500
+  // crashen – sie sind einfach kein gültiger Referral.
+  let code: string;
+  try {
+    code = decodeURIComponent(encoded);
+  } catch {
+    return null;
+  }
+  if (!code || code.length > 128) return null;
+  return { code, at: Number(timestamp) || 0 };
 }
 
 export function parseCookieValue(
