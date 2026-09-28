@@ -31,7 +31,7 @@ export function SpendenPage() {
     if (sdk) {
       try {
         sdk.embed("#mangoe-pay-box", url, {
-          height: 640,
+          height: 800,
           title: "Mangoe Spenden-Checkout",
         });
         return;
@@ -47,7 +47,7 @@ export function SpendenPage() {
       iframe.src = url;
       iframe.title = "Mangoe Spenden-Checkout";
       iframe.style.width = "100%";
-      iframe.style.height = "640px";
+      iframe.style.height = "800px";
       iframe.style.border = "0";
       iframe.style.borderRadius = "12px";
       box.appendChild(iframe);

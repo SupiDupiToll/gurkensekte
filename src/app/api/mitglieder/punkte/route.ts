@@ -1,7 +1,21 @@
 import { hexclaveServerApp } from "@/hexclave/server";
 import { getPendingReferrals } from "@/lib/referral";
-import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
+import {
+  istSperreBelegtFehler,
+  rateLimit,
+  rateLimitAntwort,
+} from "@/lib/ratelimit";
 import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import {
+  heuteISO,
+  istPunkteFehler,
+  lesePunkte,
+  lesePunkteGesamt,
+  leseVerlauf,
+  mitFrischemBenutzer,
+  zitatZaehlerHeute,
+  PunkteFehler,
+} from "@/lib/punkte";
 import {
   BESTELLUNG_EMAIL,
   type GurkenAdresse,
@@ -41,25 +55,26 @@ export async function GET(req: Request) {
   }
 
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
-  const today = new Date().toISOString().split("T")[0];
-  const quoteBonusDate = meta.letzterZitatBonus as string | undefined;
-  const storedQuoteCount = (meta.zitatBonusCount as number) ?? 0;
-  const quoteCountToday =
-    quoteBonusDate === today ? Math.max(storedQuoteCount, quoteBonusDate ? 1 : 0) : 0;
+  const today = heuteISO();
+  const quoteCountToday = zitatZaehlerHeute(meta, today);
 
-  const punkte = (meta.punkte as number) ?? 0;
+  const punkte = lesePunkte(meta);
+  const werbungen = meta.werbungen;
+  const geworben =
+    typeof werbungen === "number" && Number.isFinite(werbungen)
+      ? werbungen
+      : 0;
 
   return Response.json({
     punkte,
     // Fehlt das Feld noch (altes Konto), gelten die bisherigen Punkte als
     // gesamter Stand – danach steigen die XP nur noch nach oben.
-    punkteGesamt:
-      typeof meta.punkteGesamt === "number" ? meta.punkteGesamt : punkte,
+    punkteGesamt: lesePunkteGesamt(meta, punkte),
     dailyAvailable: meta.letzterDailyBonus !== today,
     quoteAvailable: quoteCountToday < 3,
     quoteRemaining: Math.max(0, 3 - quoteCountToday),
-    verlauf: (meta.punkteVerlauf as unknown[]) ?? [],
-    geworben: (meta.werbungen as number) ?? 0,
+    verlauf: leseVerlauf(meta),
+    geworben,
     werbungenOffen: getPendingReferrals(meta).length,
     // Lieferadresse der (letzten) Gurken-Bestellung – für die Wiederverwendung.
     gurkenAdresse: adresseLesen(meta.gurkenAdresse),
