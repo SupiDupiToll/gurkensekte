@@ -1,19 +1,17 @@
 import { hexclaveServerApp } from "@/hexclave/server";
 import {
-  CASINO_MAX_VERLUST_FAKTOR,
-  casinoDelta,
-  casinoWurf,
-  istGueltigerEinsatz,
-} from "@/lib/casino";
+  rouletteAuszahlung,
+  rouletteGewinnzahlGezinkt,
+  validiereRouletteEinsaetze,
+} from "@/lib/roulette";
 import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
 
 /**
- * Gurken Casino (echter Mitgliederbereich): Captcha prüfen, Einsatz prüfen,
- * serverseitig würfeln und die Punkte buchen. Höchster Gewinn 3×, größter
- * Verlust 3× – deshalb muss das 3-fache des Einsatzes als Puffer auf dem
- * Konto liegen, damit kein Dreh ins Minus führt.
+ * Gurken Roulette (echter Mitgliederbereich): Captcha prüfen, Einsätze
+ * prüfen, serverseitig gezinkt ziehen (Slot-Niveau) und die Punkte buchen.
+ * Die Gewinnzahl steht vor der Animation fest – der Kessel zeigt sie nur an.
  */
 export async function POST(req: Request) {
   const user = await hexclaveServerApp.getUser({ tokenStore: req, or: "return-null" });
@@ -21,14 +19,17 @@ export async function POST(req: Request) {
     return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
   }
 
-  let body: { einsatz?: unknown; turnstileToken?: unknown } = {};
+  let body: { einsaetze?: unknown; turnstileToken?: unknown } = {};
   try {
-    body = (await req.json()) as { einsatz?: unknown; turnstileToken?: unknown };
+    body = (await req.json()) as {
+      einsaetze?: unknown;
+      turnstileToken?: unknown;
+    };
   } catch {
     // leerer Body – unten abgefangen
   }
 
-  // Bot-Schutz vor der Buchung: Ohne Captcha dreht der Automat nicht.
+  // Bot-Schutz vor der Buchung: Ohne Captcha rollt die Kugel nicht.
   const captcha = await pruefeTurnstile(req, {
     token: body.turnstileToken,
     userId: user.id,
@@ -37,31 +38,30 @@ export async function POST(req: Request) {
     return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
   }
 
-  if (!istGueltigerEinsatz(body.einsatz)) {
-    return Response.json({ error: "Ungültiger Einsatz" }, { status: 400 });
+  const check = validiereRouletteEinsaetze(body.einsaetze);
+  if (!check.ok) {
+    return Response.json({ error: check.error }, { status: 400 });
   }
-  const einsatz = body.einsatz;
 
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
   const currentPoints = (meta.punkte as number) ?? 0;
 
-  // Bis zu 3× Verlust: Nur wer den 3-fachen Einsatz auf dem Konto hat, darf
-  // drehen – so bleibt das Guthaben immer bei 0 oder darüber.
-  if (currentPoints < einsatz * CASINO_MAX_VERLUST_FAKTOR) {
+  if (currentPoints < check.gesamt) {
     return Response.json(
       {
-        error: `Für ${einsatz} Punkte Einsatz brauchst du mindestens ${einsatz * CASINO_MAX_VERLUST_FAKTOR} Punkte Puffer, weil bis zu 3× verloren gehen kann`,
+        error: `Für ${check.gesamt} Punkte Gesamteinsatz hast du zu wenig Punkte auf dem Konto`,
       },
       { status: 400 },
     );
   }
 
-  const wurf = casinoWurf();
-  const delta = casinoDelta(einsatz, wurf.faktor);
+  const gewinnzahl = rouletteGewinnzahlGezinkt(check.einsaetze);
+  const auszahlung = rouletteAuszahlung(gewinnzahl, check.einsaetze);
+  const delta = auszahlung - check.gesamt;
   const newPoints = currentPoints + delta;
 
   // XP steigen nur bei positivem Delta – Verluste drücken das Guthaben,
-  // aber nie den nie fallenden Gesamtbestand (und damit nie die XP-Anzeige).
+  // aber nie den nie fallenden Gesamtbestand.
   const currentTotal =
     typeof meta.punkteGesamt === "number" ? meta.punkteGesamt : currentPoints;
   const newTotal = delta > 0 ? currentTotal + delta : currentTotal;
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
   verlauf.push({
     datum: new Date().toISOString(),
-    aktion: "casino",
+    aktion: "roulette",
     punkte: delta,
     saldo: newPoints,
   });
@@ -82,11 +82,10 @@ export async function POST(req: Request) {
   });
 
   return Response.json({
-    einsatz,
-    faktor: wurf.faktor,
+    gewinnzahl,
+    auszahlung,
+    einsatzGesamt: check.gesamt,
     delta,
-    label: wurf.label,
-    symbole: wurf.symbole,
     punkte: newPoints,
     punkteGesamt: newTotal,
   });

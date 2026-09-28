@@ -1,22 +1,24 @@
 import { getDemoProfile, mitDemoCookie } from "@/lib/demoStore";
 import {
-  CASINO_MAX_VERLUST_FAKTOR,
-  casinoDelta,
-  casinoWurf,
-  istGueltigerEinsatz,
-} from "@/lib/casino";
+  rouletteAuszahlung,
+  rouletteGewinnzahlGezinkt,
+  validiereRouletteEinsaetze,
+} from "@/lib/roulette";
 import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
 
-/** Demo-Variante des Casino-Automaten: gleicher Wurf, In-Memory-Speicher. */
+/** Demo-Variante des Roulettes: gleiche gezinkte Ziehung, In-Memory-Speicher. */
 export async function POST(req: Request) {
   const res = new Response();
   const profile = getDemoProfile(req, res);
 
-  let body: { einsatz?: unknown; turnstileToken?: unknown } = {};
+  let body: { einsaetze?: unknown; turnstileToken?: unknown } = {};
   try {
-    body = (await req.json()) as { einsatz?: unknown; turnstileToken?: unknown };
+    body = (await req.json()) as {
+      einsaetze?: unknown;
+      turnstileToken?: unknown;
+    };
   } catch {
     // leerer Body – unten abgefangen
   }
@@ -30,20 +32,19 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!istGueltigerEinsatz(body.einsatz)) {
+  const check = validiereRouletteEinsaetze(body.einsaetze);
+  if (!check.ok) {
     return mitDemoCookie(
-      Response.json({ error: "Ungültiger Einsatz" }, { status: 400 }),
+      Response.json({ error: check.error }, { status: 400 }),
       res,
     );
   }
-  const einsatz = body.einsatz;
 
-  // Bis zu 3× Verlust: Nur mit 3-fachem Puffer darf gedreht werden.
-  if (profile.punkte < einsatz * CASINO_MAX_VERLUST_FAKTOR) {
+  if (profile.punkte < check.gesamt) {
     return mitDemoCookie(
       Response.json(
         {
-          error: `Für ${einsatz} Punkte Einsatz brauchst du mindestens ${einsatz * CASINO_MAX_VERLUST_FAKTOR} Punkte Puffer, weil bis zu 3× verloren gehen kann`,
+          error: `Für ${check.gesamt} Punkte Gesamteinsatz hast du zu wenig Punkte auf dem Konto`,
         },
         { status: 400 },
       ),
@@ -51,16 +52,18 @@ export async function POST(req: Request) {
     );
   }
 
-  const wurf = casinoWurf();
-  const delta = casinoDelta(einsatz, wurf.faktor);
+  const gewinnzahl = rouletteGewinnzahlGezinkt(check.einsaetze);
+  const auszahlung = rouletteAuszahlung(gewinnzahl, check.einsaetze);
+  const delta = auszahlung - check.gesamt;
   const newPoints = profile.punkte + delta;
   // XP steigen nur bei positivem Delta – Verluste bleiben beim Guthaben.
-  const newTotal = delta > 0 ? profile.punkteGesamt + delta : profile.punkteGesamt;
+  const newTotal =
+    delta > 0 ? profile.punkteGesamt + delta : profile.punkteGesamt;
   const verlauf = profile.punkteVerlauf.slice(-9);
 
   verlauf.push({
     datum: new Date().toISOString(),
-    aktion: "casino",
+    aktion: "roulette",
     punkte: delta,
     saldo: newPoints,
   });
@@ -71,11 +74,10 @@ export async function POST(req: Request) {
 
   return mitDemoCookie(
     Response.json({
-      einsatz,
-      faktor: wurf.faktor,
+      gewinnzahl,
+      auszahlung,
+      einsatzGesamt: check.gesamt,
       delta,
-      label: wurf.label,
-      symbole: wurf.symbole,
       punkte: newPoints,
       punkteGesamt: newTotal,
     }),

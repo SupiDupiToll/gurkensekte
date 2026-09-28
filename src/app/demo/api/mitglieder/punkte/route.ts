@@ -1,5 +1,6 @@
 import { getDemoProfile, mitDemoCookie } from "@/lib/demoStore";
 import { adressePruefen } from "@/lib/bestellung";
+import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 
 const POINTS = {
   zitat: 5,
@@ -36,11 +37,24 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const res = new Response();
   const profile = getDemoProfile(req, res);
-  const body = (await req.json()) as { action?: string; adresse?: unknown };
+  const body = (await req.json()) as {
+    action?: string;
+    adresse?: unknown;
+    turnstileToken?: unknown;
+  };
   const action = body.action as Action | undefined;
 
   if (!action || !(action in POINTS)) {
     return Response.json({ error: "Ungültige Aktion" }, { status: 400 });
+  }
+
+  // Gleicher Bot-Schutz wie im echten Mitgliederbereich.
+  const captcha = await pruefeTurnstile(req, { token: body.turnstileToken });
+  if (!captcha.ok) {
+    return mitDemoCookie(
+      Response.json(turnstileFehltFehler(captcha.grund), { status: 403 }),
+      res,
+    );
   }
 
   const today = new Date().toISOString().split("T")[0];

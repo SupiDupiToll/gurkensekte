@@ -1,5 +1,6 @@
 import { hexclaveServerApp } from "@/hexclave/server";
 import { getPendingReferrals } from "@/lib/referral";
+import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import {
   BESTELLUNG_EMAIL,
   type GurkenAdresse,
@@ -65,11 +66,27 @@ export async function POST(req: Request) {
     return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
   }
 
-  const body = (await req.json()) as { action?: string; adresse?: unknown };
+  const body = (await req.json()) as {
+    action?: string;
+    adresse?: unknown;
+    turnstileToken?: unknown;
+  };
   const action = body.action as Action | undefined;
 
   if (!action || !(action in POINTS)) {
     return Response.json({ error: "Ungültige Aktion" }, { status: 400 });
+  }
+
+  // Bot-Schutz für alle Punkte-Aktionen (Zitat, Chat, Daily, Einlösen): Erst
+  // mit gültigem Captcha – oder gültiger 30-Minuten-Sitzung – wird gebucht,
+  // damit niemand Guthaben per Skript farmt. Geprüft wird vor allen
+  // Kontingent-Checks, damit Fehlversuche kein Tageslimit verbrauchen.
+  const captcha = await pruefeTurnstile(req, {
+    token: body.turnstileToken,
+    userId: user.id,
+  });
+  if (!captcha.ok) {
+    return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
   }
 
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;

@@ -7,6 +7,10 @@ import { Leaderboard } from "@/components/Leaderboard";
 import { RangKopf, Rangstufen } from "@/components/Rangstufen";
 import { ReferralBox } from "@/components/ReferralBox";
 import {
+  TurnstileWidget,
+  turnstileKonfiguriert,
+} from "@/components/TurnstileWidget";
+import {
   SpinningCucumber,
   FloatingCucumber,
   WigglingCucumber,
@@ -36,23 +40,6 @@ type Message = {
   content: string;
 };
 
-type TurnstileApi = {
-  render: (
-    container: HTMLElement,
-    options: {
-      sitekey: string;
-      callback: (token: string) => void;
-      "expired-callback": () => void;
-      "error-callback": () => void;
-    },
-  ) => string | number;
-  reset: (widgetId: string | number) => void;
-};
-
-type TurnstileWindow = Window & {
-  turnstile?: TurnstileApi;
-};
-
 export type MitgliedInfo = {
   id?: string | null;
   displayName?: string | null;
@@ -74,6 +61,13 @@ function PunkteInhalt() {
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [claimingRedeem, setClaimingRedeem] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // Bot-Schutz für Punkte-Aktionen: Ein gelöstes Captcha gilt 30 Minuten.
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
+  const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
+    turnstileKonfiguriert() ? "Bitte löse kurz das Captcha für Punkte-Aktionen." : null,
+  );
+  const [captchaReset, setCaptchaReset] = useState(0);
   // Bestellformular: ohne vollständige Lieferadresse wird nicht eingelöst.
   const [showAdresse, setShowAdresse] = useState(false);
   const [adresseFehler, setAdresseFehler] = useState<string | null>(null);
@@ -86,11 +80,27 @@ function PunkteInhalt() {
     land: "",
   });
 
+  /** Meldet ein fehlgeschlagenes Captcha und setzt das Widget zurück. */
+  function captchaFehlt() {
+    setCaptchaPflicht(true);
+    setTurnstileToken(null);
+    setCaptchaReset((n) => n + 1);
+    setCaptchaHinweis("Bitte zuerst das Captcha lösen – dann gibt's Punkte. 🥒");
+  }
+
   async function handleDaily() {
+    if (captchaPflicht && !turnstileToken) {
+      captchaFehlt();
+      return;
+    }
     setClaimingDaily(true);
-    const result = await claim("daily");
-    if (result) {
+    const result = await claim("daily", { turnstileToken });
+    if (result?.ok) {
       await refresh();
+      setCaptchaPflicht(false);
+      setCaptchaHinweis(null);
+    } else if (result && !result.ok && result.requiresTurnstile) {
+      captchaFehlt();
     }
     setClaimingDaily(false);
   }
@@ -121,14 +131,29 @@ function PunkteInhalt() {
       setAdresseFehler("Bitte fülle Name, Straße, PLZ und Ort aus.");
       return;
     }
+    if (captchaPflicht && !turnstileToken) {
+      setAdresseFehler("Bitte löse zuerst das Captcha weiter unten. 🥒");
+      captchaFehlt();
+      return;
+    }
 
     setAdresseFehler(null);
     setClaimingRedeem(true);
-    const result = await claim("einloesen", { adresse: adresseForm });
-    if (result) {
+    const result = await claim("einloesen", {
+      adresse: adresseForm,
+      turnstileToken,
+    });
+    if (result?.ok) {
       await refresh();
       setShowAdresse(false);
       setBestellt(true);
+      setCaptchaPflicht(false);
+      setCaptchaHinweis(null);
+    } else if (result && !result.ok && result.requiresTurnstile) {
+      captchaFehlt();
+      setAdresseFehler(
+        "Bitte löse zuerst das Captcha weiter unten – es wurden keine Punkte abgezogen.",
+      );
     } else {
       setAdresseFehler(
         "Bestellung nicht durchgegangen – es wurden keine Punkte abgezogen. Bitte prüfe die Adresse und versuch es erneut.",
@@ -357,6 +382,32 @@ function PunkteInhalt() {
         </div>
       </div>
 
+      {/* Bot-Schutz für Punkte-Aktionen */}
+      {captchaPflicht && (
+        <div className="mb-4">
+          <TurnstileWidget
+            resetKey={captchaReset}
+            onVerify={(token) => {
+              setTurnstileToken(token);
+              setCaptchaHinweis(null);
+            }}
+            onExpire={() => {
+              setTurnstileToken(null);
+              setCaptchaHinweis("Captcha abgelaufen. Bitte erneut bestätigen.");
+            }}
+            onError={() => {
+              setTurnstileToken(null);
+              setCaptchaHinweis(
+                "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
+              );
+            }}
+          />
+          {captchaHinweis && (
+            <p className="mt-2 text-xs text-gurken-400">{captchaHinweis}</p>
+          )}
+        </div>
+      )}
+
       {/* Gurken-Rangliste */}
       <Leaderboard />
 
@@ -456,37 +507,74 @@ function GurkchenQuote() {
   const [quote, setQuote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { refresh, claim, quoteAvailable, quoteRemaining } = usePunkte();
+  // Bot-Schutz: Ohne Captcha gibt's weder Punkte noch KI-Zitat.
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
+  const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
+    turnstileKonfiguriert() ? "Bitte löse kurz das Captcha für dein Zitat." : null,
+  );
+  const [captchaReset, setCaptchaReset] = useState(0);
 
-  const fetchQuote = useCallback(async () => {
-    if (!quoteAvailable) {
-      setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder! 🥒");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const result = await claim("zitat");
-      if (!result) {
+  const fetchQuote = useCallback(
+    async (tokenOverride?: string | null) => {
+      if (!quoteAvailable) {
         setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder! 🥒");
-        await refresh();
+        return;
+      }
+      const token = tokenOverride !== undefined ? tokenOverride : turnstileToken;
+      if (captchaPflicht && !token) {
+        setCaptchaHinweis("Bitte zuerst das Captcha lösen. 🥒");
         return;
       }
 
-      const res = await fetch("/api/guerkchen/quote");
-      if (!res.ok) throw new Error("Quote fetch failed");
-      const data = await res.json();
-      setQuote(data.quote);
-      await refresh();
-    } catch {
-      setQuote("Die Gurke ist der Urknall in essbarer Form. – Gürkchen 🥒");
-    } finally {
-      setLoading(false);
-    }
-  }, [refresh, claim, quoteAvailable]);
+      setLoading(true);
+      try {
+        const result = await claim("zitat", { turnstileToken: token });
+        if (result && !result.ok && result.requiresTurnstile) {
+          setCaptchaPflicht(true);
+          setTurnstileToken(null);
+          setCaptchaReset((n) => n + 1);
+          setCaptchaHinweis("Bitte zuerst das Captcha lösen. 🥒");
+          await refresh();
+          return;
+        }
+        if (!result || !result.ok) {
+          setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder! 🥒");
+          await refresh();
+          return;
+        }
+
+        const query = token
+          ? `/api/guerkchen/quote?turnstileToken=${encodeURIComponent(token)}`
+          : "/api/guerkchen/quote";
+        const res = await fetch(query);
+        if (res.status === 403) {
+          setCaptchaPflicht(true);
+          setTurnstileToken(null);
+          setCaptchaReset((n) => n + 1);
+          setCaptchaHinweis("Bitte zuerst das Captcha lösen. 🥒");
+          await refresh();
+          return;
+        }
+        if (!res.ok) throw new Error("Quote fetch failed");
+        const data = await res.json();
+        setQuote(data.quote);
+        setCaptchaPflicht(false);
+        setCaptchaHinweis(null);
+        await refresh();
+      } catch {
+        setQuote("Die Gurke ist der Urknall in essbarer Form. – Gürkchen 🥒");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [refresh, claim, quoteAvailable, turnstileToken, captchaPflicht],
+  );
 
   useEffect(() => {
     fetchQuote();
-  }, [fetchQuote]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div>
@@ -499,8 +587,34 @@ function GurkchenQuote() {
           &bdquo;{quote}&rdquo;
         </blockquote>
       )}
+      {captchaPflicht && (
+        <div className="mb-3 text-left">
+          <TurnstileWidget
+            resetKey={captchaReset}
+            onVerify={(token) => {
+              setTurnstileToken(token);
+              setCaptchaHinweis(null);
+              // Direkt nach dem Lösen das Zitat nachladen.
+              fetchQuote(token);
+            }}
+            onExpire={() => {
+              setTurnstileToken(null);
+              setCaptchaHinweis("Captcha abgelaufen. Bitte erneut bestätigen.");
+            }}
+            onError={() => {
+              setTurnstileToken(null);
+              setCaptchaHinweis(
+                "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
+              );
+            }}
+          />
+          {captchaHinweis && (
+            <p className="mt-2 text-xs text-gurken-400">{captchaHinweis}</p>
+          )}
+        </div>
+      )}
       <button
-        onClick={fetchQuote}
+        onClick={() => fetchQuote()}
         disabled={loading || !quoteAvailable}
         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gurken-600 hover:bg-gurken-500 text-white font-bold text-sm transition-all duration-200 hover:shadow-[0_0_20px_#22c55e] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px]"
       >
@@ -524,82 +638,33 @@ function GurkchenChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [captchaRequired, setCaptchaRequired] = useState(true);
+  const [captchaRequired, setCaptchaRequired] = useState(
+    turnstileKonfiguriert(),
+  );
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileStatusText, setTurnstileStatusText] = useState<string | null>(
-    "Bitte bestätige kurz das Captcha.",
+    turnstileKonfiguriert() ? "Bitte bestätige kurz das Captcha." : null,
   );
+  const [captchaReset, setCaptchaReset] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const turnstileContainerRef = useRef<HTMLDivElement>(null);
-  const turnstileWidgetIdRef = useRef<string | number | null>(null);
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const captchaKonfiguriert = turnstileKonfiguriert();
   const { refresh, claim } = usePunkte();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const renderTurnstileWidget = useCallback(() => {
-    if (!turnstileSiteKey || !turnstileContainerRef.current) return;
-    const turnstile = (window as TurnstileWindow).turnstile;
-    if (!turnstile || turnstileWidgetIdRef.current !== null) return;
-
-    turnstileWidgetIdRef.current = turnstile.render(turnstileContainerRef.current, {
-      sitekey: turnstileSiteKey,
-      callback: (token: string) => {
-        setTurnstileToken(token);
-        setTurnstileStatusText(null);
-      },
-      "expired-callback": () => {
-        setTurnstileToken(null);
-        setCaptchaRequired(true);
-        setTurnstileStatusText("Captcha abgelaufen. Bitte erneut bestätigen.");
-      },
-      "error-callback": () => {
-        setTurnstileToken(null);
-        setCaptchaRequired(true);
-        setTurnstileStatusText("Captcha konnte nicht geladen werden. Bitte erneut versuchen.");
-      },
-    });
-  }, [turnstileSiteKey]);
-
-  const resetTurnstileWidget = useCallback(() => {
-    const turnstile = (window as TurnstileWindow).turnstile;
-    if (!turnstile || turnstileWidgetIdRef.current === null) return;
-    turnstile.reset(turnstileWidgetIdRef.current);
-  }, []);
-
-  useEffect(() => {
-    if (!open || !captchaRequired || !turnstileSiteKey) return;
-
-    const turnstile = (window as TurnstileWindow).turnstile;
-    if (turnstile) {
-      renderTurnstileWidget();
-      return;
-    }
-
-    const existingScript = document.querySelector<HTMLScriptElement>(
-      'script[src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"]',
-    );
-    if (existingScript) {
-      existingScript.addEventListener("load", renderTurnstileWidget);
-      return () => existingScript.removeEventListener("load", renderTurnstileWidget);
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-    script.async = true;
-    script.defer = true;
-    script.addEventListener("load", renderTurnstileWidget);
-    document.head.appendChild(script);
-
-    return () => script.removeEventListener("load", renderTurnstileWidget);
-  }, [open, captchaRequired, turnstileSiteKey, renderTurnstileWidget]);
+  function captchaZuruecksetzen(hinweis: string) {
+    setCaptchaRequired(true);
+    setTurnstileToken(null);
+    setCaptchaReset((n) => n + 1);
+    setTurnstileStatusText(hinweis);
+  }
 
   async function sendMessage() {
     const text = input.trim();
     if (!text || loading) return;
-    if (!turnstileSiteKey) {
+    if (!captchaKonfiguriert) {
       setMessages((prev) => [
         ...prev,
         {
@@ -638,10 +703,7 @@ function GurkchenChat() {
           const errorData = (await res.json()) as { error?: string; requiresTurnstile?: boolean };
           if (errorData.requiresTurnstile) {
             errorText = errorData.error ?? errorText;
-            setCaptchaRequired(true);
-            setTurnstileToken(null);
-            resetTurnstileWidget();
-            setTurnstileStatusText(errorText);
+            captchaZuruecksetzen(errorText);
           }
         } catch {
           // ignore parse error
@@ -800,11 +862,27 @@ function GurkchenChat() {
 
       {/* Input */}
       <div className="px-4 md:px-6 py-3 border-t border-gurken-500/15">
-        {turnstileSiteKey ? (
+        {captchaKonfiguriert ? (
           <div className="max-w-4xl mx-auto w-full mb-2">
             {captchaRequired && (
-              <div className="rounded-xl border border-gurken-500/20 bg-gurken-900/40 p-3">
-                <div ref={turnstileContainerRef} />
+              <div>
+                <TurnstileWidget
+                  resetKey={captchaReset}
+                  onVerify={(token) => {
+                    setTurnstileToken(token);
+                    setTurnstileStatusText(null);
+                  }}
+                  onExpire={() =>
+                    captchaZuruecksetzen(
+                      "Captcha abgelaufen. Bitte erneut bestätigen.",
+                    )
+                  }
+                  onError={() =>
+                    captchaZuruecksetzen(
+                      "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
+                    )
+                  }
+                />
                 {turnstileStatusText && (
                   <p className="text-xs text-gurken-400 mt-2">{turnstileStatusText}</p>
                 )}
@@ -1020,8 +1098,9 @@ export function MitgliederDashboard({
                 🥒 Gurken Casino
               </div>
               <p className="mt-0.5 text-sm text-gurken-400">
-                Wage deine Punkte an der Slotmaschine – höchstens 3× Gewinn,
-                aber auch minus möglich.
+                Wage deine Punkte an der Slotmaschine oder am Roulette-Kessel –
+                bis zu 3× am Automaten, bis zu 35:1 auf eine Zahl. Mit
+                Captcha-Schutz pro Dreh.
               </p>
             </div>
             <span className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-yellow-400 text-gurken-950 shadow-[0_0_20px_rgba(250,204,21,0.35)] transition-transform group-hover:scale-105">

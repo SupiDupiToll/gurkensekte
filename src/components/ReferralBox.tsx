@@ -12,6 +12,7 @@ import {
   WhatsappLogo,
 } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
+import { ReferralQrCode } from "@/components/ReferralQrCode";
 import { REFERRAL_POINTS, buildReferralLink, hasReferralCookie } from "@/lib/referral";
 
 const noopSubscribe = () => () => {};
@@ -164,6 +165,10 @@ export function ReferralBox({
           <ShareNetwork size={18} weight="fill" />
           Per E-Mail
         </a>
+      </div>
+
+      <div className="mb-5">
+        <ReferralQrCode data={link} />
       </div>
 
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">

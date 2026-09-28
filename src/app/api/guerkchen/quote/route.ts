@@ -1,3 +1,5 @@
+import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+
 const QUOTE_SYSTEM_PROMPT =
   "Du bist Gürkchen, der selbsternannte Anführer der 'Gurken Sekte'. " +
   "Erfinde ein kurzes, lustiges, pseudo-religiöses Zitat über Gurken. " +
@@ -24,7 +26,19 @@ function getApiKeys(): string[] {
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Bot-Schutz: Das Token kommt per Query (`?turnstileToken=…`) oder Header,
+  // eine gültige 30-Minuten-Sitzung lässt die Anfrage ohne Token durch.
+  const url = new URL(req.url);
+  const token =
+    url.searchParams.get("turnstileToken") ??
+    req.headers.get("x-turnstile-token");
+
+  const captcha = await pruefeTurnstile(req, { token });
+  if (!captcha.ok) {
+    return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+  }
+
   const apiKeys = getApiKeys();
 
   if (apiKeys.length === 0) {

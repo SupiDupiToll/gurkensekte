@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, DiceFive, Cards } from "@phosphor-icons/react";
+import { ArrowLeft, DiceFive, Cards, Coins, Target } from "@phosphor-icons/react";
 import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
 import { Slotmaschine } from "@/components/Slotmaschine";
+import { GurkenRoulette } from "@/components/GurkenRoulette";
+import { CasinoSection } from "@/components/CasinoSection";
 
 function zahl(n: number) {
   return n.toLocaleString("de-DE");
@@ -36,7 +38,7 @@ function CasinoInhalt({
         </h1>
         <p className="mt-2 text-sm md:text-base text-gurken-400 max-w-md mx-auto">
           Reines Spielgeld: hier wird mit deinen Punkten gezockt, niemals mit
-          echtem Geld. Der Automat entscheidet, nicht dein Bauchgefühl.
+          echtem Geld. Kessel und Walzen entscheiden, nicht dein Bauchgefühl.
         </p>
       </div>
 
@@ -53,7 +55,25 @@ function CasinoInhalt({
         </div>
       </div>
 
-      <Slotmaschine apiBase={apiBase} />
+      {/* Slotmaschine – auf- und zuklappbar wie auf der Mitgliederseite */}
+      <CasinoSection
+        icon={<Coins size={56} weight="fill" className="text-yellow-400" />}
+        titel="🎰 Slotmaschine 🎰"
+        teaser="Einsatz wählen, Walzen drehen lassen, bis zu 3× kassieren – aber Vorsicht, bis zu 3× kann auch baden gehen."
+        cta="Slot öffnen"
+      >
+        <Slotmaschine apiBase={apiBase} />
+      </CasinoSection>
+
+      {/* Gurken Roulette – ebenfalls auf- und zuklappbar */}
+      <CasinoSection
+        icon={<Target size={56} weight="fill" className="text-gurken-400" />}
+        titel="🎡 Gurken Roulette 🎡"
+        teaser="Europäischer Kessel mit einer Null: Felder antippen, Kugel rollen lassen, Punkte kassieren – die Gewinnzahl zieht der Server."
+        cta="Roulette öffnen"
+      >
+        <GurkenRoulette apiBase={apiBase} />
+      </CasinoSection>
 
       {/* Weitere Spiele */}
       <div className="card p-6 md:p-8 mb-8">
@@ -64,8 +84,8 @@ function CasinoInhalt({
           </h2>
         </div>
         <p className="mb-4 text-sm leading-relaxed text-gurken-500">
-          Die Slotmaschine ist das erste Spiel – weitere Automaten sind bereits
-          in der Werkstatt der Sekte.
+          Slotmaschine und Roulette sind bespielbar – weitere Tische sind
+          bereits in der Werkstatt der Sekte.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex items-center justify-between rounded-xl border border-gurken-500/15 bg-gurken-800/20 px-4 py-3">

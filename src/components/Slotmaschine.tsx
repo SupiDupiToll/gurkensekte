@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Coins, Spinner } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
-import { CASINO_EINSAETZE } from "@/lib/casino";
+import {
+  TurnstileWidget,
+  turnstileKonfiguriert,
+} from "@/components/TurnstileWidget";
+import { CASINO_EINSAETZE, CASINO_MAX_VERLUST_FAKTOR } from "@/lib/casino";
 
 type SpinErgebnis = {
   einsatz: number;
@@ -25,7 +29,9 @@ function zahl(n: number) {
 /**
  * Spielbare Slotmaschine des Gurken Casinos: Einsatz wählen, Walzen drehen
  * lassen, serverseitiges Ergebnis anzeigen und die Punkte per refresh()
- * nachziehen. Höchster Gewinn 3×, größter Verlust 1×.
+ * nachziehen. Höchster Gewinn 3×, größter Verlust 3× – deshalb braucht jeder
+ * Dreh den 3-fachen Einsatz als Puffer. Vor dem ersten Dreh will der
+ * Automat ein Turnstile-Captcha sehen (danach gilt die 30-Minuten-Sitzung).
  */
 export function Slotmaschine({ apiBase }: { apiBase: string }) {
   const { punkte, loading, refresh } = usePunkte();
@@ -34,6 +40,12 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
   const [dreht, setDreht] = useState(false);
   const [ergebnis, setErgebnis] = useState<SpinErgebnis | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
+    turnstileKonfiguriert() ? "Bitte löse kurz das Captcha, dann dreht der Automat." : null,
+  );
+  const [captchaReset, setCaptchaReset] = useState(0);
   const intervallRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Beim Verlassen der Seite die Walzen-Animation abschalten.
@@ -43,10 +55,19 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
     };
   }, []);
 
+  const puffer = einsatz * CASINO_MAX_VERLUST_FAKTOR;
+  const pufferFehlt = punkte < puffer;
+
   async function drehen() {
     if (dreht || loading) return;
-    if (punkte < einsatz) {
-      setFehler("Nicht genug Punkte für diesen Einsatz – sammel erst ein paar.");
+    if (pufferFehlt) {
+      setFehler(
+        `Für ${zahl(einsatz)} Punkte Einsatz brauchst du mindestens ${zahl(puffer)} Punkte Puffer – sammel erst ein paar.`,
+      );
+      return;
+    }
+    if (captchaPflicht && !turnstileToken) {
+      setCaptchaHinweis("Bitte zuerst das Captcha lösen – dann darfst du drehen. 🥒");
       return;
     }
 
@@ -70,12 +91,30 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
         fetch(`${apiBase}/casino`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ einsatz }),
+          body: JSON.stringify({ einsatz, turnstileToken }),
           signal: controller.signal,
         }),
         // Mindestdauer, damit die Drehung auch wirklich sichtbar ist.
         new Promise((r) => setTimeout(r, 1200)),
       ]);
+
+      if (res.status === 403) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          requiresTurnstile?: boolean;
+        };
+        if (data.requiresTurnstile) {
+          setCaptchaPflicht(true);
+          setTurnstileToken(null);
+          setCaptchaReset((n) => n + 1);
+          setCaptchaHinweis(
+            "Captcha erforderlich – bitte erneut bestätigen, dann nochmal drehen. 🥒",
+          );
+          setFehler(null);
+          await refresh();
+          return;
+        }
+      }
 
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -90,6 +129,9 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       const data = (await res.json()) as SpinErgebnis;
       setRollen(data.symbole);
       setErgebnis(data);
+      // Captcha-Sitzung angelegt: Bis zum Ablauf kein neues Rätsel nötig.
+      setCaptchaPflicht(false);
+      setCaptchaHinweis(null);
       await refresh();
     } catch {
       setFehler(
@@ -107,7 +149,8 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
     }
   }
 
-  const kannDrehen = !dreht && !loading && punkte >= einsatz;
+  const kannDrehen =
+    !dreht && !loading && !pufferFehlt && (!captchaPflicht || turnstileToken);
 
   return (
     <div className="card p-6 md:p-8 mb-8">
@@ -183,25 +226,68 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       {/* Einsatz */}
       <div className="mb-4">
         <div className="mb-2 text-xs uppercase tracking-wider text-gurken-500">
-          Einsatz
+          Einsatz (braucht {CASINO_MAX_VERLUST_FAKTOR}× Puffer)
         </div>
         <div className="flex flex-wrap gap-2">
-          {CASINO_EINSAETZE.map((wert) => (
-            <button
-              key={wert}
-              onClick={() => setEinsatz(wert)}
-              disabled={dreht}
-              className={`min-h-[44px] rounded-xl border px-5 py-2.5 text-sm font-bold transition-all touch-manipulation disabled:opacity-50 ${
-                einsatz === wert
-                  ? "border-yellow-400/50 bg-yellow-400/15 text-yellow-300"
-                  : "border-gurken-500/20 bg-gurken-800/40 text-gurken-400 hover:border-gurken-500 hover:text-gurken-300"
-              }`}
-            >
-              {zahl(wert)} Punkte
-            </button>
-          ))}
+          {CASINO_EINSAETZE.map((wert) => {
+            const braucht = wert * CASINO_MAX_VERLUST_FAKTOR;
+            const reicht = punkte >= braucht;
+            return (
+              <button
+                key={wert}
+                onClick={() => setEinsatz(wert)}
+                disabled={dreht}
+                title={
+                  reicht
+                    ? `${zahl(wert)} Punkte Einsatz`
+                    : `Braucht ${zahl(braucht)} Punkte Puffer`
+                }
+                className={`min-h-[44px] rounded-xl border px-5 py-2.5 text-sm font-bold transition-all touch-manipulation disabled:opacity-50 ${
+                  einsatz === wert
+                    ? "border-yellow-400/50 bg-yellow-400/15 text-yellow-300"
+                    : "border-gurken-500/20 bg-gurken-800/40 text-gurken-400 hover:border-gurken-500 hover:text-gurken-300"
+                } ${reicht ? "" : "opacity-60"}`}
+              >
+                {zahl(wert)} Punkte
+              </button>
+            );
+          })}
         </div>
+        {pufferFehlt && !loading && (
+          <p className="mt-2 text-xs text-red-300">
+            Für {zahl(einsatz)} Punkte Einsatz brauchst du mindestens{" "}
+            {zahl(puffer)} Punkte – bis zu 3× kann verloren gehen.
+          </p>
+        )}
       </div>
+
+      {/* Bot-Schutz */}
+      {captchaPflicht && (
+        <div className="mb-4">
+          <TurnstileWidget
+            resetKey={captchaReset}
+            onVerify={(token) => {
+              setTurnstileToken(token);
+              setCaptchaHinweis(null);
+            }}
+            onExpire={() => {
+              setTurnstileToken(null);
+              setCaptchaHinweis("Captcha abgelaufen. Bitte erneut bestätigen.");
+            }}
+            onError={() => {
+              setTurnstileToken(null);
+              setCaptchaHinweis(
+                "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
+              );
+            }}
+          />
+          {captchaHinweis && (
+            <p className="mt-2 text-center text-xs text-gurken-400">
+              {captchaHinweis}
+            </p>
+          )}
+        </div>
+      )}
 
       <button
         onClick={drehen}
@@ -220,8 +306,9 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
 
       <p className="mt-3 text-center text-xs leading-relaxed text-gurken-500">
         Spielgeld-Regeln: höchstens <strong className="text-gurken-400">3×</strong>{" "}
-        Gewinn, aber auch bis zu <strong className="text-gurken-400">1×</strong>{" "}
-        Verlust. Einsatz brauchst du wirklich auf dem Konto.
+        Gewinn, aber auch bis zu <strong className="text-gurken-400">3×</strong>{" "}
+        Verlust. Für den Totalverlust brauchst du den 3-fachen Einsatz als
+        Puffer auf dem Konto.
       </p>
     </div>
   );

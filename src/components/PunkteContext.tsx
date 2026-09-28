@@ -10,7 +10,19 @@ type VerlaufEintrag = {
   saldo: number;
 };
 
-type ClaimResult = { punkte: number; delta: number };
+type ClaimResult = {
+  punkte: number;
+  delta: number;
+  punkteGesamt?: number;
+  dailyAvailable?: boolean;
+  quoteAvailable?: boolean;
+  quoteRemaining?: number;
+};
+
+/** Ergebnis einer Punkte-Buchung – inkl. Captcha-Fehler vom Server. */
+export type ClaimOutcome =
+  | ({ ok: true } & ClaimResult)
+  | { ok: false; error: string; requiresTurnstile?: boolean };
 
 type PunkteContextType = {
   punkte: number;
@@ -31,7 +43,7 @@ type PunkteContextType = {
   claim: (
     action: string,
     extra?: Record<string, unknown>,
-  ) => Promise<ClaimResult | null>;
+  ) => Promise<ClaimOutcome | null>;
 };
 
 const PunkteContext = createContext<PunkteContextType>({
@@ -93,15 +105,29 @@ export function PunkteProvider({
     async (
       action: string,
       extra?: Record<string, unknown>,
-    ): Promise<ClaimResult | null> => {
+    ): Promise<ClaimOutcome | null> => {
       try {
         const res = await fetch(apiBase, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action, ...(extra ?? {}) }),
         });
-        if (!res.ok) return null;
-        return await res.json();
+        const data = (await res.json().catch(() => null)) as Record<
+          string,
+          unknown
+        > | null;
+        if (!res.ok) {
+          if (data && typeof data.error === "string") {
+            return {
+              ok: false,
+              error: data.error,
+              requiresTurnstile: data.requiresTurnstile === true,
+            };
+          }
+          return null;
+        }
+        if (!data || typeof data.punkte !== "number") return null;
+        return { ok: true, ...data } as ClaimOutcome;
       } catch {
         return null;
       }
