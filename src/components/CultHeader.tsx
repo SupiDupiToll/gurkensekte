@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/", label: "Startseite", icon: House },
   { href: "/spenden", label: "Spenden", icon: HandCoins },
   { href: "/mitglieder", label: "Mitglieder", icon: UsersThree },
+  { href: "/datenschutz", label: "Datenschutz", icon: Flask },
 ];
 
 export function CultHeader() {

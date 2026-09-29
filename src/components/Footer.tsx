@@ -27,6 +27,13 @@ export function Footer() {
         >
           Impressum
         </a>
+
+        <a
+          href="/datenschutz"
+          className="cursor-pointer rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-[#abc189]/40 hover:text-[#ede8d6]"
+        >
+          Datenschutz
+        </a>
       </div>
     </footer>
   );
