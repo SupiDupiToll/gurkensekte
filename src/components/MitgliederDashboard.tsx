@@ -28,6 +28,7 @@ import {
   ArrowRight,
   Quotes,
   DiceFive,
+  Sword,
 } from "@phosphor-icons/react";
 import { demoPath } from "@/lib/demo";
 import { adresseFormatieren } from "@/lib/bestellung";
@@ -1024,6 +1025,30 @@ export function MitgliederDashboard({
                 <div className="min-w-0 text-left">
                   <p className="font-display text-xl font-semibold text-[#faf8f1]">
                     Gurken Casino
+                  </p>
+                  <p className="mt-1 text-sm text-[#a3ad9a]">
+                    Slots und Roulette gegen die Bank – reines Spielgeld.
+                  </p>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </Reveal>
+
+        <Reveal>
+          <div className="mb-5">
+            <Link
+              href={isDemo ? demoPath("/mitglieder/duell") : "/mitglieder/duell"}
+              className="shell group block"
+            >
+              <div className="core flex items-center gap-4 p-6 md:p-7">
+                <Sword size={32} weight="fill" className="shrink-0 text-[#8fa96d]" />
+                <div className="min-w-0 text-left">
+                  <p className="font-display text-xl font-semibold text-[#faf8f1]">
+                    Gurken Duell
+                  </p>
+                  <p className="mt-1 text-sm text-[#a3ad9a]">
+                    Tic Tac Toe gegen echte Mitglieder – Einsatz setzen, Pot kassieren.
                   </p>
                 </div>
               </div>

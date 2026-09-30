@@ -13,19 +13,6 @@ export default function DatenschutzPage() {
 
       <section className="mb-8">
         <h2 className="mb-4 text-2xl font-semibold text-[#abc189]">
-          Generator generierter Inhalt
-        </h2>
-        <p className="mb-4 text-[#a3ad9a]">
-          Diese Website verwendet KI-generierte Inhalte zur Bereitstellung der
-          Kult-Website-Funktionalitäten. Die Texte, Beschreibungen und
-          interaktiven Elemente werden durch fortschrittliche Sprachmodelle
-          generiert. Wir speichern keine persönlichen Daten, die direkt mit
-          Ihrer Identität verknüpft sind.
-        </p>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="mb-4 text-2xl font-semibold text-[#abc189]">
           Verwendete Dienste und Technologien
         </h2>
 
