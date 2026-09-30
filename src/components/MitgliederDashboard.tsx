@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
 import { ChatMarkdown } from "@/components/ChatMarkdown";
+import { GuerkchenAd } from "@/components/GuerkchenAd";
 import { Leaderboard } from "@/components/Leaderboard";
 import { AppKachel } from "@/components/AppKachel";
 import { Popup } from "@/components/Popup";
@@ -595,6 +596,11 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
   );
   const [captchaReset, setCaptchaReset] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Stabile Sitzungs-ID für die Werbe-Attribution (ein Chat = eine Session).
+  const [sitzungsId] = useState(
+    () =>
+      `guerkchen-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+  );
   const captchaKonfiguriert = turnstileKonfiguriert();
   const { refresh, claim } = usePunkte();
 
@@ -725,6 +731,13 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
 
   const showSpinner = loading && !hasAssistantResponse;
 
+  // Werbung unter der neuesten fertigen Antwort (nicht Begrüßung, nicht Stream).
+  let letzteAssistenz = -1;
+  messages.forEach((m, i) => {
+    if (m.role === "assistant" && m.content.trim()) letzteAssistenz = i;
+  });
+  const werbungAktiv = !loading && letzteAssistenz > 0;
+
   if (!open) {
     return (
       <AppKachel
@@ -796,6 +809,16 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
 
         <div ref={bottomRef} />
       </div>
+
+      {werbungAktiv && (
+        <div className="px-4 pb-1 md:px-6">
+          <GuerkchenAd
+            slotId={`guerkchen-${sitzungsId}-${letzteAssistenz}`}
+            sessionId={sitzungsId}
+            contextText={messages[letzteAssistenz].content}
+          />
+        </div>
+      )}
 
       <div className="border-t border-white/[0.08] px-4 py-3 md:px-6">
         {captchaKonfiguriert ? (
