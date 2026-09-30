@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
 import { Leaderboard } from "@/components/Leaderboard";
+import { AppKachel } from "@/components/AppKachel";
+import { Popup } from "@/components/Popup";
 import { RangKopf, Rangstufen } from "@/components/Rangstufen";
 import { ReferralBox } from "@/components/ReferralBox";
 import { Reveal } from "@/components/Reveal";
@@ -25,10 +27,10 @@ import {
   ClockCounterClockwise,
   Flask,
   ArrowLeft,
-  ArrowRight,
   Quotes,
   DiceFive,
   Sword,
+  EnvelopeSimple,
 } from "@phosphor-icons/react";
 import { demoPath } from "@/lib/demo";
 import { adresseFormatieren } from "@/lib/bestellung";
@@ -44,68 +46,6 @@ export type MitgliedInfo = {
   primaryEmail?: string | null;
   signedUpAt?: string | Date | null;
 };
-
-/** Einheitlicher Teaser für zugeklappte Sektionen (Chat, Punkte, Zitat). */
-function SektionTeaser({
-  icon,
-  titel,
-  cta,
-  onOpen,
-}: {
-  icon: React.ReactNode;
-  titel: string;
-  teaser: string;
-  cta: string;
-  onOpen: () => void;
-}) {
-  return (
-    <div className="mb-5">
-      <button
-        onClick={onOpen}
-        className="shell group block w-full text-center transition-colors duration-200 active:scale-[0.99]"
-      >
-        <div className="core flex flex-col items-center gap-4 p-6 md:p-8">
-          {icon}
-          <h2 className="font-display text-2xl font-semibold text-[#faf8f1] md:text-[1.7rem]">
-            {titel}
-          </h2>
-          <span className="btn-cta btn-cta-primary !text-base">
-            {cta}
-            <span className="btn-dot">
-              <ArrowRight size={17} weight="bold" />
-            </span>
-          </span>
-        </div>
-      </button>
-    </div>
-  );
-}
-
-function SektionKopf({
-  icon,
-  titel,
-  onClose,
-}: {
-  icon: React.ReactNode;
-  titel: string;
-  onClose: () => void;
-}) {
-  return (
-    <div className="mb-6 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        {icon}
-        <h2 className="font-display text-xl font-semibold text-[#faf8f1]">{titel}</h2>
-      </div>
-      <button
-        onClick={onClose}
-        className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] transition-colors hover:border-white/20 hover:text-[#ede8d6]"
-      >
-        <ArrowsInSimple size={16} />
-        Schließen
-      </button>
-    </div>
-  );
-}
 
 function PunkteInhalt() {
   const {
@@ -494,28 +434,28 @@ function PunkteInhalt() {
 
 function PunkteAnzeige() {
   const [open, setOpen] = useState(false);
+  const { punkte } = usePunkte();
 
   if (!open) {
     return (
-      <SektionTeaser
-        icon={<Coins size={40} weight="fill" className="text-[#c9a86a]" />}
-        titel="Punkte und Belohnungen"
-        teaser="Zitate, Chats und Boni sammeln, in der Rangliste aufsteigen und ab 1.000 Punkten eine echte Gurke einlösen."
-        cta="Punkte anzeigen"
+      <AppKachel
+        icon={<Coins size={44} weight="fill" className="text-[#c9a86a]" />}
+        titel="Punkte"
+        hinweis={`${punkte.toLocaleString("de-DE")} auf dem Konto`}
+        index={1}
         onOpen={() => setOpen(true)}
       />
     );
   }
 
   return (
-    <div className="card mb-5 p-6 md:p-8">
-      <SektionKopf
-        icon={<Coins size={22} weight="fill" className="text-[#c9a86a]" />}
-        titel="Punkte und Belohnungen"
-        onClose={() => setOpen(false)}
-      />
+    <Popup
+      titel="Punkte und Belohnungen"
+      icon={<Coins size={22} weight="fill" className="text-[#c9a86a]" />}
+      onClose={() => setOpen(false)}
+    >
       <PunkteInhalt />
-    </div>
+    </Popup>
   );
 }
 
@@ -786,11 +726,11 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
 
   if (!open) {
     return (
-      <SektionTeaser
+      <AppKachel
         icon={<SpinningCucumber size="text-5xl" />}
-        titel="Chat mit Gürkchen"
-        teaser="Tausche dich mit dem Erleuchteten aus. Er hört deine Gebete und antwortet mit Gurken-Weisheit."
-        cta="Chat öffnen"
+        titel="Chat"
+        hinweis="Frag das Einlegeglas"
+        index={0}
         onOpen={() => setOpen(true)}
       />
     );
@@ -905,28 +845,28 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
 
 function GurkchenQuoteCard({ isDemo = false }: { isDemo?: boolean }) {
   const [open, setOpen] = useState(false);
+  const { quoteRemaining } = usePunkte();
 
   if (!open) {
     return (
-      <SektionTeaser
-        icon={<Quotes size={40} weight="fill" className="text-[#8fa96d]" />}
-        titel="Gürkchens Zitat"
-        teaser="Lausche den heiligen Gurken-Weisheiten. Drei frische Zitate pro Tag, jedes gibt +5 Punkte."
-        cta="Zitat anzeigen"
+      <AppKachel
+        icon={<Quotes size={44} weight="fill" className="text-[#8fa96d]" />}
+        titel="Zitat"
+        hinweis={`Noch ${quoteRemaining}/3 heute`}
+        index={2}
         onOpen={() => setOpen(true)}
       />
     );
   }
 
   return (
-    <div className="card mb-5 p-6 text-center md:p-8">
-      <SektionKopf
-        icon={<Quotes size={22} weight="fill" className="text-[#8fa96d]" />}
-        titel="Gürkchens Zitat"
-        onClose={() => setOpen(false)}
-      />
+    <Popup
+      titel="Gürkchens Zitat"
+      icon={<Quotes size={22} weight="fill" className="text-[#8fa96d]" />}
+      onClose={() => setOpen(false)}
+    >
       <GurkchenQuote isDemo={isDemo} />
-    </div>
+    </Popup>
   );
 }
 
@@ -1003,58 +943,41 @@ export function MitgliederDashboard({
           </div>
         </Reveal>
 
-        <div className="mt-5">
+        {/* App-Raster: zwei Kacheln pro Zeile wie auf einem Handy-Screen. */}
+        <div className="mt-5 grid grid-cols-2 gap-3">
           <GurkchenChat isDemo={isDemo} />
+
+          <PunkteAnzeige />
+          <Rangstufen />
+
+          <ReferralBox code={user.id ?? (isDemo ? "demo-mitglied" : null)} isDemo={isDemo} />
+
+          <GurkchenQuoteCard isDemo={isDemo} />
+
+          <AppKachel
+            icon={<DiceFive size={44} weight="fill" className="text-[#c9a86a]" />}
+            titel="Casino"
+            hinweis="Slots & Roulette"
+            index={5}
+            href={isDemo ? demoPath("/mitglieder/casino") : "/mitglieder/casino"}
+          />
+
+          <AppKachel
+            icon={<Sword size={44} weight="fill" className="text-[#8fa96d]" />}
+            titel="Duell"
+            hinweis="Tic Tac Toe live"
+            index={6}
+            href={isDemo ? demoPath("/mitglieder/duell") : "/mitglieder/duell"}
+          />
+
+          <AppKachel
+            icon={<EnvelopeSimple size={44} weight="fill" className="text-[#8fa96d]" />}
+            titel="GurkenMail"
+            hinweis="3 Mails pro Tag"
+            index={7}
+            href={isDemo ? demoPath("/mitglieder/gurkenmail") : "/mitglieder/gurkenmail"}
+          />
         </div>
-
-        <PunkteAnzeige />
-        <Rangstufen />
-
-        <ReferralBox code={user.id ?? (isDemo ? "demo-mitglied" : null)} isDemo={isDemo} />
-
-        <GurkchenQuoteCard isDemo={isDemo} />
-
-        <Reveal>
-          <div className="mb-5">
-            <Link
-              href={isDemo ? demoPath("/mitglieder/casino") : "/mitglieder/casino"}
-              className="shell group block"
-            >
-              <div className="core flex items-center gap-4 p-6 md:p-7">
-                <DiceFive size={32} weight="fill" className="shrink-0 text-[#c9a86a]" />
-                <div className="min-w-0 text-left">
-                  <p className="font-display text-xl font-semibold text-[#faf8f1]">
-                    Gurken Casino
-                  </p>
-                  <p className="mt-1 text-sm text-[#a3ad9a]">
-                    Slots und Roulette gegen die Bank – reines Spielgeld.
-                  </p>
-                </div>
-              </div>
-            </Link>
-          </div>
-        </Reveal>
-
-        <Reveal>
-          <div className="mb-5">
-            <Link
-              href={isDemo ? demoPath("/mitglieder/duell") : "/mitglieder/duell"}
-              className="shell group block"
-            >
-              <div className="core flex items-center gap-4 p-6 md:p-7">
-                <Sword size={32} weight="fill" className="shrink-0 text-[#8fa96d]" />
-                <div className="min-w-0 text-left">
-                  <p className="font-display text-xl font-semibold text-[#faf8f1]">
-                    Gurken Duell
-                  </p>
-                  <p className="mt-1 text-sm text-[#a3ad9a]">
-                    Tic Tac Toe gegen echte Mitglieder – Einsatz setzen, Pot kassieren.
-                  </p>
-                </div>
-              </div>
-            </Link>
-          </div>
-        </Reveal>
 
         <div className="mt-8 text-center">
           {isDemo ? (

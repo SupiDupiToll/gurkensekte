@@ -2,15 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  Armchair,
   ArrowLeft,
+  BellRinging,
   Check,
-  Copy,
-  DiceFive,
+  CoatHanger,
   Flag,
-  Plus,
+  Handshake,
   Spinner,
-  Sword,
+  Ticket,
   Timer,
+  X,
 } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
 import {
@@ -18,7 +20,13 @@ import {
   turnstileKonfiguriert,
 } from "@/components/TurnstileWidget";
 import {
+  DUELL_ACCESSOIRES,
   DUELL_EINSAETZE,
+  DUELL_GURKEN_BASEN,
+  STANDARD_AVATAR,
+  type DuellAvatar,
+  type OeffentlicheChallenge,
+  type OeffentlicherGast,
   type OeffentlichesDuell,
 } from "@/lib/duell";
 
@@ -26,19 +34,87 @@ function zahl(n: number) {
   return n.toLocaleString("de-DE");
 }
 
-const SYMBOL_EMOJI: Record<string, string> = { X: "🥒", O: "🫙" };
+type RaumDaten = {
+  gaeste: OeffentlicherGast[];
+  eingehende: OeffentlicheChallenge[];
+  ausgehende: OeffentlicheChallenge | null;
+};
 
-/** Spieler-Chip im Versus-Kopf: Name, Stein, Zug-Punkt. */
+type Profil = { name: string; avatar: DuellAvatar };
+
+const PROFIL_KEY = "gurken-duell-profil";
+
+function ladeProfil(): Profil {
+  if (typeof window === "undefined") return { name: "", avatar: STANDARD_AVATAR };
+  try {
+    const roh = window.localStorage.getItem(PROFIL_KEY);
+    if (!roh) return { name: "", avatar: STANDARD_AVATAR };
+    const parsed = JSON.parse(roh) as Partial<Profil>;
+    const avatar =
+      parsed.avatar &&
+      typeof parsed.avatar.basis === "number" &&
+      typeof parsed.avatar.accessoire === "number"
+        ? {
+            basis: Math.min(
+              Math.max(parsed.avatar.basis, 0),
+              DUELL_GURKEN_BASEN.length - 1,
+            ),
+            accessoire: Math.min(
+              Math.max(parsed.avatar.accessoire, 0),
+              DUELL_ACCESSOIRES.length - 1,
+            ),
+          }
+        : STANDARD_AVATAR;
+    return {
+      name: typeof parsed.name === "string" ? parsed.name.slice(0, 24) : "",
+      avatar,
+    };
+  } catch {
+    return { name: "", avatar: STANDARD_AVATAR };
+  }
+}
+
+/** Gurken-Avatar: Basis-Gurke mit Tönung plus aufgesetztem Accessoire. */
+export function GurkenAvatar({
+  avatar,
+  groesse = "text-5xl",
+}: {
+  avatar: DuellAvatar;
+  groesse?: string;
+}) {
+  const basis =
+    DUELL_GURKEN_BASEN[avatar.basis] ?? DUELL_GURKEN_BASEN[0];
+  const extra =
+    DUELL_ACCESSOIRES[avatar.accessoire] ?? DUELL_ACCESSOIRES[0];
+  // Die Brille sitzt mitten im Gesicht, alles andere obenauf.
+  const extraKlasse =
+    avatar.accessoire === 1
+      ? "absolute inset-0 flex items-center justify-center text-[0.5em]"
+      : "absolute -right-1 -top-2 text-[0.55em]";
+  return (
+    <span
+      className={`relative inline-block leading-none ${groesse}`}
+      aria-hidden="true"
+    >
+      <span style={basis.filter === "none" ? undefined : { filter: basis.filter }}>
+        {basis.emoji}
+      </span>
+      {extra.emoji && <span className={extraKlasse}>{extra.emoji}</span>}
+    </span>
+  );
+}
+
+/** Spieler-Chip im Versus-Kopf: Gurke, Name, Zug-Punkt. */
 function SpielerChip({
   name,
-  emoji,
+  avatar,
   symbol,
   aktiv,
   ich,
   offen,
 }: {
   name: string;
-  emoji: string;
+  avatar: DuellAvatar;
   symbol: string;
   aktiv: boolean;
   ich?: boolean;
@@ -54,9 +130,7 @@ function SpielerChip({
             : "border-white/10 bg-white/[0.02]"
       }`}
     >
-      <span className="text-xl leading-none" aria-hidden="true">
-        {emoji}
-      </span>
+      <GurkenAvatar avatar={avatar} groesse="text-xl" />
       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[#ede8d6]">
         {name}
         {ich && (
@@ -78,25 +152,26 @@ function SpielerChip({
   );
 }
 
-type ApiAntwort =
-  | { ok: true; session: OeffentlichesDuell }
-  | { ok: false; error: string; requiresTurnstile?: boolean; keinGegner?: boolean };
+type ApiFehler = { ok: false; error: string; requiresTurnstile?: boolean };
 
 /**
- * Gurken Duell – P2P-Tic-Tac-Toe um Punkte-Einsätze.
+ * Gurken Duell – Wartezimmer mit Tic-Tac-Toe um Punkte-Einsätze.
  *
- * Ablauf: Einsatz wählen, Duell per Code erstellen oder Zufallsgegner suchen
- * (oder fremden Code eingeben), spielen, Pot abholen. Der Server ist
- * Autorität für Brett und Sieg; der Stand wird per Polling (2 s) nachgezogen.
+ * Wer die Seite öffnet, nimmt mit Gurke und Namen im Wartezimmer Platz.
+ * Per Klick auf eine andere Gurke schickt man eine Herausforderung; nimmt
+ * die andere Seite an, startet das Spiel sofort. Der Server verwaltet Brett,
+ * Sieg und Punkte – der Client fragt per Heartbeat/Polling nach.
  */
 export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
   const { punkte, loading, refresh } = usePunkte();
   const [session, setSession] = useState<OeffentlichesDuell | null>(null);
   const [einsatz, setEinsatz] = useState<number>(DUELL_EINSAETZE[0]);
-  const [name, setName] = useState("");
-  const [codeEingabe, setCodeEingabe] = useState("");
+  const [profil, setProfil] = useState<Profil>(ladeProfil);
+  const [gaeste, setGaeste] = useState<OeffentlicherGast[]>([]);
+  const [eingehende, setEingehende] = useState<OeffentlicheChallenge[]>([]);
+  const [ausgehende, setAusgehende] = useState<OeffentlicheChallenge | null>(null);
+  const [ausgewaehlt, setAusgewaehlt] = useState<OeffentlicherGast | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
-  const [hinweis, setHinweis] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -104,9 +179,12 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
     turnstileKonfiguriert() ? "Bitte löse kurz das Captcha fürs Duell." : null,
   );
   const [captchaReset, setCaptchaReset] = useState(0);
-  const [codeKopiert, setCodeKopiert] = useState(false);
   const speicherKey = `gurken-duell:${duellApiBase}`;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Bereits übernommene angenommene Challenge: Der Heartbeat lädt die Session
+  // genau einmal – sonst zieht er Gewinner nach „Zurück ins Wartezimmer"
+  // per Polling immer wieder auf die Gewinn-Seite zurück.
+  const uebernommeneChallengeRef = useRef<string | null>(null);
   // Offene Session-ID synchron aus dem Browser-Speicher lesen (kein Effect
   // nötig – reines Auslesen, kein setState).
   const [sessionId, setSessionId] = useState<string | null>(() =>
@@ -115,61 +193,99 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
       : window.localStorage.getItem(speicherKey),
   );
 
-  async function api(
+  function profilSpeichern(neu: Profil) {
+    setProfil(neu);
+    try {
+      window.localStorage.setItem(PROFIL_KEY, JSON.stringify(neu));
+    } catch {
+      // Privater Modus o. ä. – Profil gilt nur für diese Sitzung.
+    }
+  }
+
+  /** POST mit zentraler Captcha- und Fehlerbehandlung (Rohdaten zurück). */
+  async function post(
     aktion: string,
     extra: Record<string, unknown> = {},
-  ): Promise<ApiAntwort> {
+  ): Promise<{ ok: true; data: Record<string, unknown> } | ApiFehler> {
     try {
       const res = await fetch(duellApiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aktion, turnstileToken, ...extra }),
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        session?: OeffentlichesDuell;
-        error?: string;
-        requiresTurnstile?: boolean;
-        code?: string;
-      };
+      const data = (await res.json().catch(() => ({}))) as Record<
+        string,
+        unknown
+      > & { error?: string; requiresTurnstile?: boolean };
       if (res.status === 403 && data.requiresTurnstile) {
         setCaptchaPflicht(true);
         setTurnstileToken(null);
         setCaptchaReset((n) => n + 1);
         setCaptchaHinweis("Captcha erforderlich – bitte erneut bestätigen.");
-        return { ok: false, error: data.error ?? "Captcha erforderlich", requiresTurnstile: true };
-      }
-      if (!res.ok || !data.session) {
         return {
           ok: false,
-          error: data.error ?? `Fehler ${res.status}`,
-          keinGegner: data.code === "KEIN_GEGNER",
+          error: data.error ?? "Captcha erforderlich",
+          requiresTurnstile: true,
         };
       }
-      return { ok: true, session: data.session };
+      if (!res.ok) {
+        return { ok: false, error: data.error ?? `Fehler ${res.status}` };
+      }
+      return { ok: true, data };
     } catch {
-      return { ok: false, error: "Der Server meldet sich nicht – bitte erneut versuchen." };
+      return {
+        ok: false,
+        error: "Der Server meldet sich nicht – bitte erneut versuchen.",
+      };
     }
   }
 
-  // Gespeichertes Duell beim Öffnen fortsetzen + Live-Polling alle 2 s.
-  // Der Stand landet per nativem fetch-Promise im State (async, kein
-  // synchrones setState im Effect) und wird danach per Intervall frisch
-  // gehalten, solange gespielt oder gewartet wird.
+  /** Session per ID nachladen (nach Annahme oder Seiten-Reload). */
+  async function ladeSession(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${duellApiBase}?id=${encodeURIComponent(id)}`);
+      if (!res.ok) return false;
+      const data = (await res.json()) as { session: OeffentlichesDuell };
+      merkeSession(data.session);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function merkeSession(s: OeffentlichesDuell) {
+    setSession(s);
+    setSessionId(s.id);
+    window.localStorage.setItem(speicherKey, s.id);
+  }
+
+  function zurueckInsWartezimmer() {
+    if (ausgehende && ausgehende.status === "angenommen") {
+      uebernommeneChallengeRef.current = ausgehende.id;
+    }
+    setSession(null);
+    setSessionId(null);
+    setFehler(null);
+    setAusgewaehlt(null);
+    window.localStorage.removeItem(speicherKey);
+  }
+
+  // Gespeichertes Duell beim Öffnen fortsetzen.
   useEffect(() => {
     if (!sessionId) return;
     let aktiv = true;
     fetch(`${duellApiBase}?id=${encodeURIComponent(sessionId)}`)
       .then((res) => {
         if (!aktiv) return null;
-        if (res.status === 404) return null;
-        if (!res.ok) return undefined;
+        if (!res.ok) return null;
         return res.json() as Promise<{ session: OeffentlichesDuell }>;
       })
       .then((data) => {
-        if (!aktiv || data === undefined) return;
-        if (data === null) {
-          window.localStorage.removeItem(speicherKey);
-          setSessionId(null);
+        if (!aktiv || !data) {
+          if (aktiv) {
+            window.localStorage.removeItem(speicherKey);
+            setSessionId(null);
+          }
           return;
         }
         setSession(data.session);
@@ -182,28 +298,21 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
     };
   }, [duellApiBase, speicherKey, sessionId]);
 
+  // Live-Polling der laufenden Session alle 2 s.
   const sessionStatus = session?.status;
   const sessionKennung = session?.id;
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = null;
-    if (!sessionKennung || (sessionStatus !== "playing" && sessionStatus !== "waiting")) return;
+    if (!sessionKennung || sessionStatus !== "playing") return;
     pollRef.current = setInterval(() => {
       fetch(`${duellApiBase}?id=${encodeURIComponent(sessionKennung)}`)
         .then((res) => {
-          if (res.status === 404) return null;
           if (!res.ok) return undefined;
           return res.json() as Promise<{ session: OeffentlichesDuell }>;
         })
         .then((data) => {
           if (data === undefined) return;
-          if (data === null) {
-            setSession(null);
-            setSessionId(null);
-            window.localStorage.removeItem(speicherKey);
-            setFehler("Dieses Duell gibt es nicht mehr.");
-            return;
-          }
           setSession(data.session);
         })
         .catch(() => {
@@ -214,228 +323,623 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
       if (pollRef.current) clearInterval(pollRef.current);
       pollRef.current = null;
     };
-  }, [sessionKennung, sessionStatus, duellApiBase, speicherKey]);
+  }, [sessionKennung, sessionStatus, duellApiBase]);
 
-  function merkeSession(s: OeffentlichesDuell) {
-    setSession(s);
-    setSessionId(s.id);
-    window.localStorage.setItem(speicherKey, s.id);
-  }
+  // Heartbeat: Platz im Wartezimmer melden + Gäste und Anfragen holen.
+  // Läuft nur ohne aktive Session – wer spielt, verlässt automatisch den Raum.
+  useEffect(() => {
+    if (session) return;
+    let aktiv = true;
+    const heartbeat = async () => {
+      const antwort = await post("raum", {
+        name: profil.name,
+        avatar: profil.avatar,
+        stake: einsatz,
+      });
+      if (!aktiv || !antwort.ok) return;
+      const daten = antwort.data as unknown as RaumDaten;
+      setGaeste(daten.gaeste ?? []);
+      setEingehende(daten.eingehende ?? []);
+      const aus = daten.ausgehende ?? null;
+      setAusgehende(aus);
+      // Angenommen? Dann Session genau einmal laden und ab ans Brett.
+      if (
+        aus &&
+        aus.status === "angenommen" &&
+        aus.sessionId &&
+        uebernommeneChallengeRef.current !== aus.id
+      ) {
+        uebernommeneChallengeRef.current = aus.id;
+        await ladeSession(aus.sessionId);
+        await refresh();
+      }
+    };
+    heartbeat();
+    const tick = setInterval(heartbeat, 5000);
+    return () => {
+      aktiv = false;
+      clearInterval(tick);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duellApiBase, session, profil.name, profil.avatar, einsatz]);
 
-  function neuesDuell() {
-    setSession(null);
-    setSessionId(null);
-    setFehler(null);
-    setHinweis(null);
-    window.localStorage.removeItem(speicherKey);
-  }
-
-  async function mitBusy(
-    schluessel: string,
-    arbeit: () => Promise<ApiAntwort>,
-    geldAenderung = false,
-  ) {
-    if (busy) return;
-    if ((schluessel === "create" || schluessel.startsWith("join")) && captchaPflicht && !turnstileToken) {
+  function captchaFehlt(schluessel: string): boolean {
+    if (
+      (schluessel === "herausfordern" || schluessel.startsWith("antwort")) &&
+      captchaPflicht &&
+      !turnstileToken
+    ) {
       setFehler("Bitte zuerst das Captcha lösen.");
-      return;
+      return true;
     }
-    setBusy(schluessel);
+    return false;
+  }
+
+  async function herausfordern(gast: OeffentlicherGast) {
+    if (busy || captchaFehlt("herausfordern")) return;
+    setBusy("herausfordern");
     setFehler(null);
-    setHinweis(null);
-    const antwort = await arbeit();
+    const antwort = await post("herausfordern", {
+      zielUserId: gast.userId,
+      stake: einsatz,
+      name: profil.name,
+      avatar: profil.avatar,
+    });
     if (antwort.ok) {
-      merkeSession(antwort.session);
-      if (geldAenderung) await refresh();
+      setAusgehende(
+        (antwort.data as unknown as { challenge: OeffentlicheChallenge })
+          .challenge,
+      );
+      setAusgewaehlt(null);
+      await refresh();
     } else if (!antwort.requiresTurnstile) {
       setFehler(antwort.error);
-      if (antwort.keinGegner) {
-        setHinweis("Tipp: Erstelle selbst ein Duell und schicke den Code an deine Gegnerin – oder warte kurz und versuche den Zufall erneut.");
-      }
     }
     setBusy(null);
   }
 
-  function beitretenPerCode() {
-    if (codeEingabe.trim().length !== 6 || busy || loading) return;
-    mitBusy("join-code", () => api("join-code", { code: codeEingabe, name }), true);
+  async function beantworten(challengeId: string, annehmen: boolean) {
+    const schluessel = `antwort-${challengeId}-${annehmen ? "ja" : "nein"}`;
+    if (busy || captchaFehlt("antwort")) return;
+    setBusy(schluessel);
+    setFehler(null);
+    const antwort = await post("antwort", {
+      challengeId,
+      annehmen,
+      name: profil.name,
+      avatar: profil.avatar,
+    });
+    if (antwort.ok) {
+      const daten = antwort.data as unknown as {
+        challenge: OeffentlicheChallenge;
+        session?: OeffentlichesDuell;
+      };
+      if (daten.session) {
+        uebernommeneChallengeRef.current = daten.challenge.id;
+        merkeSession(daten.session);
+        await refresh();
+      } else {
+        setEingehende((prev) => prev.filter((c) => c.id !== challengeId));
+      }
+    } else if (!antwort.requiresTurnstile) {
+      setFehler(antwort.error);
+    }
+    setBusy(null);
   }
 
-  async function codeKopieren() {
-    if (!session) return;
-    try {
-      await navigator.clipboard.writeText(session.code);
-      setCodeKopiert(true);
-      setTimeout(() => setCodeKopiert(false), 2000);
-    } catch {
-      // Zwischenablage blockiert – Code steht ja lesbar da.
+  async function stornieren(challengeId: string) {
+    if (busy) return;
+    setBusy("stornieren");
+    setFehler(null);
+    const antwort = await post("stornieren", { challengeId });
+    if (antwort.ok) {
+      setAusgehende(null);
+      await refresh();
+    } else if (!antwort.requiresTurnstile) {
+      setFehler(antwort.error);
     }
+    setBusy(null);
+  }
+
+  async function challengeRefund(challengeId: string) {
+    if (busy) return;
+    setBusy("challenge-claim");
+    setFehler(null);
+    const antwort = await post("challenge-claim", { challengeId });
+    if (antwort.ok) {
+      setAusgehende(null);
+      await refresh();
+    } else if (!antwort.requiresTurnstile) {
+      setFehler(antwort.error);
+    }
+    setBusy(null);
+  }
+
+  async function zugSetzen(index: number) {
+    if (busy || !session) return;
+    setBusy(`move-${index}`);
+    setFehler(null);
+    const antwort = await post("move", { sessionId: session.id, index });
+    if (antwort.ok) {
+      setSession(
+        (antwort.data as unknown as { session: OeffentlichesDuell }).session,
+      );
+    } else if (!antwort.requiresTurnstile) {
+      setFehler(antwort.error);
+    }
+    setBusy(null);
+  }
+
+  async function abholen() {
+    if (busy || !session) return;
+    setBusy("claim");
+    setFehler(null);
+    // Timeout-Sieg und Claim in einem Rutsch: Erst Sieg feststellen, dann Pot holen.
+    if (session.zugTimeout) {
+      const t = await post("timeout", { sessionId: session.id });
+      if (!t.ok) {
+        if (!t.requiresTurnstile) setFehler(t.error);
+        setBusy(null);
+        return;
+      }
+      setSession(
+        (t.data as unknown as { session: OeffentlichesDuell }).session,
+      );
+    }
+    const antwort = await post("claim", { sessionId: session.id });
+    if (antwort.ok) {
+      setSession(
+        (antwort.data as unknown as { session: OeffentlichesDuell }).session,
+      );
+      await refresh();
+    } else if (!antwort.requiresTurnstile) {
+      setFehler(antwort.error);
+    }
+    setBusy(null);
+  }
+
+  async function aufgeben() {
+    if (busy || !session) return;
+    setBusy("forfeit");
+    setFehler(null);
+    const antwort = await post("forfeit", { sessionId: session.id });
+    if (antwort.ok) {
+      setSession(
+        (antwort.data as unknown as { session: OeffentlichesDuell }).session,
+      );
+    } else if (!antwort.requiresTurnstile) {
+      setFehler(antwort.error);
+    }
+    setBusy(null);
   }
 
   const reichtEinsatz = punkte >= einsatz;
 
-  // ---------- Lobby ----------
+  // ---------- Wartezimmer ----------
   if (!session) {
+    const andere = gaeste.filter((g) => !g.ich);
     return (
-      <div className="card mb-8 p-6 md:p-8">
-        <div className="mb-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Sword size={22} weight="fill" className="text-[#c9a86a]" />
-            <h2 className="font-display text-xl font-semibold text-[#faf8f1]">
-              Tic Tac Toe Duell
-            </h2>
+      <div className="mb-8 space-y-5">
+        {/* Anmeldung: Umkleide */}
+        <div className="card p-6 md:p-8">
+          <div className="mb-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CoatHanger size={22} weight="fill" className="text-[#c9a86a]" />
+              <h2 className="font-display text-xl font-semibold text-[#faf8f1]">
+                Anmeldung
+              </h2>
+            </div>
+            <span className="tabular rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm font-semibold text-[#e2d9bf]">
+              {loading ? "…" : `${zahl(punkte)} Punkte`}
+            </span>
           </div>
-          <span className="tabular rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm font-semibold text-[#e2d9bf]">
-            {loading ? "…" : `${zahl(punkte)} Punkte`}
-          </span>
-        </div>
 
-        <p className="mb-5 text-sm leading-relaxed text-[#a3ad9a]">
-          Fordere ein anderes Mitglied heraus: Beide setzen denselben Einsatz,
-          der Sieger kassiert den ganzen Pot (2× Einsatz). Bei Unentschieden
-          bekommt jeder seinen Einsatz zurück.
-        </p>
-
-        <div className="mb-4">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
-            Einsatz pro Spieler (Pot: 2×)
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {DUELL_EINSAETZE.map((wert) => (
-              <button
-                key={wert}
-                onClick={() => setEinsatz(wert)}
-                disabled={!!busy}
-                className={`tabular min-h-[44px] rounded-lg border px-5 py-2.5 text-sm font-semibold transition-[transform,background-color,border-color,color] duration-200 ease-out active:scale-[0.97] disabled:opacity-50 ${
-                  einsatz === wert
-                    ? "border-transparent bg-[#ede8d6] text-[#0b120d]"
-                    : "border-white/10 bg-white/[0.03] text-[#a3ad9a] hover:border-white/25 hover:text-[#ede8d6]"
-                }`}
+          <div className="grid gap-5 md:grid-cols-[auto_1fr] md:items-start">
+            {/* Spiegel: Vorschau */}
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-8 py-6">
+              <span
+                key={`${profil.avatar.basis}-${profil.avatar.accessoire}`}
+                className="stein-pop"
               >
-                {zahl(wert)} <span className="opacity-60">→ Pot {zahl(wert * 2)}</span>
-              </button>
-            ))}
+                <GurkenAvatar avatar={profil.avatar} groesse="text-7xl" />
+              </span>
+              <span className="max-w-[14ch] truncate text-sm font-semibold text-[#ede8d6]">
+                {profil.name.trim() || "Deine Gurke"}
+              </span>
+              <span className="text-xs text-[#6b7565]">
+                spielt um {zahl(einsatz)} Punkte
+              </span>
+            </div>
+
+            <div className="min-w-0 space-y-4">
+              <label className="block text-xs font-semibold text-[#a3ad9a]">
+                Dein Name
+                <input
+                  type="text"
+                  value={profil.name}
+                  onChange={(e) =>
+                    profilSpeichern({
+                      ...profil,
+                      name: e.target.value.slice(0, 24),
+                    })
+                  }
+                  placeholder="z. B. Gurkenkönig"
+                  maxLength={24}
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-base text-[#ede8d6] placeholder-[#6b7565]/70 outline-none transition-colors focus:border-[#8fa96d]"
+                />
+              </label>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold text-[#a3ad9a]">
+                  Welche Gurke bist du?
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {DUELL_GURKEN_BASEN.map((basis, i) => (
+                    <button
+                      key={basis.label}
+                      type="button"
+                      aria-label={basis.label}
+                      aria-pressed={profil.avatar.basis === i}
+                      onClick={() =>
+                        profilSpeichern({
+                          ...profil,
+                          avatar: { ...profil.avatar, basis: i },
+                        })
+                      }
+                      className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 text-3xl transition-[transform,border-color,background-color] duration-200 ease-out active:scale-[0.95] ${
+                        profil.avatar.basis === i
+                          ? "border-[#8fa96d]/60 bg-[#8fa96d]/[0.1]"
+                          : "border-white/10 bg-white/[0.02] hover:border-white/25"
+                      }`}
+                    >
+                      <span
+                        style={
+                          basis.filter === "none"
+                            ? undefined
+                            : { filter: basis.filter }
+                        }
+                      >
+                        {basis.emoji}
+                      </span>
+                      <span className="w-full truncate text-center text-[10px] font-semibold leading-tight text-[#a3ad9a]">
+                        {basis.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold text-[#a3ad9a]">
+                  Was ziehst du an?
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {DUELL_ACCESSOIRES.map((extra, i) => (
+                    <button
+                      key={extra.label}
+                      type="button"
+                      aria-label={extra.label}
+                      aria-pressed={profil.avatar.accessoire === i}
+                      onClick={() =>
+                        profilSpeichern({
+                          ...profil,
+                          avatar: { ...profil.avatar, accessoire: i },
+                        })
+                      }
+                      className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 text-2xl transition-[transform,border-color,background-color] duration-200 ease-out active:scale-[0.95] ${
+                        profil.avatar.accessoire === i
+                          ? "border-[#8fa96d]/60 bg-[#8fa96d]/[0.1]"
+                          : "border-white/10 bg-white/[0.02] hover:border-white/25"
+                      }`}
+                    >
+                      {extra.emoji ?? (
+                        <span className="text-base font-semibold text-[#6b7565]">
+                          ∅
+                        </span>
+                      )}
+                      <span className="w-full truncate text-center text-[10px] font-semibold leading-tight text-[#a3ad9a]">
+                        {extra.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold text-[#a3ad9a]">
+                  Einsatz pro Spiel (Pot: 2×)
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {DUELL_EINSAETZE.map((wert) => (
+                    <button
+                      key={wert}
+                      type="button"
+                      onClick={() => setEinsatz(wert)}
+                      disabled={!!busy}
+                      className={`tabular min-h-[44px] rounded-lg border px-5 py-2.5 text-sm font-semibold transition-[transform,background-color,border-color,color] duration-200 ease-out active:scale-[0.97] disabled:opacity-50 ${
+                        einsatz === wert
+                          ? "border-transparent bg-[#ede8d6] text-[#0b120d]"
+                          : "border-white/10 bg-white/[0.03] text-[#a3ad9a] hover:border-white/25 hover:text-[#ede8d6]"
+                      }`}
+                    >
+                      {zahl(wert)}
+                    </button>
+                  ))}
+                </div>
+                {!reichtEinsatz && !loading && (
+                  <p className="mt-2 text-xs text-red-300">
+                    Für {zahl(einsatz)} Punkte Einsatz brauchst du mindestens{" "}
+                    {zahl(einsatz)} Punkte auf dem Konto.
+                  </p>
+                )}
+              </div>
+
+              {captchaPflicht && (
+                <div>
+                  <TurnstileWidget
+                    resetKey={captchaReset}
+                    onVerify={(token) => {
+                      setTurnstileToken(token);
+                      setCaptchaHinweis(null);
+                    }}
+                    onExpire={() => {
+                      setTurnstileToken(null);
+                      setCaptchaHinweis(
+                        "Captcha abgelaufen. Bitte erneut bestätigen.",
+                      );
+                    }}
+                    onError={() => {
+                      setTurnstileToken(null);
+                      setCaptchaHinweis(
+                        "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
+                      );
+                    }}
+                  />
+                  {captchaHinweis && (
+                    <p className="mt-2 text-xs text-[#a3ad9a]">{captchaHinweis}</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          {!reichtEinsatz && !loading && (
-            <p className="mt-2 text-xs text-red-300">
-              Für {zahl(einsatz)} Punkte Einsatz brauchst du mindestens {zahl(einsatz)} Punkte auf dem Konto.
-            </p>
-          )}
         </div>
 
-        <label className="mb-4 block text-xs font-semibold text-[#a3ad9a]">
-          Dein Kampf-Name (optional)
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="z. B. Gurkenkönig"
-            maxLength={24}
-            className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-base text-[#ede8d6] placeholder-[#6b7565]/70 outline-none transition-colors focus:border-[#8fa96d]"
-          />
-        </label>
+        {/* Eingehende Anfragen */}
+        {eingehende.map((anfrage) => (
+          <div
+            key={anfrage.id}
+            className="card border-[#8fa96d]/40 p-5 md:p-6"
+            role="alert"
+          >
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-[#8fa96d]">
+              <BellRinging size={16} weight="fill" />
+              Neue Herausforderung
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <span
+                className="inline-block h-2 w-2 rounded-full bg-[#8fa96d] animate-pulse"
+                aria-hidden="true"
+              />
+              <GurkenAvatar avatar={anfrage.von.avatar} groesse="text-4xl" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-semibold text-[#ede8d6]">
+                  {anfrage.von.name} fordert dich heraus
+                </p>
+                <p className="tabular mt-0.5 text-xs text-[#a3ad9a]">
+                  Einsatz {zahl(anfrage.stake)} · Pot {zahl(anfrage.pot)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => beantworten(anfrage.id, false)}
+                  disabled={!!busy}
+                  aria-label="Anfrage ablehnen"
+                  className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg border border-white/10 px-4 text-[#a3ad9a] transition-[transform,border-color,color] duration-200 ease-out active:scale-[0.95] hover:border-white/25 hover:text-[#ede8d6] disabled:opacity-50"
+                >
+                  <X size={20} weight="bold" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => beantworten(anfrage.id, true)}
+                  disabled={!!busy || loading}
+                  className="btn-cta btn-cta-primary min-h-[48px] !text-[15px] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {busy?.startsWith(`antwort-${anfrage.id}`) ? (
+                    <Spinner size={18} className="animate-spin" />
+                  ) : (
+                    <Check size={18} weight="bold" />
+                  )}
+                  Annehmen
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
 
-        {captchaPflicht && (
-          <div className="mb-4">
-            <TurnstileWidget
-              resetKey={captchaReset}
-              onVerify={(token) => {
-                setTurnstileToken(token);
-                setCaptchaHinweis(null);
-              }}
-              onExpire={() => {
-                setTurnstileToken(null);
-                setCaptchaHinweis("Captcha abgelaufen. Bitte erneut bestätigen.");
-              }}
-              onError={() => {
-                setTurnstileToken(null);
-                setCaptchaHinweis("Captcha konnte nicht geladen werden. Bitte erneut versuchen.");
-              }}
-            />
-            {captchaHinweis && (
-              <p className="mt-2 text-center text-xs text-[#a3ad9a]">{captchaHinweis}</p>
+        {/* Eigene ausgehende Anfrage */}
+        {ausgehende && (
+          <div className="card border-[#c9a86a]/30 p-5 md:p-6">
+            {ausgehende.status === "offen" && (
+              <div className="flex flex-wrap items-center gap-3">
+                <Ticket size={22} weight="fill" className="text-[#c9a86a]" />
+                <p className="min-w-0 flex-1 text-sm text-[#a3ad9a]">
+                  <strong className="text-[#ede8d6]">
+                    {ausgehende.anName}
+                  </strong>{" "}
+                  überlegt noch … (Einsatz {zahl(ausgehende.stake)} ist
+                  reserviert)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => stornieren(ausgehende.id)}
+                  disabled={!!busy}
+                  className="flex min-h-[44px] items-center rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6] disabled:opacity-50"
+                >
+                  {busy === "stornieren" ? (
+                    <Spinner size={16} className="animate-spin" />
+                  ) : (
+                    "Zurückziehen"
+                  )}
+                </button>
+              </div>
+            )}
+            {(ausgehende.status === "abgelehnt" ||
+              ausgehende.status === "abgelaufen" ||
+              ausgehende.status === "storniert") && (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="min-w-0 flex-1 text-sm text-[#a3ad9a]">
+                  {ausgehende.status === "abgelehnt" &&
+                    `${ausgehende.anName} hat abgelehnt.`}{" "}
+                  {ausgehende.status === "abgelaufen" &&
+                    "Die Anfrage ist verfallen."}{" "}
+                  {ausgehende.status === "storniert" &&
+                    "Du hast die Anfrage zurückgezogen."}{" "}
+                  {ausgehende.bereitsAbgeholt
+                    ? "Der Einsatz ist zurück auf deinem Konto."
+                    : `Hole deinen Einsatz (${zahl(ausgehende.stake)} Punkte) zurück.`}
+                </p>
+                {!ausgehende.bereitsAbgeholt && (
+                  <button
+                    type="button"
+                    onClick={() => challengeRefund(ausgehende.id)}
+                    disabled={!!busy}
+                    className="btn-cta btn-cta-primary min-h-[48px] !text-[15px] disabled:opacity-50"
+                  >
+                    {busy === "challenge-claim" ? (
+                      <Spinner size={18} className="animate-spin" />
+                    ) : (
+                      <Check size={18} weight="bold" />
+                    )}
+                    Einsatz zurückholen
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          <button
-            onClick={() => mitBusy("create", () => api("create", { stake: einsatz, name }), true)}
-            disabled={!!busy || loading || !reichtEinsatz}
-            className="btn-cta btn-cta-primary min-h-[52px] !text-base disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy === "create" ? <Spinner size={20} className="animate-spin" /> : <Plus size={18} weight="bold" />}
-            Code erstellen
-          </button>
-          <button
-            onClick={() => mitBusy("join-random", () => api("join-random", { stake: einsatz, name }), true)}
-            disabled={!!busy || loading || !reichtEinsatz}
-            className="btn-cta btn-cta-secondary min-h-[52px] !text-base disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy === "join-random" ? <Spinner size={20} className="animate-spin" /> : <DiceFive size={20} weight="fill" />}
-            Zufallsgegner
-          </button>
-        </div>
-
-        <div className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
-          <span className="h-px flex-1 bg-white/10" />
-          oder Code einlösen
-          <span className="h-px flex-1 bg-white/10" />
-        </div>
-
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={codeEingabe}
-            onChange={(e) => setCodeEingabe(e.target.value.toUpperCase())}
-            placeholder="z. B. Q7KX2P"
-            maxLength={6}
-            autoComplete="off"
-            spellCheck={false}
-            enterKeyHint="go"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") beitretenPerCode();
-            }}
-            className="tabular min-h-[52px] flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-center text-lg font-bold tracking-[0.2em] text-[#ede8d6] placeholder-[#6b7565]/50 outline-none transition-colors focus:border-[#8fa96d]"
-          />
-          <button
-            onClick={beitretenPerCode}
-            disabled={!!busy || loading || codeEingabe.trim().length !== 6}
-            className="btn-cta btn-cta-primary min-h-[52px] px-6 !text-base disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy === "join-code" ? <Spinner size={20} className="animate-spin" /> : "Beitreten"}
-          </button>
-        </div>
-
-        {fehler && (
-          <div className="mt-5 rounded-lg border border-red-500/25 bg-red-950/20 px-4 py-3 text-center text-sm text-red-200">
-            {fehler}
+        {/* Wartezimmer: Stühle */}
+        <div className="card p-6 md:p-8">
+          <div className="mb-1 flex items-center gap-3">
+            <Armchair size={22} weight="fill" className="text-[#c9a86a]" />
+            <h2 className="font-display text-xl font-semibold text-[#faf8f1]">
+              Wartezimmer
+            </h2>
           </div>
-        )}
-        {hinweis && <p className="mt-3 text-center text-xs text-[#a3ad9a]">{hinweis}</p>}
+          <p className="mb-5 text-sm text-[#a3ad9a]">
+            {andere.length === 0
+              ? "Noch niemand da – nimm Platz, gleich kommt jemand."
+              : `${andere.length} ${andere.length === 1 ? "Gurke wartet" : "Gurken warten"} – tippe eine an, um sie herauszufordern.`}
+          </p>
 
-        <p className="mt-4 text-center text-xs leading-relaxed text-[#6b7565]">
-          Spielgeld-Regeln: Der Einsatz wird beim Erstellen/Beitreten sofort
-          abgezogen. Sieg holt den Pot ({zahl(einsatz * 2)}), Niederlage
-          verliert den Einsatz, Unentschieden erstattet ihn. Offene Duelle
-          verfallen nach 10 Minuten (Einsatz zurückholbar).
-        </p>
+          {andere.length > 0 && (
+            <div
+              className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+              role="list"
+              aria-label="Anwesende Spieler"
+            >
+              {andere.map((gast, i) => {
+                const aktiv = ausgewaehlt?.userId === gast.userId;
+                return (
+                  <button
+                    key={gast.userId}
+                    type="button"
+                    onClick={() =>
+                      setAusgewaehlt(aktiv ? null : gast)
+                    }
+                    disabled={!!busy || !reichtEinsatz}
+                    aria-pressed={aktiv}
+                    aria-label={`${gast.name} herausfordern, Einsatz ${gast.stake} Punkte`}
+                    style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
+                    className={`duell-zelle-enter flex min-h-[148px] flex-col items-center gap-1.5 rounded-xl border p-4 text-center transition-[transform,border-color,background-color] duration-200 ease-out active:scale-[0.97] disabled:opacity-60 ${
+                      aktiv
+                        ? "border-[#8fa96d]/60 bg-[#8fa96d]/[0.08]"
+                        : "border-white/10 bg-white/[0.02] hover:border-[#8fa96d]/40 hover:bg-[#8fa96d]/[0.04]"
+                    }`}
+                  >
+                    <span className="tabular w-full text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#4a5548]">
+                      Stuhl {i + 1}
+                    </span>
+                    <GurkenAvatar avatar={gast.avatar} groesse="text-5xl" />
+                    <span className="w-full truncate text-sm font-semibold text-[#ede8d6]">
+                      {gast.name}
+                    </span>
+                    <span className="tabular rounded-md border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] font-semibold text-[#e2d9bf]">
+                      {zahl(gast.stake)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Herausforderung bestätigen */}
+          {ausgewaehlt && (
+            <div className="mt-4 flex flex-wrap items-center gap-4 rounded-xl border border-[#8fa96d]/40 bg-[#8fa96d]/[0.05] p-4">
+              <GurkenAvatar avatar={ausgewaehlt.avatar} groesse="text-4xl" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-semibold text-[#ede8d6]">
+                  {ausgewaehlt.name} herausfordern?
+                </p>
+                <p className="tabular mt-0.5 text-xs text-[#a3ad9a]">
+                  Dein Einsatz {zahl(einsatz)} · Pot {zahl(einsatz * 2)} bei Sieg
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAusgewaehlt(null)}
+                  disabled={!!busy}
+                  className="flex min-h-[48px] items-center rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6] disabled:opacity-50"
+                >
+                  Doch nicht
+                </button>
+                <button
+                  type="button"
+                  onClick={() => herausfordern(ausgewaehlt)}
+                  disabled={!!busy || loading || !reichtEinsatz}
+                  className="btn-cta btn-cta-primary min-h-[48px] !text-[15px] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {busy === "herausfordern" ? (
+                    <Spinner size={18} className="animate-spin" />
+                  ) : (
+                    <Handshake size={18} weight="fill" />
+                  )}
+                  Herausfordern
+                </button>
+              </div>
+            </div>
+          )}
+
+          {fehler && (
+            <div className="mt-4 rounded-lg border border-red-500/25 bg-red-950/20 px-4 py-3 text-center text-sm text-red-200">
+              {fehler}
+            </div>
+          )}
+
+          <p className="mt-4 text-center text-xs leading-relaxed text-[#6b7565]">
+            Spielgeld-Regeln: Dein Einsatz wird beim Herausfordern sofort
+            abgezogen. Sieg holt den Pot, Niederlage verliert den Einsatz,
+            Unentschieden erstattet ihn. Abgelehnte Anfragen kannst du dir
+            zurückholen.
+          </p>
+        </div>
       </div>
     );
   }
 
   // ---------- Session ----------
-  const ichBinDran = session.status === "playing" && session.meinSymbol === session.amZug;
+  const ichBinDran =
+    session.status === "playing" && session.meinSymbol === session.amZug;
   const gegner = session.spieler.find((s) => !s.ich);
   const meinEintrag = session.spieler.find((s) => s.ich);
   const ichSymbol = session.meinSymbol;
 
   let statusText: string;
   let statusKlasse = "text-[#ede8d6]";
-  if (session.status === "waiting") {
-    statusText = "Warte auf Gegner …";
-    statusKlasse = "text-[#c9a86a]";
-  } else if (session.status === "playing") {
+  if (session.status === "playing") {
     if (!ichSymbol) {
       statusText = "Du schaust nur zu.";
     } else if (ichBinDran) {
@@ -466,13 +970,21 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
         {meinEintrag ? (
           <SpielerChip
             name={meinEintrag.name}
-            emoji={SYMBOL_EMOJI[meinEintrag.symbol] ?? ""}
+            avatar={meinEintrag.avatar}
             symbol={meinEintrag.symbol}
-            aktiv={session.status === "playing" && session.amZug === meinEintrag.symbol}
+            aktiv={
+              session.status === "playing" &&
+              session.amZug === meinEintrag.symbol
+            }
             ich
           />
         ) : (
-          <SpielerChip name="Zuschauer" emoji="👁" symbol="–" aktiv={false} />
+          <SpielerChip
+            name="Zuschauer"
+            avatar={STANDARD_AVATAR}
+            symbol="–"
+            aktiv={false}
+          />
         )}
         <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#4a5548]">
           vs
@@ -480,12 +992,20 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
         {gegner ? (
           <SpielerChip
             name={gegner.name}
-            emoji={SYMBOL_EMOJI[gegner.symbol] ?? ""}
+            avatar={gegner.avatar}
             symbol={gegner.symbol}
-            aktiv={session.status === "playing" && session.amZug === gegner.symbol}
+            aktiv={
+              session.status === "playing" && session.amZug === gegner.symbol
+            }
           />
         ) : (
-          <SpielerChip name="Noch offen" emoji="…" symbol="?" aktiv={false} offen />
+          <SpielerChip
+            name="Noch offen"
+            avatar={STANDARD_AVATAR}
+            symbol="?"
+            aktiv={false}
+            offen
+          />
         )}
       </div>
 
@@ -493,11 +1013,9 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
         aria-live="polite"
         className={`mb-1 flex items-center justify-center gap-2 text-center text-sm font-semibold ${statusKlasse}`}
       >
-        {(session.status === "playing" || session.status === "waiting") && (
+        {session.status === "playing" && (
           <span
-            className={`inline-block h-1.5 w-1.5 rounded-full animate-pulse ${
-              session.status === "waiting" ? "bg-[#c9a86a]" : "bg-[#8fa96d]"
-            }`}
+            className="inline-block h-1.5 w-1.5 rounded-full animate-pulse bg-[#8fa96d]"
             aria-hidden="true"
           />
         )}
@@ -505,37 +1023,24 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
       </p>
       <p className="tabular mb-5 text-center text-xs text-[#6b7565]">
         Einsatz {zahl(session.stake)} ·{" "}
-        <span className="font-semibold text-[#e2d9bf]">Pot {zahl(session.pot)}</span>{" "}
-        · Code {session.code}
+        <span className="font-semibold text-[#e2d9bf]">
+          Pot {zahl(session.pot)}
+        </span>
       </p>
-
-      {session.status === "waiting" && (
-        <div className="mb-5 rounded-xl border border-[#c9a86a]/30 bg-[#c9a86a]/[0.06] p-4 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
-            Einladungs-Code teilen
-          </p>
-          <p className="tabular font-display mt-1 text-4xl font-bold tracking-[0.18em] text-[#ede8d6]">
-            {session.code}
-          </p>
-          <button
-            onClick={codeKopieren}
-            className="mx-auto mt-2 flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-1.5 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
-          >
-            {codeKopiert ? <Check size={14} /> : <Copy size={14} />}
-            {codeKopiert ? "Kopiert!" : "Code kopieren"}
-          </button>
-        </div>
-      )}
 
       <div className="mx-auto mb-5 grid max-w-[320px] grid-cols-3 gap-2">
         {session.board.map((zelle, i) => {
           const inLinie = session.gewinnLinie?.includes(i) ?? false;
           const letzter = session.letzterZug === i && !inLinie;
           const klickbar = ichBinDran && !zelle && !busy;
+          const steinAvatar =
+            meinEintrag && zelle === meinEintrag.symbol
+              ? meinEintrag.avatar
+              : (gegner?.avatar ?? STANDARD_AVATAR);
           return (
             <button
               key={i}
-              onClick={() => mitBusy(`move-${i}`, () => api("move", { sessionId: session.id, index: i }))}
+              onClick={() => zugSetzen(i)}
               disabled={!klickbar}
               aria-label={`Feld ${i + 1}${zelle ? `, belegt mit ${zelle}` : ""}`}
               style={{ animationDelay: `${i * 35}ms` }}
@@ -554,8 +1059,15 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
               {/* Key-Wechsel bei neuem Stein: Der Span mountet neu und der
                   Pop spielt genau einmal – Polling-Updates ohne Änderung
                   lösen nichts aus. */}
-              <span key={`${i}-${zelle ?? "leer"}`} className={zelle ? "stein-pop" : undefined}>
-                {zelle ? SYMBOL_EMOJI[zelle] : ""}
+              <span
+                key={`${i}-${zelle ?? "leer"}`}
+                className={zelle ? "stein-pop" : undefined}
+              >
+                {zelle ? (
+                  <GurkenAvatar avatar={steinAvatar} groesse="text-4xl" />
+                ) : (
+                  ""
+                )}
               </span>
             </button>
           );
@@ -572,24 +1084,22 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
       <div className="flex flex-col gap-2">
         {session.zugTimeout && (
           <button
-            onClick={() =>
-              mitBusy("timeout", async () => {
-                const t = await api("timeout", { sessionId: session.id });
-                if (!t.ok) return t;
-                return api("claim", { sessionId: session.id });
-              }, true)
-            }
+            onClick={abholen}
             disabled={!!busy}
             className="btn-cta btn-cta-primary min-h-[52px] !text-base disabled:opacity-50"
           >
-            {busy === "timeout" ? <Spinner size={20} className="animate-spin" /> : <Timer size={20} weight="fill" />}
+            {busy === "claim" ? (
+              <Spinner size={20} className="animate-spin" />
+            ) : (
+              <Timer size={20} weight="fill" />
+            )}
             Gegner inaktiv – Sieg + Pot abholen
           </button>
         )}
 
         {session.kannClaimen && !session.zugTimeout && (
           <button
-            onClick={() => mitBusy("claim", () => api("claim", { sessionId: session.id }), true)}
+            onClick={abholen}
             disabled={!!busy}
             className="btn-cta btn-cta-primary min-h-[52px] !text-base disabled:opacity-50"
           >
@@ -613,7 +1123,7 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
 
         {session.status === "playing" && (
           <button
-            onClick={() => mitBusy("forfeit", () => api("forfeit", { sessionId: session.id }))}
+            onClick={aufgeben}
             disabled={!!busy}
             className="mx-auto flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-[#6b7565] transition-colors hover:border-red-500/40 hover:text-red-300 disabled:opacity-50"
           >
@@ -622,39 +1132,19 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
           </button>
         )}
 
-        {session.status === "waiting" && session.meinSymbol === "X" && (
-          <button
-            onClick={() => mitBusy("cancel", () => api("cancel", { sessionId: session.id }), true)}
-            disabled={!!busy}
-            className="mx-auto flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-[#6b7565] transition-colors hover:border-white/25 hover:text-[#ede8d6] disabled:opacity-50"
-          >
-            Duell absagen (Einsatz zurückholbar)
-          </button>
-        )}
-
         {(session.status === "finished" ||
           session.status === "cancelled" ||
           session.status === "expired") && (
           <button
-            onClick={neuesDuell}
+            onClick={zurueckInsWartezimmer}
             className="mx-auto flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/12 px-5 py-2.5 text-sm font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
           >
             <ArrowLeft size={16} />
-            Neues Duell
+            Zurück ins Wartezimmer
           </button>
         )}
       </div>
 
-      {session.status !== "finished" &&
-        session.status !== "cancelled" &&
-        session.status !== "expired" && (
-          <button
-            onClick={neuesDuell}
-            className="mx-auto mt-4 block text-xs font-semibold text-[#4a5548] transition-colors hover:text-[#6b7565]"
-          >
-            Zurück zur Lobby (Duell läuft weiter)
-          </button>
-        )}
     </div>
   );
 }

@@ -32,14 +32,15 @@ function DuellInhalt({
 
       <Reveal>
         <div className="mb-8 mt-6 text-left">
-          <p className="eyebrow">Spielgeld · Duell statt Bank</p>
+          <p className="eyebrow">Spielgeld · Wartezimmer statt Bank</p>
           <h1 className="font-display mt-3 text-4xl font-semibold leading-[1.05] text-[#faf8f1] md:text-5xl">
             Gurken Duell
           </h1>
           <p className="mt-3 max-w-[54ch] text-[15px] leading-relaxed text-[#a3ad9a]">
-            Tic Tac Toe gegen echte Mitglieder: Beide setzen denselben Einsatz,
-            wer gewinnt, kassiert den ganzen Pot. Kein Bot, keine Bank – nur
-            du, dein Gegner und drei Gurken in einer Reihe.
+            Nimm mit deiner Gurke im Wartezimmer Platz, fordere andere
+            Mitglieder per Antippen heraus und spiele Tic Tac Toe um Punkte:
+            Beide setzen denselben Einsatz, wer gewinnt, kassiert den ganzen
+            Pot.
           </p>
         </div>
       </Reveal>

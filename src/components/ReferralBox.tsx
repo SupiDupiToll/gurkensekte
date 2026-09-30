@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
-  ArrowsInSimple,
-  ArrowRight,
   Check,
   Clock,
   Copy,
@@ -12,6 +10,8 @@ import {
   UsersThree,
   WhatsappLogo,
 } from "@phosphor-icons/react";
+import { Popup } from "@/components/Popup";
+import { AppKachel } from "@/components/AppKachel";
 import { usePunkte } from "@/components/PunkteContext";
 import { ReferralQrCode } from "@/components/ReferralQrCode";
 import { REFERRAL_POINTS, buildReferralLink, hasReferralCookie } from "@/lib/referral";
@@ -73,46 +73,26 @@ export function ReferralBox({
 
   if (!open) {
     return (
-      <div className="mb-5">
-        <button
-          onClick={() => setOpen(true)}
-          className="shell group block w-full text-center transition-colors duration-200 active:scale-[0.99]"
-        >
-          <div className="core flex flex-col items-center gap-4 p-6 md:p-8">
-            <Gift size={40} weight="fill" className="text-[#c9a86a]" />
-            <h2 className="font-display text-2xl font-semibold text-[#faf8f1] md:text-[1.7rem]">
-              Freunde werben Freunde
-            </h2>
-            <span className="btn-cta btn-cta-primary !text-base">
-              Werbe-Link anzeigen
-              <span className="btn-dot">
-                <ArrowRight size={17} weight="bold" />
-              </span>
-            </span>
-          </div>
-        </button>
-      </div>
+      <AppKachel
+        icon={<Gift size={44} weight="fill" className="text-[#c9a86a]" />}
+        titel="Werben"
+        hinweis={
+          geworben > 0
+            ? `${geworben} geworben · +${REFERRAL_POINTS} pro Freund`
+            : `+${REFERRAL_POINTS} Punkte pro Freund`
+        }
+        index={4}
+        onOpen={() => setOpen(true)}
+      />
     );
   }
 
   return (
-    <div className="card mb-5 p-6 md:p-8">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Gift size={22} weight="fill" className="text-[#c9a86a]" />
-          <h2 className="font-display text-xl font-semibold text-[#faf8f1]">
-            Freunde werben Freunde
-          </h2>
-        </div>
-        <button
-          onClick={() => setOpen(false)}
-          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] transition-colors hover:border-white/20 hover:text-[#ede8d6]"
-        >
-          <ArrowsInSimple size={16} />
-          Schließen
-        </button>
-      </div>
-
+    <Popup
+      titel="Freunde werben Freunde"
+      icon={<Gift size={22} weight="fill" className="text-[#c9a86a]" />}
+      onClose={() => setOpen(false)}
+    >
       <p className="mb-4 text-sm leading-relaxed text-[#a3ad9a]">
         Teile deinen heiligen Werbe-Link. Für jede Person, die sich darüber
         registriert, segnet Gürkchen dich mit{" "}
@@ -204,6 +184,6 @@ export function ReferralBox({
           </div>
         )}
       </div>
-    </div>
+    </Popup>
   );
 }

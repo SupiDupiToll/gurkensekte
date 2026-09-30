@@ -1,26 +1,32 @@
 /**
  * Gurken Duell – P2P-API (echte Mitglieder).
  *
- * Tic Tac Toe um Punkte-Einsätze: Beide setzen gleich, der Sieger holt den
- * Pot (2× Einsatz), bei Unentschieden gibt es Refunds. Der Server ist
- * Autorität für Brett, Zugfolge und Sieg – der Client schickt nur Wünsche.
+ * Wartezimmer-Prinzip: Wer die Duell-Seite öffnet, nimmt mit Gurken-Avatar
+ * und Namen im Wartezimmer Platz (Heartbeat-Präsenz via `raum`). Per Klick
+ * auf eine andere Gurke schickt man eine Herausforderung (`herausfordern`)
+ * mit festem Einsatz – der Einsatz wird dabei sofort vom eigenen Konto
+ * abgezogen. Die andere Seite sieht die Anfrage und nimmt an (`antwort`):
+ * Dabei zieht sie ihren Einsatz per eigenem Request ab und das Spiel
+ * startet sofort. Wer gewinnt, holt den Pot (2× Einsatz) per Claim,
+ * bei Unentschieden gibt es Refunds. Abgelehnte/abgelaufene/stornierte
+ * Challenges erstattet der Herausforderer per `challenge-claim`.
  *
- * Geldfluss-Prinzip: Der Server bucht nie auf fremde Konten. Jeder zieht
- * seinen Einsatz per eigenem Request ab (create/join) und holt Gewinn oder
- * Refund per eigenem Claim-Request ab. Deshalb braucht ein beendetes Duell
- * immer einen Claim des Berechtigten.
+ * Geldfluss-Prinzip: Der Server bucht nie auf fremde Konten. Jeder zahlt
+ * nur per eigenem Request (Herausforderung senden, Anfrage annehmen,
+ * Gewinn/Refund abholen).
  *
  * Aktionen (POST, `{ aktion, ... }`):
- * - create { stake, name } – Captcha, Einsatz abziehen, Code erzeugen
- * - join-code { code, name } – Captcha, Einsatz abziehen, Spiel starten
- * - join-random { stake, name } – Captcha, offenes Duell suchen + beitreten
+ * - raum { name, avatar, stake } – Heartbeat + Gäste + eigene Challenges
+ * - herausfordern { zielUserId, stake, name, avatar } – Captcha, Einsatz abziehen
+ * - antwort { challengeId, annehmen, name, avatar } – ggf. Einsatz abziehen + Spiel starten
+ * - stornieren { challengeId } – eigene offene Anfrage zurückziehen
+ * - challenge-claim { challengeId } – Einsatz bei Ablehnung/Ablauf zurückholen
  * - move { sessionId, index } – Zug setzen (rate-limitiert, ohne Captcha)
  * - claim { sessionId } – Pot oder Refund aufs eigene Konto buchen
- * - cancel { sessionId } – Ersteller storniert ein wartendes Duell
  * - forfeit { sessionId } – aufgeben, Gegner gewinnt (holt Pot per Claim)
  * - timeout { sessionId } – Sieg abholen, wenn der Gegner zu lange inaktiv ist
  *
- * GET `?id=` liefert die öffentliche Session-Ansicht (für Polling).
+ * GET `?id=` liefert die Session-Ansicht, `?challenge=` eine Challenge.
  */
 
 import { hexclaveServerApp } from "@/hexclave/server";
@@ -39,29 +45,34 @@ import {
   PunkteFehler,
 } from "@/lib/punkte";
 import {
+  challengeAnspruch,
   claimAnspruch,
-  generiereDuellCode,
   generiereDuellId,
   istBrettVoll,
   istGueltigerDuellEinsatz,
   istZugTimeout,
   leeresBrett,
-  normalisiereDuellCode,
+  oeffentlicheChallenge,
   oeffentlichesDuell,
   pruefeTicTacToe,
+  saubererDuellAvatar,
   saubererDuellName,
-  wendeDuellAblaufAn,
+  wendeChallengeAblaufAn,
+  type DuellAvatar,
+  type DuellChallenge,
   type DuellSession,
+  type OeffentlicheChallenge,
+  type OeffentlicherGast,
 } from "@/lib/duell";
-import { duellStore, mitDuellSperre } from "@/lib/duellStore";
+import { duellStore, mitChallengeSperre, mitDuellSperre } from "@/lib/duellStore";
 
 export const runtime = "nodejs";
 
 const STORE_PREFIX = "gurken:duell";
 const store = duellStore(STORE_PREFIX);
 
-const CREATE_LIMIT = 20;
-const JOIN_LIMIT = 40;
+const RAUM_LIMIT = 1000;
+const CHALLENGE_LIMIT = 30;
 const MOVE_LIMIT = 600;
 const AKTION_LIMIT = 120;
 const FENSTER_MS = 60 * 60 * 1000;
@@ -157,13 +168,55 @@ function punkteFehlerAntwort(error: unknown): Response | null {
   return null;
 }
 
-/** Polling: öffentliche Ansicht einer Session (mit lazy Ablauf-Prüfung). */
+/** Polling: Session- oder Challenge-Ansicht (mit lazy Ablauf-Prüfung). */
 export async function GET(req: Request) {
   const userOderAntwort = await holeUser(req);
   if (userOderAntwort instanceof Response) return userOderAntwort;
   const user = userOderAntwort;
 
-  const id = new URL(req.url).searchParams.get("id")?.trim();
+  const params = new URL(req.url).searchParams;
+
+  const challengeId = params.get("challenge")?.trim();
+  if (challengeId) {
+    try {
+      const challenge = await mitChallengeSperre(
+        STORE_PREFIX,
+        challengeId,
+        async () => {
+          const gefunden = await store.challengeLesen(challengeId);
+          if (!gefunden) return null;
+          if (
+            gefunden.von.userId !== user.id &&
+            gefunden.an.userId !== user.id
+          ) {
+            return "fremd" as const;
+          }
+          if (wendeChallengeAblaufAn(gefunden)) {
+            await store.challengeSpeichern(gefunden);
+          }
+          return gefunden;
+        },
+      );
+      if (!challenge) {
+        return Response.json(
+          { error: "Anfrage nicht gefunden" },
+          { status: 404 },
+        );
+      }
+      if (challenge === "fremd") {
+        return Response.json({ error: "Geht dich nichts an." }, { status: 403 });
+      }
+      return Response.json({
+        challenge: oeffentlicheChallenge(challenge, user.id),
+      });
+    } catch (error) {
+      const bekannt = punkteFehlerAntwort(error);
+      if (bekannt) return bekannt;
+      throw error;
+    }
+  }
+
+  const id = params.get("id")?.trim();
   if (!id) {
     return Response.json({ error: "Session fehlt" }, { status: 400 });
   }
@@ -172,7 +225,6 @@ export async function GET(req: Request) {
     const session = await mitDuellSperre(STORE_PREFIX, id, async () => {
       const gefunden = await store.lesen(id);
       if (!gefunden) return null;
-      if (wendeDuellAblaufAn(gefunden)) await store.speichern(gefunden);
       return gefunden;
     });
     if (!session) {
@@ -201,18 +253,20 @@ export async function POST(req: Request) {
 
   try {
     switch (aktion) {
-      case "create":
-        return await handleCreate(req, user, body);
-      case "join-code":
-        return await handleJoinCode(req, user, body);
-      case "join-random":
-        return await handleJoinRandom(req, user, body);
+      case "raum":
+        return await handleRaum(req, user, body);
+      case "herausfordern":
+        return await handleHerausfordern(req, user, body);
+      case "antwort":
+        return await handleAntwort(req, user, body);
+      case "stornieren":
+        return await handleStornieren(req, user, body);
+      case "challenge-claim":
+        return await handleChallengeClaim(req, user, body);
       case "move":
         return await handleMove(req, user, body);
       case "claim":
         return await handleClaim(req, user, body);
-      case "cancel":
-        return await handleCancel(req, user, body);
       case "forfeit":
         return await handleForfeit(req, user, body);
       case "timeout":
@@ -239,103 +293,92 @@ async function captchaPruefen(
   return null;
 }
 
-async function handleCreate(
+type RaumAntwort = {
+  gaeste: OeffentlicherGast[];
+  eingehende: OeffentlicheChallenge[];
+  ausgehende: OeffentlicheChallenge | null;
+};
+
+async function raumAnsicht(userId: string): Promise<RaumAntwort> {
+  const gaesteRoh = await store.raumLesen();
+  // Stabile Reihenfolge: eigene Gurke zuerst, Rest nach Name.
+  const sortiert = [...gaesteRoh].sort((a, b) =>
+    a.name.localeCompare(b.name, "de"),
+  );
+  const gaeste: OeffentlicherGast[] = sortiert.map((g) => ({
+    userId: g.userId,
+    name: g.name,
+    avatar: g.avatar,
+    stake: g.stake,
+    ich: g.userId === userId,
+  }));
+  // Eigene Gurke immer vorne.
+  gaeste.sort((a, b) => Number(b.ich) - Number(a.ich));
+
+  const beteiligt = await store.challengesFuer(userId);
+  const eingehende: OeffentlicheChallenge[] = [];
+  let ausgehende: OeffentlicheChallenge | null = null;
+  let ausgehendAktualisiert = 0;
+  for (const c of beteiligt) {
+    if (c.an.userId === userId && c.status === "offen") {
+      if (wendeChallengeAblaufAn(c)) {
+        await store.challengeSpeichern(c);
+        continue;
+      }
+      eingehende.push(oeffentlicheChallenge(c, userId));
+    } else if (c.von.userId === userId) {
+      if (c.status === "offen" && wendeChallengeAblaufAn(c)) {
+        await store.challengeSpeichern(c);
+      }
+      // Neueste ausgehende Anfrage des Nutzers (für Status + Refund).
+      if (c.aktualisiertAm >= ausgehendAktualisiert) {
+        ausgehendAktualisiert = c.aktualisiertAm;
+        ausgehende = oeffentlicheChallenge(c, userId);
+      }
+    }
+  }
+  eingehende.sort((a, b) => a.erstelltAm - b.erstelltAm);
+  return { gaeste, eingehende, ausgehende };
+}
+
+/**
+ * Heartbeat: meldet die eigene Gurke im Wartezimmer anwesend und liefert
+ * Gäste, eingehende Anfragen und die eigene ausgehende Anfrage zurück.
+ */
+async function handleRaum(
   req: Request,
   user: RouteUser,
   body: Record<string, unknown>,
 ) {
-  const captchaFehler = await captchaPruefen(req, user.id, body.turnstileToken);
-  if (captchaFehler) return captchaFehler;
-
-  if (!istGueltigerDuellEinsatz(body.stake)) {
-    return Response.json({ error: "Ungültiger Einsatz" }, { status: 400 });
-  }
-  const stake = body.stake;
   const name = saubererDuellName(
     body.name,
     user.displayName ?? "Gurkenfreund",
   );
+  const avatar: DuellAvatar = saubererDuellAvatar(body.avatar);
+  const stake =
+    typeof body.stake === "number" && istGueltigerDuellEinsatz(body.stake)
+      ? body.stake
+      : 10;
 
-  if (!(await rateLimit(`duell:create:${user.id}`, CREATE_LIMIT, FENSTER_MS))) {
+  if (!(await rateLimit(`duell:raum:${user.id}`, RAUM_LIMIT, FENSTER_MS))) {
     return rateLimitAntwort(FENSTER_MS);
   }
 
-  await zieheEinsatzAb(req, user.id, stake);
-
-  // Code-Kollision praktisch ausschließen (erneut würfeln bei Treffer).
-  let code = generiereDuellCode();
-  for (let i = 0; i < 3; i++) {
-    if (!(await store.lesenNachCode(code))) break;
-    code = generiereDuellCode();
-  }
-
-  const jetzt = Date.now();
-  const session: DuellSession = {
-    id: generiereDuellId(),
-    code,
+  await store.praesenzMelden({
+    userId: user.id,
+    name,
+    avatar,
     stake,
-    pot: stake * 2,
-    status: "waiting",
-    spieler: [{ userId: user.id, name, symbol: "X" }],
-    board: leeresBrett(),
-    amZug: "X",
-    gewinner: null,
-    gewinnLinie: null,
-    letzterZug: null,
-    erstelltAm: jetzt,
-    aktualisiertAm: jetzt,
-    ausgezahltAn: null,
-    erstattetAn: [],
-  };
-  await store.speichern(session);
-  return Response.json({ session: oeffentlichesDuell(session, user.id) });
+    aktualisiertAm: Date.now(),
+  });
+  return Response.json(await raumAnsicht(user.id));
 }
 
-/** Fügt den Aufrufer als O-Spieler hinzu. Nur mit frisch (im Lock) gelesener
- *  Session aufrufen – eine veraltete Kopie würde parallele Beitritte
- *  durchlassen und den ersten Beitretenden überschreiben. */
-async function treteSessionBei(
-  req: Request,
-  userId: string,
-  name: string,
-  session: DuellSession,
-): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  if (wendeDuellAblaufAn(session)) {
-    await store.speichern(session);
-    return { ok: false, error: "Dieses Duell ist abgelaufen.", status: 400 };
-  }
-  if (session.status !== "waiting") {
-    return {
-      ok: false,
-      error: "Dieses Duell läuft schon oder ist vorbei.",
-      status: 400,
-    };
-  }
-  if (session.spieler.some((s) => s.userId === userId)) {
-    return {
-      ok: false,
-      error: "Du kannst nicht gegen dich selbst spielen.",
-      status: 400,
-    };
-  }
-  // Erst nach bestandener Prüfung abziehen (im selben Lock): Eine
-  // fehlgeschlagene Prüfung berührt nie Geld, ein Refund-Pfad entfällt.
-  try {
-    await zieheEinsatzAb(req, userId, session.stake);
-  } catch (error) {
-    if (istPunkteFehler(error)) {
-      return { ok: false, error: error.message, status: error.status };
-    }
-    throw error;
-  }
-  session.spieler.push({ userId, name, symbol: "O" });
-  session.status = "playing";
-  session.aktualisiertAm = Date.now();
-  await store.speichern(session);
-  return { ok: true };
-}
-
-async function handleJoinCode(
+/**
+ * Herausforderung senden: Captcha, Ziel prüfen (anwesend, nicht man selbst,
+ * keine offene eigene Anfrage), eigenen Einsatz abziehen, Challenge anlegen.
+ */
+async function handleHerausfordern(
   req: Request,
   user: RouteUser,
   body: Record<string, unknown>,
@@ -343,65 +386,17 @@ async function handleJoinCode(
   const captchaFehler = await captchaPruefen(req, user.id, body.turnstileToken);
   if (captchaFehler) return captchaFehler;
 
-  const code = normalisiereDuellCode(body.code);
-  if (!code) {
+  const zielUserId =
+    typeof body.zielUserId === "string" ? body.zielUserId.trim() : "";
+  if (!zielUserId) {
+    return Response.json({ error: "Wen willst du herausfordern?" }, { status: 400 });
+  }
+  if (zielUserId === user.id) {
     return Response.json(
-      { error: "Dieser Code sieht nicht gültig aus (6 Zeichen)." },
+      { error: "Du kannst dich nicht selbst herausfordern." },
       { status: 400 },
     );
   }
-  const name = saubererDuellName(
-    body.name,
-    user.displayName ?? "Gurkenfreund",
-  );
-
-  if (!(await rateLimit(`duell:join:${user.id}`, JOIN_LIMIT, FENSTER_MS))) {
-    return rateLimitAntwort(FENSTER_MS);
-  }
-
-  const session = await store.lesenNachCode(code);
-  if (!session) {
-    return Response.json(
-      { error: "Kein Duell mit diesem Code gefunden." },
-      { status: 404 },
-    );
-  }
-  if (session.spieler.some((s) => s.userId === user.id)) {
-    return Response.json({
-      session: oeffentlichesDuell(session, user.id),
-    });
-  }
-
-  // Sperre pro Session-ID (der Code ändert sich nie, die ID ist stabil):
-  // Drinnen wird frisch gelesen, damit parallele Beitritte serialisiert
-  // werden – der zweite sieht dann `playing` statt der alten `waiting`-Kopie.
-  const beigetreten = await mitDuellSperre(
-    STORE_PREFIX,
-    session.id,
-    async () => {
-      const live = (await store.lesen(session.id)) ?? session;
-      return treteSessionBei(req, user.id, name, live);
-    },
-  );
-  if (!beigetreten.ok) {
-    return Response.json(
-      { error: beigetreten.error },
-      { status: beigetreten.status },
-    );
-  }
-
-  const aktuell = (await store.lesen(session.id)) ?? session;
-  return Response.json({ session: oeffentlichesDuell(aktuell, user.id) });
-}
-
-async function handleJoinRandom(
-  req: Request,
-  user: RouteUser,
-  body: Record<string, unknown>,
-) {
-  const captchaFehler = await captchaPruefen(req, user.id, body.turnstileToken);
-  if (captchaFehler) return captchaFehler;
-
   if (!istGueltigerDuellEinsatz(body.stake)) {
     return Response.json({ error: "Ungültiger Einsatz" }, { status: 400 });
   }
@@ -410,56 +405,269 @@ async function handleJoinRandom(
     body.name,
     user.displayName ?? "Gurkenfreund",
   );
+  const avatar: DuellAvatar = saubererDuellAvatar(body.avatar);
 
-  if (!(await rateLimit(`duell:join:${user.id}`, JOIN_LIMIT, FENSTER_MS))) {
+  if (
+    !(await rateLimit(`duell:challenge:${user.id}`, CHALLENGE_LIMIT, FENSTER_MS))
+  ) {
     return rateLimitAntwort(FENSTER_MS);
   }
 
-  const kandidaten = await store.wartendeFinden(stake, user.id);
-  if (kandidaten.length === 0) {
+  // Ziel muss gerade wirklich im Wartezimmer sitzen.
+  const gaeste = await store.raumLesen();
+  const ziel = gaeste.find((g) => g.userId === zielUserId);
+  if (!ziel) {
     return Response.json(
-      {
-        error:
-          "Gerade kein offenes Duell mit diesem Einsatz – erstelle selbst einen Code und teile ihn.",
-        code: "KEIN_GEGNER",
-      },
+      { error: "Diese Gurke hat das Wartezimmer verlassen." },
       { status: 404 },
     );
   }
 
-  // Kein Abzug vor dem Lock: Erst wenn ein Kandidat wirklich passt, wird im
-  // selben Lock geprüft + abgebucht + beigetreten. Scheitern alle, wurde nie
-  // Geld berührt – ein Refund-Pfad entfällt komplett.
-  let letzterFehler: string | null = null;
-  for (const kandidat of kandidaten) {
-    const frisch = await mitDuellSperre(
-      STORE_PREFIX,
-      kandidat.id,
-      async () => {
-        const live = (await store.lesen(kandidat.id)) ?? kandidat;
-        return {
-          ergebnis: await treteSessionBei(req, user.id, name, live),
-          live,
-        };
-      },
-    );
-    if (frisch.ergebnis.ok) {
-      return Response.json({
-        session: oeffentlichesDuell(frisch.live, user.id),
-      });
+  // Eine offene eigene Anfrage genügt – erst beantworten lassen oder stornieren.
+  const beteiligt = await store.challengesFuer(user.id);
+  const offeneEigene = beteiligt.find(
+    (c) => c.von.userId === user.id && c.status === "offen",
+  );
+  if (offeneEigene) {
+    if (wendeChallengeAblaufAn(offeneEigene)) {
+      await store.challengeSpeichern(offeneEigene);
+    } else {
+      return Response.json(
+        { error: "Du hast schon eine offene Anfrage – warte auf Antwort oder storniere sie." },
+        { status: 400 },
+      );
     }
-    letzterFehler = frisch.ergebnis.error;
   }
 
-  return Response.json(
-    {
-      error:
-        letzterFehler ??
-        "Die offenen Duelle wurden gerade vergeben – versuch es gleich nochmal oder erstelle selbst eins.",
-      code: "KEIN_GEGNER",
-    },
-    { status: 404 },
+  // Erst nach bestandener Prüfung abziehen: Eine fehlgeschlagene Prüfung
+  // berührt nie Geld, ein Refund-Pfad entfällt.
+  try {
+    await zieheEinsatzAb(req, user.id, stake);
+  } catch (error) {
+    if (istPunkteFehler(error)) {
+      return Response.json({ error: error.message }, { status: error.status });
+    }
+    throw error;
+  }
+
+  const jetzt = Date.now();
+  const challenge: DuellChallenge = {
+    id: generiereDuellId(),
+    von: { userId: user.id, name, avatar },
+    an: { userId: ziel.userId, name: ziel.name },
+    stake,
+    status: "offen",
+    sessionId: null,
+    erstelltAm: jetzt,
+    aktualisiertAm: jetzt,
+    erstattetAn: [],
+  };
+  await store.challengeSpeichern(challenge);
+  return Response.json({
+    challenge: oeffentlicheChallenge(challenge, user.id),
+  });
+}
+
+type AntwortErgebnis =
+  | { ok: true; challenge: OeffentlicheChallenge; session?: never }
+  | {
+      ok: true;
+      challenge: OeffentlicheChallenge;
+      session: ReturnType<typeof oeffentlichesDuell>;
+    }
+  | { ok: false; error: string; status: number };
+
+/**
+ * Anfrage beantworten: Ablehnen kostet nichts, Annehmen zieht den eigenen
+ * Einsatz ab (eigener Request) und startet das Spiel sofort – im selben
+ * Challenge-Lock, damit keine Doppel-Annahme möglich ist.
+ */
+async function handleAntwort(
+  req: Request,
+  user: RouteUser,
+  body: Record<string, unknown>,
+) {
+  const captchaFehler = await captchaPruefen(req, user.id, body.turnstileToken);
+  if (captchaFehler) return captchaFehler;
+
+  const challengeId =
+    typeof body.challengeId === "string" ? body.challengeId.trim() : "";
+  if (!challengeId) {
+    return Response.json({ error: "Anfrage fehlt" }, { status: 400 });
+  }
+  const annehmen = body.annehmen === true;
+  const name = saubererDuellName(
+    body.name,
+    user.displayName ?? "Gurkenfreund",
   );
+  const avatar: DuellAvatar = saubererDuellAvatar(body.avatar);
+
+  if (!(await rateLimit(`duell:aktion:${user.id}`, AKTION_LIMIT, FENSTER_MS))) {
+    return rateLimitAntwort(FENSTER_MS);
+  }
+
+  const ergebnis: AntwortErgebnis = await mitChallengeSperre(
+    STORE_PREFIX,
+    challengeId,
+    async (): Promise<AntwortErgebnis> => {
+      const live = await store.challengeLesen(challengeId);
+      if (!live) {
+        return { ok: false, error: "Anfrage nicht gefunden.", status: 404 };
+      }
+      if (wendeChallengeAblaufAn(live)) {
+        await store.challengeSpeichern(live);
+        return { ok: false, error: "Diese Anfrage ist abgelaufen.", status: 400 };
+      }
+      if (live.an.userId !== user.id) {
+        return { ok: false, error: "Diese Anfrage gilt nicht dir.", status: 403 };
+      }
+      if (live.status !== "offen") {
+        return { ok: false, error: "Diese Anfrage ist schon entschieden.", status: 400 };
+      }
+      if (!annehmen) {
+        live.status = "abgelehnt";
+        live.aktualisiertAm = Date.now();
+        await store.challengeSpeichern(live);
+        return {
+          ok: true,
+          challenge: oeffentlicheChallenge(live, user.id),
+        };
+      }
+      // Annehmen: erst abziehen (eigener Request, frischer Lock), dann Spiel anlegen.
+      try {
+        await zieheEinsatzAb(req, user.id, live.stake);
+      } catch (error) {
+        if (istPunkteFehler(error)) {
+          return { ok: false, error: error.message, status: error.status };
+        }
+        throw error;
+      }
+      const jetzt = Date.now();
+      const session: DuellSession = {
+        id: generiereDuellId(),
+        stake: live.stake,
+        pot: live.stake * 2,
+        status: "playing",
+        spieler: [
+          {
+            userId: live.von.userId,
+            name: live.von.name,
+            symbol: "X",
+            avatar: live.von.avatar,
+          },
+          { userId: user.id, name, symbol: "O", avatar },
+        ],
+        board: leeresBrett(),
+        amZug: "X",
+        gewinner: null,
+        gewinnLinie: null,
+        letzterZug: null,
+        erstelltAm: jetzt,
+        aktualisiertAm: jetzt,
+        ausgezahltAn: null,
+        erstattetAn: [],
+      };
+      await store.speichern(session);
+      live.status = "angenommen";
+      live.sessionId = session.id;
+      live.aktualisiertAm = jetzt;
+      await store.challengeSpeichern(live);
+      return {
+        ok: true,
+        challenge: oeffentlicheChallenge(live, user.id),
+        session: oeffentlichesDuell(session, user.id),
+      };
+    },
+  );
+
+  if (!ergebnis.ok) {
+    return Response.json({ error: ergebnis.error }, { status: ergebnis.status });
+  }
+  return Response.json(ergebnis);
+}
+
+/** Eigene offene Anfrage zurückziehen (Refund per challenge-claim). */
+async function handleStornieren(
+  req: Request,
+  user: RouteUser,
+  body: Record<string, unknown>,
+) {
+  const challengeId =
+    typeof body.challengeId === "string" ? body.challengeId.trim() : "";
+  if (!challengeId) {
+    return Response.json({ error: "Anfrage fehlt" }, { status: 400 });
+  }
+
+  if (!(await rateLimit(`duell:aktion:${user.id}`, AKTION_LIMIT, FENSTER_MS))) {
+    return rateLimitAntwort(FENSTER_MS);
+  }
+
+  const challenge = await mitChallengeSperre(
+    STORE_PREFIX,
+    challengeId,
+    async () => {
+      const live = await store.challengeLesen(challengeId);
+      if (!live) throw new PunkteFehler(404, "Anfrage nicht gefunden");
+      if (live.von.userId !== user.id) {
+        throw new PunkteFehler(403, "Das ist nicht deine Anfrage.");
+      }
+      wendeChallengeAblaufAn(live);
+      if (live.status !== "offen") {
+        throw new PunkteFehler(400, "Diese Anfrage ist schon entschieden.");
+      }
+      live.status = "storniert";
+      live.aktualisiertAm = Date.now();
+      await store.challengeSpeichern(live);
+      return live;
+    },
+  );
+
+  return Response.json({
+    challenge: oeffentlicheChallenge(challenge, user.id),
+  });
+}
+
+/**
+ * Challenge-Refund für den Herausforderer bei Ablehnung, Ablauf oder
+ * Storno – idempotent per erstattetAn, immer im Challenge-Lock.
+ */
+async function handleChallengeClaim(
+  req: Request,
+  user: RouteUser,
+  body: Record<string, unknown>,
+) {
+  const challengeId =
+    typeof body.challengeId === "string" ? body.challengeId.trim() : "";
+  if (!challengeId) {
+    return Response.json({ error: "Anfrage fehlt" }, { status: 400 });
+  }
+
+  if (!(await rateLimit(`duell:aktion:${user.id}`, AKTION_LIMIT, FENSTER_MS))) {
+    return rateLimitAntwort(FENSTER_MS);
+  }
+
+  const challenge = await mitChallengeSperre(
+    STORE_PREFIX,
+    challengeId,
+    async () => {
+      const live = await store.challengeLesen(challengeId);
+      if (!live) throw new PunkteFehler(404, "Anfrage nicht gefunden");
+      wendeChallengeAblaufAn(live);
+      const anspruch = challengeAnspruch(live, user.id);
+      if (!anspruch) {
+        throw new PunkteFehler(400, "Für dich gibt es hier nichts abzuholen.");
+      }
+      await schreibeGutschrift(req, user.id, anspruch.betrag, "duell-refund", 0);
+      live.erstattetAn.push(user.id);
+      live.aktualisiertAm = Date.now();
+      await store.challengeSpeichern(live);
+      return live;
+    },
+  );
+
+  return Response.json({
+    challenge: oeffentlicheChallenge(challenge, user.id),
+  });
 }
 
 async function handleMove(
@@ -489,7 +697,6 @@ async function handleMove(
   const session = await mitDuellSperre(STORE_PREFIX, sessionId, async () => {
     const live = await store.lesen(sessionId);
     if (!live) throw new PunkteFehler(404, "Duell nicht gefunden");
-    wendeDuellAblaufAn(live);
     if (live.status !== "playing") {
       throw new PunkteFehler(400, "Dieses Duell läuft gerade nicht.");
     }
@@ -540,7 +747,6 @@ async function handleClaim(
   const session = await mitDuellSperre(STORE_PREFIX, sessionId, async () => {
     const live = await store.lesen(sessionId);
     if (!live) throw new PunkteFehler(404, "Duell nicht gefunden");
-    wendeDuellAblaufAn(live);
     const anspruch = claimAnspruch(live, user.id);
     if (!anspruch) {
       throw new PunkteFehler(400, "Für dich gibt es hier nichts abzuholen.");
@@ -562,44 +768,6 @@ async function handleClaim(
       await schreibeGutschrift(req, user.id, anspruch.betrag, "duell-refund", 0);
       live.erstattetAn.push(user.id);
     }
-    live.aktualisiertAm = Date.now();
-    await store.speichern(live);
-    return live;
-  });
-
-  return Response.json({ session: oeffentlichesDuell(session, user.id) });
-}
-
-async function handleCancel(
-  req: Request,
-  user: RouteUser,
-  body: Record<string, unknown>,
-) {
-  const sessionId =
-    typeof body.sessionId === "string" ? body.sessionId : null;
-  if (!sessionId) {
-    return Response.json({ error: "Session fehlt" }, { status: 400 });
-  }
-
-  if (!(await rateLimit(`duell:aktion:${user.id}`, AKTION_LIMIT, FENSTER_MS))) {
-    return rateLimitAntwort(FENSTER_MS);
-  }
-
-  const session = await mitDuellSperre(STORE_PREFIX, sessionId, async () => {
-    const live = await store.lesen(sessionId);
-    if (!live) throw new PunkteFehler(404, "Duell nicht gefunden");
-    wendeDuellAblaufAn(live);
-    const ersteller = live.spieler[0];
-    if (!ersteller || ersteller.userId !== user.id) {
-      throw new PunkteFehler(403, "Nur der Ersteller kann stornieren.");
-    }
-    if (live.status !== "waiting" && live.status !== "expired") {
-      throw new PunkteFehler(
-        400,
-        "Das Duell läuft schon – du kannst nur noch aufgeben.",
-      );
-    }
-    live.status = "cancelled";
     live.aktualisiertAm = Date.now();
     await store.speichern(live);
     return live;

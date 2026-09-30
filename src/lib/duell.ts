@@ -4,19 +4,27 @@
  * Reine Spiellogik + Typen, bewusst ohne Node-Imports: Diese Datei wird auch
  * in Client-Komponenten gebündelt (Konstanten, Validierung).
  *
+ * Ablauf (Wartezimmer): Wer die Duell-Seite öffnet, nimmt mit Gurken-Avatar
+ * und Namen im Wartezimmer Platz (Heartbeat-Präsenz). Per Klick auf eine
+ * andere Gurke schickt man eine Herausforderung mit festem Einsatz; der
+ * Einsatz wird dabei sofort vom eigenen Konto abgezogen. Nimmt die andere
+ * Seite an, zieht sie ihren Einsatz per eigenem Request ab und das Spiel
+ * startet. Wer gewinnt, holt den ganzen Pot ab, bei Unentschieden bekommt
+ * jeder seinen Einsatz zurück.
+ *
  * Regeln:
  * - Beide Spieler setzen denselben Einsatz, der Pot (2× Einsatz) liegt in
  *   der Session. Wer gewinnt, holt den ganzen Pot ab, bei Unentschieden
  *   bekommt jeder seinen Einsatz zurück.
- * - Tic Tac Toe: Der Ersteller ist 🥒 (X) und beginnt, der Beitretende ist
- *   🫙 (O). Drei in einer Reihe gewinnt, volles Brett ohne Reihe ist
- *   unentschieden.
+ * - Tic Tac Toe: Der Herausforderer ist 🥒 (X) und beginnt, die annehmende
+ *   Seite ist 🫙 (O). Drei in einer Reihe gewinnt, volles Brett ohne Reihe
+ *   ist unentschieden.
  * - Punkte werden nie vom Server auf fremde Konten gebucht: Jeder zieht
  *   seinen Einsatz per eigenem Request ab und holt Gewinn/Refund per eigenem
- *   Claim-Request ab. Deshalb gibt es keinen automatischen Payout.
+ *   Claim-Request ab. Deshalb braucht ein beendetes Duell immer einen Claim
+ *   des Berechtigten – und eine abgelehnte Challenge einen Refund-Claim des
+ *   Herausforderers.
  */
-
-import { zufallsInt } from "@/lib/zufall";
 
 /** Erlaubte Einsätze pro Spieler – bewusst identisch zum Casino. */
 export const DUELL_EINSAETZE = [10, 25, 50] as const;
@@ -44,12 +52,11 @@ export type DuellSpieler = {
   userId: string;
   name: string;
   symbol: DuellSymbol;
+  avatar: DuellAvatar;
 };
 
 export type DuellSession = {
   id: string;
-  /** 6-stelliger Einladungs-Code zum Teilen. */
-  code: string;
   /** Einsatz pro Spieler – der Pot ist immer 2× Einsatz. */
   stake: number;
   pot: number;
@@ -69,8 +76,6 @@ export type DuellSession = {
   erstattetAn: string[];
 };
 
-/** Wie lange ein offenes Duell auf einen Gegner wartet (dann verfällt es). */
-export const DUELL_WARTE_TIMEOUT_MS = 10 * 60 * 1000;
 /** Inaktivität im laufenden Spiel, ab der der wartende Spieler per Timeout siegt. */
 export const DUELL_ZUG_TIMEOUT_MS = 5 * 60 * 1000;
 /** Aufbewahrung einer Session im Store (danach ist nicht abgeholtes Guthaben weg). */
@@ -113,27 +118,9 @@ export function leeresBrett(): DuellZelle[] {
   return Array.from({ length: 9 }, () => null);
 }
 
-const CODE_ZEICHEN = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-
-/** 6-stelliger Einladungs-Code (ohne leicht verwechselbare Zeichen). */
-export function generiereDuellCode(): string {
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += CODE_ZEICHEN[zufallsInt(CODE_ZEICHEN.length)];
-  }
-  return code;
-}
-
 /** Eindeutige Session-ID (Web Crypto – läuft im Browser wie auf Node). */
 export function generiereDuellId(): string {
   return globalThis.crypto.randomUUID();
-}
-
-/** Normalisiert einen eingegebenen Code (Großbuchstaben, ohne Leerzeichen). */
-export function normalisiereDuellCode(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const code = value.trim().toUpperCase().replace(/[\s-]/g, "");
-  return /^[A-Z0-9]{6}$/.test(code) ? code : null;
 }
 
 /** Kürzt Wunschnamen auf Anzeigeformat (max. 24 Zeichen). */
@@ -144,25 +131,174 @@ export function saubererDuellName(value: unknown, fallback: string): string {
   return fallback.slice(0, 24);
 }
 
+/* ── Gurken-Avatar (Wartezimmer-Umkleide, Kahoot-Prinzip) ── */
+
+export type DuellAvatar = { basis: number; accessoire: number };
+
+/** Vier Gurken-Basen: dasselbe Emoji, per CSS-Filter getönt (Client rendert). */
+export const DUELL_GURKEN_BASEN = [
+  { emoji: "🥒", filter: "none", label: "Salatgurke" },
+  { emoji: "🥒", filter: "saturate(1.5)", label: "Gewächshausgurke" },
+  { emoji: "🥒", filter: "hue-rotate(35deg) saturate(1.2)", label: "Senfgurke" },
+  {
+    emoji: "🥒",
+    filter: "saturate(0.35) brightness(1.15)",
+    label: "Bleiche Gurke",
+  },
+] as const;
+
+/** Aufsetzbares: schlichtes Emoji-Overlay über der Gurke (Client rendert). */
+export const DUELL_ACCESSOIRES = [
+  { emoji: null, label: "Natur" },
+  { emoji: "🕶️", label: "Sonnenbrille" },
+  { emoji: "🎩", label: "Zylinder" },
+  { emoji: "🩹", label: "Pflaster" },
+  { emoji: "🩺", label: "Stethoskop" },
+  { emoji: "👑", label: "Krone" },
+] as const;
+
+export const STANDARD_AVATAR: DuellAvatar = { basis: 0, accessoire: 0 };
+
+/** Klammert Avatar-Indizes auf gültige Katalogwerte (Fallback: Standard). */
+export function saubererDuellAvatar(value: unknown): DuellAvatar {
+  if (typeof value !== "object" || value === null) return STANDARD_AVATAR;
+  const { basis, accessoire } = value as Record<string, unknown>;
+  const b =
+    typeof basis === "number" && Number.isInteger(basis)
+      ? Math.min(Math.max(basis, 0), DUELL_GURKEN_BASEN.length - 1)
+      : 0;
+  const a =
+    typeof accessoire === "number" && Number.isInteger(accessoire)
+      ? Math.min(Math.max(accessoire, 0), DUELL_ACCESSOIRES.length - 1)
+      : 0;
+  return { basis: b, accessoire: a };
+}
+
+/* ── Wartezimmer-Präsenz (Heartbeat) ── */
+
+/** Wie lange ein Gast ohne Heartbeat als anwesend gilt. */
+export const DUELL_PRAESENZ_TTL_MS = 45_000;
+
+export type WartezimmerGast = {
+  userId: string;
+  name: string;
+  avatar: DuellAvatar;
+  /** Wunscheinsatz des Gasts (reine Anzeige im Wartezimmer). */
+  stake: number;
+  aktualisiertAm: number;
+};
+
+/** Client-sichere Gäste-Ansicht (eigener Eintrag ist markiert). */
+export type OeffentlicherGast = {
+  userId: string;
+  name: string;
+  avatar: DuellAvatar;
+  stake: number;
+  ich: boolean;
+};
+
+/* ── Herausforderung (Challenge mit Annehmen/Ablehnen) ── */
+
+export type DuellChallengeStatus =
+  | "offen"
+  | "angenommen"
+  | "abgelehnt"
+  | "abgelaufen"
+  | "storniert";
+
+/** Wie lange eine Herausforderung zur Annahme offen bleibt. */
+export const DUELL_CHALLENGE_TIMEOUT_MS = 90_000;
+/** Aufbewahrung einer Challenge (danach ist ein nicht abgeholter Einsatz weg). */
+export const DUELL_CHALLENGE_SPEICHER_TTL_S = 3600;
+
+export type DuellChallenge = {
+  id: string;
+  von: { userId: string; name: string; avatar: DuellAvatar };
+  an: { userId: string; name: string };
+  stake: number;
+  status: DuellChallengeStatus;
+  /** Session-ID nach Annahme, sonst null. */
+  sessionId: string | null;
+  erstelltAm: number;
+  aktualisiertAm: number;
+  /** User-IDs, die ihren Challenge-Einsatz bereits zurückerhalten haben. */
+  erstattetAn: string[];
+};
+
+export type OeffentlicheChallenge = {
+  id: string;
+  stake: number;
+  pot: number;
+  status: DuellChallengeStatus;
+  erstelltAm: number;
+  von: { name: string; avatar: DuellAvatar };
+  anName: string;
+  ichBinHerausforderer: boolean;
+  sessionId: string | null;
+  /** Ob der Aufrufer seinen Challenge-Einsatz zurückholen kann. */
+  kannClaimen: boolean;
+  bereitsAbgeholt: boolean;
+};
+
 /**
- * Lässt Warte-Timeouts in den Status `expired` kippen. Gibt true zurück,
- * wenn sich die Session verändert hat (Aufrufer muss dann speichern).
- * Laufende Spiele verfallen nie automatisch – dort siegt der wartende
- * Spieler per Timeout-Claim (siehe Route), damit Aufgabe nicht belohnt wird.
+ * Lässt Annahme-Timeouts in den Status `abgelaufen` kippen. Gibt true
+ * zurück, wenn sich die Challenge verändert hat (Aufrufer muss speichern).
  */
-export function wendeDuellAblaufAn(
-  session: DuellSession,
+export function wendeChallengeAblaufAn(
+  challenge: DuellChallenge,
   jetzt: number = Date.now(),
 ): boolean {
   if (
-    session.status === "waiting" &&
-    jetzt - session.erstelltAm > DUELL_WARTE_TIMEOUT_MS
+    challenge.status === "offen" &&
+    jetzt - challenge.erstelltAm > DUELL_CHALLENGE_TIMEOUT_MS
   ) {
-    session.status = "expired";
-    session.aktualisiertAm = jetzt;
+    challenge.status = "abgelaufen";
+    challenge.aktualisiertAm = jetzt;
     return true;
   }
   return false;
+}
+
+/**
+ * Was der Herausforderer zurückholen darf: seinen Einsatz, wenn die
+ * Challenge abgelehnt wurde, ablief oder storniert wurde. Null sonst.
+ * (Angenommene Challenges wandern als Pot in die Session – dort gilt der
+ * normale Session-Claim.)
+ */
+export function challengeAnspruch(
+  challenge: DuellChallenge,
+  userId: string,
+): { art: "refund"; betrag: number } | null {
+  if (challenge.von.userId !== userId) return null;
+  if (
+    challenge.status !== "abgelehnt" &&
+    challenge.status !== "abgelaufen" &&
+    challenge.status !== "storniert"
+  ) {
+    return null;
+  }
+  return challenge.erstattetAn.includes(userId)
+    ? null
+    : { art: "refund", betrag: challenge.stake };
+}
+
+export function oeffentlicheChallenge(
+  challenge: DuellChallenge,
+  aufruferId: string,
+): OeffentlicheChallenge {
+  return {
+    id: challenge.id,
+    stake: challenge.stake,
+    pot: challenge.stake * 2,
+    status: challenge.status,
+    erstelltAm: challenge.erstelltAm,
+    von: { name: challenge.von.name, avatar: challenge.von.avatar },
+    anName: challenge.an.name,
+    ichBinHerausforderer: challenge.von.userId === aufruferId,
+    sessionId: challenge.sessionId,
+    kannClaimen: challengeAnspruch(challenge, aufruferId) !== null,
+    bereitsAbgeholt: challenge.erstattetAn.includes(aufruferId),
+  };
 }
 
 /** Ob der Gegner gerade per Timeout besiegt werden darf. */
@@ -179,11 +315,15 @@ export function istZugTimeout(
 /** Client-sichere Ansicht einer Session (ohne fremde User-IDs). */
 export type OeffentlichesDuell = {
   id: string;
-  code: string;
   stake: number;
   pot: number;
   status: DuellStatus;
-  spieler: { name: string; symbol: DuellSymbol; ich: boolean }[];
+  spieler: {
+    name: string;
+    symbol: DuellSymbol;
+    ich: boolean;
+    avatar: DuellAvatar;
+  }[];
   board: DuellZelle[];
   amZug: DuellSymbol;
   gewinner: DuellSymbol | "draw" | null;
@@ -241,7 +381,6 @@ export function oeffentlichesDuell(
   const ich = session.spieler.find((s) => s.userId === aufruferId);
   return {
     id: session.id,
-    code: session.code,
     stake: session.stake,
     pot: session.pot,
     status: session.status,
@@ -249,6 +388,7 @@ export function oeffentlichesDuell(
       name: s.name,
       symbol: s.symbol,
       ich: s.userId === aufruferId,
+      avatar: s.avatar ?? STANDARD_AVATAR,
     })),
     board: [...session.board],
     amZug: session.amZug,

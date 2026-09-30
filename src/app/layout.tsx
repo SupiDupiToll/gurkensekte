@@ -3,6 +3,7 @@ import { HexclaveProvider, HexclaveTheme } from "@hexclave/next";
 import { hexclaveServerApp } from "@/hexclave/server";
 import { CultHeader } from "@/components/CultHeader";
 import { Footer } from "@/components/Footer";
+import { PwaRegister } from "@/components/PwaRegister";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import "./globals.css";
 
@@ -39,6 +40,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <HexclaveProvider app={hexclaveServerApp}>
           <ReferralCapture />
+          <PwaRegister />
           <HexclaveTheme
             theme={{
               dark: {

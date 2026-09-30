@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowsInSimple, ArrowRight, Check, Lock, Medal } from "@phosphor-icons/react";
+import { Check, Lock, Medal } from "@phosphor-icons/react";
+import { AppKachel } from "@/components/AppKachel";
+import { Popup } from "@/components/Popup";
 import { usePunkte } from "@/components/PunkteContext";
 import {
   RANG_TITEL,
@@ -63,44 +65,22 @@ export function Rangstufen() {
 
   if (!open) {
     return (
-      <div className="mb-5">
-        <button
-          onClick={() => setOpen(true)}
-          className="shell group block w-full text-center transition-colors duration-200 active:scale-[0.99]"
-        >
-          <div className="core flex flex-col items-center gap-4 p-6 md:p-8">
-            <Medal size={40} weight="fill" className="text-[#c9a86a]" />
-            <h2 className="font-display text-2xl font-semibold text-[#faf8f1] md:text-[1.7rem]">
-              Rangzeichen
-            </h2>
-            <span className="btn-cta btn-cta-primary !text-base">
-              Ränge anzeigen
-              <span className="btn-dot">
-                <ArrowRight size={17} weight="bold" />
-              </span>
-            </span>
-          </div>
-        </button>
-      </div>
+      <AppKachel
+        icon={<Medal size={44} weight="fill" className="text-[#c9a86a]" />}
+        titel="Ränge"
+        hinweis={aktuell}
+        index={3}
+        onOpen={() => setOpen(true)}
+      />
     );
   }
 
   return (
-    <div className="card mb-5 p-6 md:p-8">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Medal size={22} weight="fill" className="text-[#c9a86a]" />
-          <h2 className="font-display text-xl font-semibold text-[#faf8f1]">Rangzeichen</h2>
-        </div>
-        <button
-          onClick={() => setOpen(false)}
-          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] transition-colors hover:border-white/20 hover:text-[#ede8d6]"
-        >
-          <ArrowsInSimple size={16} />
-          Schließen
-        </button>
-      </div>
-
+    <Popup
+      titel="Rangzeichen"
+      icon={<Medal size={22} weight="fill" className="text-[#c9a86a]" />}
+      onClose={() => setOpen(false)}
+    >
       {loading ? (
         <div className="space-y-2 py-2" aria-busy="true">
           {[0, 1, 2].map((i) => (
@@ -173,6 +153,6 @@ export function Rangstufen() {
           </div>
         </>
       )}
-    </div>
+    </Popup>
   );
 }

@@ -1,9 +1,10 @@
 /**
  * Gurken Duell – P2P-API (Demo-Modus).
  *
- * Gleiche Regeln wie der echte Mitgliederbereich, aber mit Demo-Punkten aus
- * dem Cookie-Speicher. Sessions liegen im Demo-Namensraum des Duell-Stores,
- * damit Demo- und Echtgeld-Töpfe nie vermischt werden.
+ * Gleiche Wartezimmer-Regeln wie der echte Mitgliederbereich, aber mit
+ * Demo-Punkten aus dem Cookie-Speicher. Sessions, Präsenz und Challenges
+ * liegen im Demo-Namensraum des Duell-Stores, damit Demo- und
+ * Echtgeld-Töpfe nie vermischt werden.
  */
 
 import { randomUUID } from "crypto";
@@ -16,22 +17,27 @@ import {
 } from "@/lib/demoStore";
 import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import {
+  challengeAnspruch,
   claimAnspruch,
-  generiereDuellCode,
   generiereDuellId,
   istBrettVoll,
   istGueltigerDuellEinsatz,
   istZugTimeout,
   leeresBrett,
-  normalisiereDuellCode,
+  oeffentlicheChallenge,
   oeffentlichesDuell,
   pruefeTicTacToe,
+  saubererDuellAvatar,
   saubererDuellName,
-  wendeDuellAblaufAn,
+  wendeChallengeAblaufAn,
+  type DuellAvatar,
+  type DuellChallenge,
   type DuellSession,
+  type OeffentlicheChallenge,
+  type OeffentlicherGast,
   type OeffentlichesDuell,
 } from "@/lib/duell";
-import { duellStore, mitDuellSperre } from "@/lib/duellStore";
+import { duellStore, mitChallengeSperre, mitDuellSperre } from "@/lib/duellStore";
 
 export const runtime = "nodejs";
 
@@ -76,9 +82,23 @@ function mitDemoSitzung(
   return { userId, profile, req: effReq };
 }
 
+type RaumAntwort = {
+  gaeste: OeffentlicherGast[];
+  eingehende: OeffentlicheChallenge[];
+  ausgehende: OeffentlicheChallenge | null;
+};
+
+type SessionAntwort =
+  | { session: OeffentlichesDuell }
+  | { error: string; code?: string };
+
+type ChallengeAntwort =
+  | { challenge: OeffentlicheChallenge; session?: OeffentlichesDuell }
+  | { error: string };
+
 function antwort(
   res: Response,
-  data: { session: OeffentlichesDuell } | { error: string; code?: string },
+  data: SessionAntwort | ChallengeAntwort | RaumAntwort | { error: string },
   status = 200,
 ): Response {
   return mitDemoCookie(Response.json(data, { status }), res);
@@ -88,12 +108,42 @@ export async function GET(req: Request) {
   const res = new Response();
   const { userId } = mitDemoSitzung(req, res);
 
-  const id = new URL(req.url).searchParams.get("id")?.trim();
+  const params = new URL(req.url).searchParams;
+
+  const challengeId = params.get("challenge")?.trim();
+  if (challengeId) {
+    const challenge = await mitChallengeSperre(
+      STORE_PREFIX,
+      challengeId,
+      async () => {
+        const gefunden = await store.challengeLesen(challengeId);
+        if (!gefunden) return null;
+        if (
+          gefunden.von.userId !== userId &&
+          gefunden.an.userId !== userId
+        ) {
+          return "fremd" as const;
+        }
+        if (wendeChallengeAblaufAn(gefunden)) {
+          await store.challengeSpeichern(gefunden);
+        }
+        return gefunden;
+      },
+    );
+    if (!challenge) return antwort(res, { error: "Anfrage nicht gefunden" }, 404);
+    if (challenge === "fremd") {
+      return antwort(res, { error: "Geht dich nichts an." }, 403);
+    }
+    return antwort(res, {
+      challenge: oeffentlicheChallenge(challenge, userId),
+    });
+  }
+
+  const id = params.get("id")?.trim();
   if (!id) return antwort(res, { error: "Session fehlt" }, 400);
 
   const session = await store.lesen(id);
   if (!session) return antwort(res, { error: "Duell nicht gefunden" }, 404);
-  if (wendeDuellAblaufAn(session)) await store.speichern(session);
   return antwort(res, { session: oeffentlichesDuell(session, userId) });
 }
 
@@ -112,15 +162,11 @@ export async function POST(req: Request) {
   }
   const aktion = body.aktion as string | undefined;
 
-  function abziehen(stake: number): Response | null {
+  function abziehen(stake: number): { error: string } | null {
     if (profile.punkte < stake) {
-      return antwort(
-        res,
-        {
-          error: `Nicht genug Punkte – für dieses Duell brauchst du ${stake} Punkte.`,
-        },
-        400,
-      );
+      return {
+        error: `Nicht genug Punkte – für dieses Duell brauchst du ${stake} Punkte.`,
+      };
     }
     profile.punkte -= stake;
     profile.punkteVerlauf = profile.punkteVerlauf.slice(-9);
@@ -159,143 +205,254 @@ export async function POST(req: Request) {
     return null;
   }
 
-  // --- create ---
-  if (aktion === "create") {
+  async function raumAnsicht(): Promise<RaumAntwort> {
+    const gaesteRoh = await store.raumLesen();
+    const sortiert = [...gaesteRoh].sort((a, b) =>
+      a.name.localeCompare(b.name, "de"),
+    );
+    const gaeste: OeffentlicherGast[] = sortiert.map((g) => ({
+      userId: g.userId,
+      name: g.name,
+      avatar: g.avatar,
+      stake: g.stake,
+      ich: g.userId === userId,
+    }));
+    gaeste.sort((a, b) => Number(b.ich) - Number(a.ich));
+
+    const beteiligt = await store.challengesFuer(userId);
+    const eingehende: OeffentlicheChallenge[] = [];
+    let ausgehende: OeffentlicheChallenge | null = null;
+    let ausgehendAktualisiert = 0;
+    for (const c of beteiligt) {
+      if (c.an.userId === userId && c.status === "offen") {
+        if (wendeChallengeAblaufAn(c)) {
+          await store.challengeSpeichern(c);
+          continue;
+        }
+        eingehende.push(oeffentlicheChallenge(c, userId));
+      } else if (c.von.userId === userId) {
+        if (c.status === "offen" && wendeChallengeAblaufAn(c)) {
+          await store.challengeSpeichern(c);
+        }
+        if (c.aktualisiertAm >= ausgehendAktualisiert) {
+          ausgehendAktualisiert = c.aktualisiertAm;
+          ausgehende = oeffentlicheChallenge(c, userId);
+        }
+      }
+    }
+    eingehende.sort((a, b) => a.erstelltAm - b.erstelltAm);
+    return { gaeste, eingehende, ausgehende };
+  }
+
+  // --- raum (Heartbeat) ---
+  if (aktion === "raum") {
+    const name = saubererDuellName(body.name, demoName(req, userId));
+    const avatar: DuellAvatar = saubererDuellAvatar(body.avatar);
+    const stake =
+      typeof body.stake === "number" && istGueltigerDuellEinsatz(body.stake)
+        ? body.stake
+        : 10;
+    await store.praesenzMelden({
+      userId,
+      name,
+      avatar,
+      stake,
+      aktualisiertAm: Date.now(),
+    });
+    return antwort(res, await raumAnsicht());
+  }
+
+  // --- herausfordern ---
+  if (aktion === "herausfordern") {
     const captchaFehler = await captcha();
     if (captchaFehler) return captchaFehler;
+
+    const zielUserId =
+      typeof body.zielUserId === "string" ? body.zielUserId.trim() : "";
+    if (!zielUserId) {
+      return antwort(res, { error: "Wen willst du herausfordern?" }, 400);
+    }
+    if (zielUserId === userId) {
+      return antwort(
+        res,
+        { error: "Du kannst dich nicht selbst herausfordern." },
+        400,
+      );
+    }
     if (!istGueltigerDuellEinsatz(body.stake)) {
       return antwort(res, { error: "Ungültiger Einsatz" }, 400);
     }
     const stake = body.stake;
-    const fehler = abziehen(stake);
-    if (fehler) return fehler;
+    const name = saubererDuellName(body.name, demoName(req, userId));
+    const avatar: DuellAvatar = saubererDuellAvatar(body.avatar);
 
-    let code = generiereDuellCode();
-    for (let i = 0; i < 3; i++) {
-      if (!(await store.lesenNachCode(code))) break;
-      code = generiereDuellCode();
+    const gaeste = await store.raumLesen();
+    const ziel = gaeste.find((g) => g.userId === zielUserId);
+    if (!ziel) {
+      return antwort(
+        res,
+        { error: "Diese Gurke hat das Wartezimmer verlassen." },
+        404,
+      );
     }
-    const jetzt = Date.now();
-    const name = saubererDuellName(body.name, demoName(req, userId));
-    const session: DuellSession = {
-      id: generiereDuellId(),
-      code,
-      stake,
-      pot: stake * 2,
-      status: "waiting",
-      spieler: [{ userId, name, symbol: "X" }],
-      board: leeresBrett(),
-      amZug: "X",
-      gewinner: null,
-      gewinnLinie: null,
-      letzterZug: null,
-      erstelltAm: jetzt,
-      aktualisiertAm: jetzt,
-      ausgezahltAn: null,
-      erstattetAn: [],
-    };
-    await store.speichern(session);
-    return antwort(res, { session: oeffentlichesDuell(session, userId) });
-  }
 
-  // --- join-code / join-random ---
-  // Ablauf pro Kandidat im Session-Lock: frisch lesen, prüfen, erst dann
-  // abbuchen und beitreten. So kann kein paralleler Beitritt den anderen
-  // überschreiben und keine Prüfung berührt je Geld.
-  if (aktion === "join-code" || aktion === "join-random") {
-    const captchaFehler = await captcha();
-    if (captchaFehler) return captchaFehler;
-    const name = saubererDuellName(body.name, demoName(req, userId));
-
-    let ids: string[] = [];
-    if (aktion === "join-code") {
-      const code = normalisiereDuellCode(body.code);
-      if (!code) {
-        return antwort(
-          res,
-          { error: "Dieser Code sieht nicht gültig aus (6 Zeichen)." },
-          400,
-        );
-      }
-      const gefunden = await store.lesenNachCode(code);
-      if (!gefunden) {
-        return antwort(
-          res,
-          { error: "Kein Duell mit diesem Code gefunden." },
-          404,
-        );
-      }
-      if (gefunden.spieler.some((s) => s.userId === userId)) {
-        return antwort(res, {
-          session: oeffentlichesDuell(gefunden, userId),
-        });
-      }
-      ids = [gefunden.id];
-    } else {
-      if (!istGueltigerDuellEinsatz(body.stake)) {
-        return antwort(res, { error: "Ungültiger Einsatz" }, 400);
-      }
-      const kandidaten = await store.wartendeFinden(body.stake, userId);
-      if (kandidaten.length === 0) {
+    const beteiligt = await store.challengesFuer(userId);
+    const offeneEigene = beteiligt.find(
+      (c) => c.von.userId === userId && c.status === "offen",
+    );
+    if (offeneEigene) {
+      if (wendeChallengeAblaufAn(offeneEigene)) {
+        await store.challengeSpeichern(offeneEigene);
+      } else {
         return antwort(
           res,
           {
             error:
-              "Gerade kein offenes Duell mit diesem Einsatz – erstelle selbst einen Code und teile ihn.",
-            code: "KEIN_GEGNER",
+              "Du hast schon eine offene Anfrage – warte auf Antwort oder storniere sie.",
           },
-          404,
+          400,
         );
       }
-      ids = kandidaten.map((k) => k.id);
     }
 
-    let letzterFehler: string | null = null;
-    for (const id of ids) {
-      const versuch = await mitDuellSperre(STORE_PREFIX, id, async () => {
-        const live = await store.lesen(id);
-        if (!live) return { ok: false as const, error: "Duell nicht gefunden." };
-        if (wendeDuellAblaufAn(live)) {
-          await store.speichern(live);
-          return { ok: false as const, error: "Dieses Duell ist abgelaufen." };
-        }
-        if (live.status !== "waiting") {
-          return {
-            ok: false as const,
-            error: "Dieses Duell läuft schon oder ist vorbei.",
-          };
-        }
-        if (live.spieler.some((s) => s.userId === userId)) {
-          return {
-            ok: false as const,
-            error: "Du kannst nicht gegen dich selbst spielen.",
-          };
-        }
-        const fehler = abziehen(live.stake);
-        if (fehler) return { ok: false as const, fehler };
-        live.spieler.push({ userId, name, symbol: "O" });
-        live.status = "playing";
-        live.aktualisiertAm = Date.now();
-        await store.speichern(live);
-        return { ok: true as const, live };
-      });
-      if (!versuch.ok) {
-        if ("fehler" in versuch && versuch.fehler) return versuch.fehler;
-        letzterFehler = versuch.error;
-        continue;
-      }
-      return antwort(res, { session: oeffentlichesDuell(versuch.live, userId) });
+    const fehler = abziehen(stake);
+    if (fehler) return antwort(res, fehler, 400);
+
+    const jetzt = Date.now();
+    const challenge: DuellChallenge = {
+      id: generiereDuellId(),
+      von: { userId, name, avatar },
+      an: { userId: ziel.userId, name: ziel.name },
+      stake,
+      status: "offen",
+      sessionId: null,
+      erstelltAm: jetzt,
+      aktualisiertAm: jetzt,
+      erstattetAn: [],
+    };
+    await store.challengeSpeichern(challenge);
+    return antwort(res, {
+      challenge: oeffentlicheChallenge(challenge, userId),
+    });
+  }
+
+  // --- antwort / stornieren / challenge-claim (im Challenge-Lock) ---
+  if (
+    aktion === "antwort" ||
+    aktion === "stornieren" ||
+    aktion === "challenge-claim"
+  ) {
+    const challengeId =
+      typeof body.challengeId === "string" ? body.challengeId.trim() : "";
+    if (!challengeId) return antwort(res, { error: "Anfrage fehlt" }, 400);
+
+    if (aktion === "antwort") {
+      const captchaFehler = await captcha();
+      if (captchaFehler) return captchaFehler;
     }
-    return antwort(
-      res,
-      {
-        error:
-          letzterFehler ??
-          "Die offenen Duelle wurden gerade vergeben – versuch es gleich nochmal oder erstelle selbst eins.",
-        code: aktion === "join-random" ? "KEIN_GEGNER" : undefined,
-      },
-      404,
-    );
+
+    return mitChallengeSperre(STORE_PREFIX, challengeId, async () => {
+      const live = await store.challengeLesen(challengeId);
+      if (!live) return antwort(res, { error: "Anfrage nicht gefunden." }, 404);
+      if (wendeChallengeAblaufAn(live)) {
+        await store.challengeSpeichern(live);
+      }
+
+      if (aktion === "stornieren") {
+        if (live.von.userId !== userId) {
+          return antwort(res, { error: "Das ist nicht deine Anfrage." }, 403);
+        }
+        if (live.status !== "offen") {
+          return antwort(
+            res,
+            { error: "Diese Anfrage ist schon entschieden." },
+            400,
+          );
+        }
+        live.status = "storniert";
+        live.aktualisiertAm = Date.now();
+        await store.challengeSpeichern(live);
+        return antwort(res, {
+          challenge: oeffentlicheChallenge(live, userId),
+        });
+      }
+
+      if (aktion === "challenge-claim") {
+        const anspruch = challengeAnspruch(live, userId);
+        if (!anspruch) {
+          return antwort(
+            res,
+            { error: "Für dich gibt es hier nichts abzuholen." },
+            400,
+          );
+        }
+        gutschrift(anspruch.betrag, "duell-refund", 0);
+        live.erstattetAn.push(userId);
+        live.aktualisiertAm = Date.now();
+        await store.challengeSpeichern(live);
+        return antwort(res, {
+          challenge: oeffentlicheChallenge(live, userId),
+        });
+      }
+
+      // antwort
+      if (live.an.userId !== userId) {
+        return antwort(res, { error: "Diese Anfrage gilt nicht dir." }, 403);
+      }
+      if (live.status !== "offen") {
+        return antwort(
+          res,
+          { error: "Diese Anfrage ist schon entschieden." },
+          400,
+        );
+      }
+      if (body.annehmen !== true) {
+        live.status = "abgelehnt";
+        live.aktualisiertAm = Date.now();
+        await store.challengeSpeichern(live);
+        return antwort(res, {
+          challenge: oeffentlicheChallenge(live, userId),
+        });
+      }
+      const name = saubererDuellName(body.name, demoName(req, userId));
+      const avatar: DuellAvatar = saubererDuellAvatar(body.avatar);
+      const fehler = abziehen(live.stake);
+      if (fehler) return antwort(res, fehler, 400);
+      const jetzt = Date.now();
+      const session: DuellSession = {
+        id: generiereDuellId(),
+        stake: live.stake,
+        pot: live.stake * 2,
+        status: "playing",
+        spieler: [
+          {
+            userId: live.von.userId,
+            name: live.von.name,
+            symbol: "X",
+            avatar: live.von.avatar,
+          },
+          { userId, name, symbol: "O", avatar },
+        ],
+        board: leeresBrett(),
+        amZug: "X",
+        gewinner: null,
+        gewinnLinie: null,
+        letzterZug: null,
+        erstelltAm: jetzt,
+        aktualisiertAm: jetzt,
+        ausgezahltAn: null,
+        erstattetAn: [],
+      };
+      await store.speichern(session);
+      live.status = "angenommen";
+      live.sessionId = session.id;
+      live.aktualisiertAm = jetzt;
+      await store.challengeSpeichern(live);
+      return antwort(res, {
+        challenge: oeffentlicheChallenge(live, userId),
+        session: oeffentlichesDuell(session, userId),
+      });
+    });
   }
 
   // --- Session-Aktionen mit ID (alle im Session-Lock, frisch gelesen) ---
@@ -316,7 +473,6 @@ export async function POST(req: Request) {
       ) {
         return antwort(res, { error: "Ungültiges Feld" }, 400);
       }
-      wendeDuellAblaufAn(session);
       if (session.status !== "playing") {
         return antwort(res, { error: "Dieses Duell läuft gerade nicht." }, 400);
       }
@@ -353,7 +509,6 @@ export async function POST(req: Request) {
     }
 
     if (aktion === "claim") {
-      wendeDuellAblaufAn(session);
       const anspruch = claimAnspruch(session, userId);
       if (!anspruch) {
         return antwort(
@@ -371,25 +526,6 @@ export async function POST(req: Request) {
         gutschrift(anspruch.betrag, "duell-refund", 0);
         session.erstattetAn.push(userId);
       }
-      session.aktualisiertAm = Date.now();
-      await store.speichern(session);
-      return antwort(res, { session: oeffentlichesDuell(session, userId) });
-    }
-
-    if (aktion === "cancel") {
-      wendeDuellAblaufAn(session);
-      const ersteller = session.spieler[0];
-      if (!ersteller || ersteller.userId !== userId) {
-        return antwort(res, { error: "Nur der Ersteller kann stornieren." }, 403);
-      }
-      if (session.status !== "waiting" && session.status !== "expired") {
-        return antwort(
-          res,
-          { error: "Das Duell läuft schon – du kannst nur noch aufgeben." },
-          400,
-        );
-      }
-      session.status = "cancelled";
       session.aktualisiertAm = Date.now();
       await store.speichern(session);
       return antwort(res, { session: oeffentlichesDuell(session, userId) });
