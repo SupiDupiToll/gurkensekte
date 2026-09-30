@@ -99,6 +99,79 @@ export default function DatenschutzPage() {
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-6">
             <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
+              GurkenMail (E-Mail-Adresse & Postfach)
+            </h3>
+            <p className="text-sm text-[#6b7565] mb-2">
+              <strong>Zweck:</strong> Persönliche E-Mail-Adresse
+              (name@gurkensekte.de) mit Posteingang, Versendet-Ordner sowie
+              Versand (extern max. 3 Mails pro Tag und Konto, Empfang
+              unbegrenzt, interne GurkenMails zählen nicht zum Limit)
+            </p>
+            <ul className="list-disc list-inside text-sm text-[#a3ad9a] space-y-1">
+              <li>
+                Adressvergabe aus dem Mitgliedsnamen (Vorname als Basis, bei
+                belegter Adresse mit selbst gewählter Zahl) plus frei
+                wählbarer Absendername – gespeichert in den Kontodaten
+                (Hexclave) und zur Eindeutigkeitsprüfung in Upstash Redis
+              </li>
+              <li>
+                Gespeichert werden Absender, Empfänger, Betreff, Nachrichtentext
+                und Zeitstempel ein- und ausgehender Mails
+              </li>
+              <li>
+                Dateianhänge werden nicht gespeichert, sondern beim Empfang
+                verworfen (nur Anzahl und Dateiname bleiben zur Anzeige)
+              </li>
+              <li>
+                Mails bleiben bis zur Löschung des Kontos gespeichert und werden
+                auf Anfrage (siehe Kontakt unten) gelöscht
+              </li>
+              <li>Bot-Schutz für den Versand per Cloudflare Turnstile</li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+            <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
+              Cloudflare (E-Mail-Empfang & Speicherung)
+            </h3>
+            <p className="text-sm text-[#6b7565] mb-2">
+              <strong>Zweck:</strong> Annahme eingehender GurkenMails und
+              Speicherung der Postfächer
+            </p>
+            <ul className="list-disc list-inside text-sm text-[#a3ad9a] space-y-1">
+              <li>
+                E-Mail-Routing und -Annahme über Cloudflare Email Routing
+              </li>
+              <li>
+                Speicherung der Postfächer in einer Cloudflare-Datenbank (D1)
+              </li>
+              <li>
+                Dabei werden Absender, Betreff und Inhalte zur Zustellung
+                verarbeitet
+              </li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+            <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
+              Resend (E-Mail-Versand an externe Adressen)
+            </h3>
+            <p className="text-sm text-[#6b7565] mb-2">
+              <strong>Zweck:</strong> Zustellung von GurkenMails an Adressen
+              außerhalb von gurkensekte.de (Mails zwischen GurkenMail-Adressen
+              bleiben intern und nutzen diesen Dienst nicht)
+            </p>
+            <ul className="list-disc list-inside text-sm text-[#a3ad9a] space-y-1">
+              <li>
+                Übertragen werden Empfängeradresse, Betreff und
+                Nachrichtentext der versendeten Mail
+              </li>
+              <li>Versand im Namen deiner GurkenMail-Adresse als Absender</li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+            <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
               Mangoe Impressum (Rechtliche Informationen)
             </h3>
             <p className="text-sm text-[#6b7565] mb-2">
