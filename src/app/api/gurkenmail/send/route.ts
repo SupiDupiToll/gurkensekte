@@ -10,7 +10,7 @@ import {
   istInterneAdresse,
   leseMailbox,
 } from "@/lib/gurkenmail";
-import { inboundKonfiguriert } from "@/lib/gurkenmailServer";
+import { inboundKonfiguriert, speichereGesendet } from "@/lib/gurkenmailServer";
 import { mitBenutzerSperre, rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 
@@ -132,6 +132,7 @@ export async function POST(req: Request) {
         gurkenmailSentDate: heute,
         gurkenmailSentCount: bisher + 1,
       });
+      await speichereGesendet(mailbox.localpart, empfaenger, thema, inhalt);
       return { restHeute: GURKENMAIL_MAX_PRO_TAG - (bisher + 1) };
     });
     return Response.json({ ok: true, ...ergebnis });
@@ -222,6 +223,7 @@ async function sendeIntern(
         gurkenmailInternSentDate: heute,
         gurkenmailInternSentCount: bisher + 1,
       });
+      await speichereGesendet(mailbox.localpart, empfaenger, thema, inhalt);
       // Externes Kontingent bleibt unangetastet – zur Anzeige zurückgeben.
       const extern = gesendetHeute(meta, heute);
       return { restHeute: GURKENMAIL_MAX_PRO_TAG - extern, intern: true as const };

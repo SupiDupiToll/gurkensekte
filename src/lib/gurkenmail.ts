@@ -73,11 +73,47 @@ export function normalisiereDisplayName(eingabe: unknown): string | null {
   const wert = eingabe.trim().replace(/[\r\n]+/g, " ").replace(/\s+/g, " ");
   if (wert.length < GURKENMAIL_DISPLAYNAME_MIN || wert.length > GURKENMAIL_DISPLAYNAME_MAX)
     return null;
+  // Kein Mail-Lookalike als Name – dann soll ein echter Name gewählt werden.
+  if (wert.includes("@")) return null;
   return wert;
 }
 
 export function gurkenmailAdresse(localpart: string): string {
   return `${localpart}@${GURKENMAIL_DOMAIN}`;
+}
+
+/**
+ * Vorgegebene Adress-Basis aus dem Mitgliedsnamen: Vorname (alphanumerisch,
+ * klein), Fallback voller Name ohne Leerzeichen, sonst "gurke".
+ * Max. 26 Zeichen, damit eine 1–4-stellige Zahl noch dranpasst (Limit 30).
+ * Die Basis ist nicht frei wählbar – nur die Zahl bei belegter Adresse.
+ */
+export function vorschlagsBasis(anzeigename: unknown): string {
+  const fallback = "gurke";
+  if (typeof anzeigename !== "string") return fallback;
+  const teile = anzeigename.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const norm = (s: string) => s.replace(/[^a-z0-9]/g, "").slice(0, 26);
+  const kandidaten = [
+    teile.length > 0 ? norm(teile[0]) : "",
+    norm(teile.join("")),
+  ];
+  for (const k of kandidaten) {
+    if (k.length < GURKENMAIL_LOCALPART_MIN) continue;
+    if (GURKENMAIL_RESERVIERT.has(k)) continue;
+    return k;
+  }
+  return fallback;
+}
+
+/**
+ * Prüft, ob der Localpart zur vorgegebenen Basis passt: exakt die Basis
+ * oder Basis + selbst gewählte Zahl (1–4 Ziffern).
+ */
+export function passtZuBasis(localpart: string, basis: string): boolean {
+  if (localpart.length > GURKENMAIL_LOCALPART_MAX) return false;
+  if (localpart === basis) return true;
+  if (!localpart.startsWith(basis)) return false;
+  return /^\d{1,4}$/.test(localpart.slice(basis.length));
 }
 
 export function heuteISO(): string {
@@ -130,6 +166,24 @@ export function internerLocalpart(empfaenger: string): string | null {
   return normalisiereLocalpart(lokal);
 }
 
+/**
+ * Anzeigenamen aus einem Absender-String ("Name <mail>" oder "mail") ziehen.
+ * Vor- + Nachname → nur Vorname (erstes Wort). Kein Name (pure Mail) → "".
+ */
+export function absenderVorname(absender: string): string {
+  const m = absender.match(/^\s*"?([^"<]+?)"?\s*<[^<>\s]+@[^<>\s]+>\s*$/);
+  const name = (m ? m[1] : "").trim().replace(/\s+/g, " ");
+  if (!name || name.includes("@")) return "";
+  return name.split(" ")[0];
+}
+
+/** Reine Mail-Adresse aus "Name <mail>" oder purer Adresse ziehen (""). */
+export function absenderMail(absender: string): string {
+  const m = absender.match(/<([^<>\s]+@[^<>\s]+)>/);
+  const kandidat = (m ? m[1] : absender).trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(kandidat) ? kandidat : "";
+}
+
 export type GurkenmailEingang = {
   id: string;
   from: string;
@@ -147,4 +201,20 @@ export type GurkenmailDetail = {
   text: string;
   receivedAt: string;
   attachmentsDropped: number;
+};
+
+export type GurkenmailGesendet = {
+  id: string;
+  to: string;
+  subject: string;
+  snippet: string;
+  sentAt: string;
+};
+
+export type GurkenmailGesendetDetail = {
+  id: string;
+  to: string;
+  subject: string;
+  text: string;
+  sentAt: string;
 };

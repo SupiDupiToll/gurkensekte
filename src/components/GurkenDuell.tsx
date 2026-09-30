@@ -1037,6 +1037,9 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
             meinEintrag && zelle === meinEintrag.symbol
               ? meinEintrag.avatar
               : (gegner?.avatar ?? STANDARD_AVATAR);
+          const steinName = zelle
+            ? (session.spieler.find((s) => s.symbol === zelle)?.name ?? "")
+            : "";
           return (
             <button
               key={i}
@@ -1044,7 +1047,7 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
               disabled={!klickbar}
               aria-label={`Feld ${i + 1}${zelle ? `, belegt mit ${zelle}` : ""}`}
               style={{ animationDelay: `${i * 35}ms` }}
-              className={`duell-zelle-enter flex h-20 items-center justify-center rounded-xl border text-4xl transition-[transform,background-color,border-color] duration-200 ease-out md:h-24 ${
+              className={`duell-zelle-enter flex h-20 flex-col items-center justify-center rounded-xl border text-4xl transition-[transform,background-color,border-color] duration-200 ease-out md:h-24 ${
                 inLinie
                   ? "border-[#8fa96d]/60 bg-[#8fa96d]/[0.12]"
                   : zelle
@@ -1064,7 +1067,14 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
                 className={zelle ? "stein-pop" : undefined}
               >
                 {zelle ? (
-                  <GurkenAvatar avatar={steinAvatar} groesse="text-4xl" />
+                  <span className="flex max-w-full flex-col items-center gap-0.5 leading-none">
+                    <GurkenAvatar avatar={steinAvatar} groesse="text-3xl" />
+                    {steinName && (
+                      <span className="max-w-full truncate px-1 text-[10px] font-semibold text-[#a3ad9a]">
+                        {steinName}
+                      </span>
+                    )}
+                  </span>
                 ) : (
                   ""
                 )}

@@ -7,6 +7,8 @@ import {
   leseMailbox,
   normalisiereDisplayName,
   normalisiereLocalpart,
+  passtZuBasis,
+  vorschlagsBasis,
 } from "@/lib/gurkenmail";
 import { mitBenutzerSperre } from "@/lib/ratelimit";
 import { syncMailboxZumWorker } from "@/lib/gurkenmailServer";
@@ -20,6 +22,7 @@ export async function POST(req: Request) {
     or: "return-null",
   })) as unknown as {
     id: string;
+    displayName?: string | null;
     clientReadOnlyMetadata?: Record<string, unknown>;
     setClientReadOnlyMetadata?: (meta: Record<string, unknown>) => Promise<unknown>;
   } | null;
@@ -36,18 +39,20 @@ export async function POST(req: Request) {
   const { localpart, displayName } = (body ?? {}) as Record<string, unknown>;
   const normLocal = normalisiereLocalpart(localpart);
   const normName = normalisiereDisplayName(displayName);
-  if (!normLocal) {
+  // Die Basis ist vorgegeben (Vorname) – nur Basis oder Basis+Zahl ist erlaubt.
+  const basis = vorschlagsBasis(user.displayName);
+  if (!normLocal || !passtZuBasis(normLocal, basis)) {
     return Response.json(
       {
         error:
-          "Name ungültig: 3–30 Zeichen, nur a–z, 0–9, Punkt, - und _. Nicht reserviert.",
+          "Diese Adresse ist nicht für dich vorgesehen – nimm deine vorgegebene Basis, ggf. mit Zahl.",
       },
       { status: 400 },
     );
   }
   if (!normName) {
     return Response.json(
-      { error: "Absendername ungültig: 2–40 Zeichen." },
+      { error: "Absendername ungültig: 2–40 Zeichen, bitte einen echten Namen (keine E-Mail-Adresse)." },
       { status: 400 },
     );
   }
@@ -112,7 +117,7 @@ export async function POST(req: Request) {
     return Response.json({ mailbox, limitProTag: GURKENMAIL_MAX_PRO_TAG });
   } catch (error) {
     if (error instanceof Error && error.message === "belegt") {
-      return Response.json({ error: "Dieser Name ist schon vergeben." }, { status: 409 });
+      return Response.json({ error: "Diese Adresse ist schon vergeben – häng einfach eine Zahl an (z. B. eine 2)." }, { status: 409 });
     }
     if (error instanceof Error && error.message === "kein-redis") {
       return Response.json(

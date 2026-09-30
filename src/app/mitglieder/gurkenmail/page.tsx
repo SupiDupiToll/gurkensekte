@@ -5,6 +5,8 @@ export const metadata: Metadata = {
   title: "GurkenMail – dein Postfach | Gurken Sekte",
   description:
     "Deine name@gurkensekte.de Adresse: 3 Mails pro Tag senden, Posteingang lesen, als App-Symbol installieren.",
+  // Eigenes Manifest: Installation von hier startet direkt im Postfach.
+  manifest: "/mitglieder/gurkenmail/manifest.webmanifest",
 };
 
 export default function GurkenMailPage() {

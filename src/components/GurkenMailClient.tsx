@@ -1,30 +1,62 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useUser } from "@hexclave/next";
 import { PwaInstallPopup } from "@/components/PwaInstallPopup";
 import { TurnstileWidget, turnstileKonfiguriert } from "@/components/TurnstileWidget";
-import type { GurkenmailDetail, GurkenmailEingang } from "@/lib/gurkenmail";
+import type {
+  GurkenmailDetail,
+  GurkenmailEingang,
+  GurkenmailGesendet,
+  GurkenmailGesendetDetail,
+} from "@/lib/gurkenmail";
+import { absenderMail, absenderVorname, vorschlagsBasis } from "@/lib/gurkenmail";
 
 type Mailbox = { localpart: string; address: string; displayName: string };
-type Ansicht = "liste" | "lesen" | "schreiben";
+type Ansicht = "liste" | "versendet" | "lesen" | "schreiben";
+type LeseQuelle = "inbox" | "sent";
 
-/** GurkenMail als echter Mail-Client: Posteingang → Mail lesen → Schreiben per Button. */
+/** Mail-Adresse aus "Name <mail>" oder purer Adresse ziehen. */
+function adresseAusFrom(from: string): string {
+  const mail = absenderMail(from);
+  if (mail) return mail;
+  const kandidat = from.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(kandidat) ? kandidat : "";
+}
+
+/** Anzeigename für Listen: Vorname aus "Name <mail>", sonst die Adresse selbst. */
+function absenderAnzeigename(absenderOderMail: string): string {
+  return absenderVorname(absenderOderMail) || absenderOderMail;
+}
+
+function zitieren(text: string): string {
+  return text
+    .split("\n")
+    .map((zeile) => `> ${zeile}`)
+    .join("\n");
+}
+
+/** GurkenMail als echter Mail-Client: Posteingang, Versendet, Lesen, Antworten, Weiterleiten. */
 export function GurkenMailClient() {
   const [mailbox, setMailbox] = useState<Mailbox | null>(null);
   const [restHeute, setRestHeute] = useState(3);
   const [limit] = useState(3);
   const [mails, setMails] = useState<GurkenmailEingang[]>([]);
+  const [sentMails, setSentMails] = useState<GurkenmailGesendet[]>([]);
   const [inboxBereit, setInboxBereit] = useState(false);
+  const [sentBereit, setSentBereit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fehler, setFehler] = useState<string | null>(null);
   const [ansicht, setAnsicht] = useState<Ansicht>("liste");
+  const [leseQuelle, setLeseQuelle] = useState<LeseQuelle>("inbox");
 
-  const [localpart, setLocalpart] = useState("");
+  const [nummer, setNummer] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [anlegen, setAnlegen] = useState(false);
 
   const [offeneMail, setOffeneMail] = useState<GurkenmailDetail | null>(null);
+  const [offeneGesendete, setOffeneGesendete] = useState<GurkenmailGesendetDetail | null>(null);
   const [leseLaden, setLeseLaden] = useState(false);
   const [leseFehler, setLeseFehler] = useState<string | null>(null);
 
@@ -37,6 +69,10 @@ export function GurkenMailClient() {
   const [sendeIntern, setSendeIntern] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
+  const [versandHinweis, setVersandHinweis] = useState(false);
+  const [kopiert, setKopiert] = useState(false);
+  const hexUser = useUser();
+  const vorausgefuellt = useRef(false);
 
   const laden = useCallback(async () => {
     setLoading(true);
@@ -47,10 +83,16 @@ export function GurkenMailClient() {
       if (boxRes.ok && box.mailbox) {
         setMailbox(box.mailbox);
         setRestHeute(box.restHeute ?? 3);
-        const inboxRes = await fetch("/api/gurkenmail/inbox");
+        const [inboxRes, sentRes] = await Promise.all([
+          fetch("/api/gurkenmail/inbox"),
+          fetch("/api/gurkenmail/sent"),
+        ]);
         const inbox = await inboxRes.json();
+        const sent = await sentRes.json();
         setMails(Array.isArray(inbox.mails) ? inbox.mails : []);
         setInboxBereit(Boolean(inbox.bereit));
+        setSentMails(Array.isArray(sent.mails) ? sent.mails : []);
+        setSentBereit(Boolean(sent.bereit));
       } else if (boxRes.status === 401) {
         setFehler("Bitte einloggen, um GurkenMail zu nutzen.");
       } else {
@@ -69,6 +111,21 @@ export function GurkenMailClient() {
     laden();
   }, [laden]);
 
+  // Adress-Vorschlag aus dem Mitgliedsnamen: Vorname → Localpart,
+  // voller Name → Absendername. Die Basis ist vorgegeben, nur die Zahl
+  // bei belegter Adresse ist frei wählbar.
+  useEffect(() => {
+    if (vorausgefuellt.current || mailbox || loading) return;
+    const name = hexUser?.displayName?.trim();
+    if (!name) return;
+    vorausgefuellt.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDisplayName(name.replace(/[\r\n]+/g, " ").slice(0, 40));
+  }, [hexUser, mailbox, loading]);
+
+  const basis = vorschlagsBasis(hexUser?.displayName);
+  const vorschauAdresse = `${basis}${nummer}@gurkensekte.de`;
+
   async function handleAnlegen(e: React.FormEvent) {
     e.preventDefault();
     setAnlegen(true);
@@ -77,7 +134,7 @@ export function GurkenMailClient() {
       const res = await fetch("/api/gurkenmail/mailbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ localpart, displayName }),
+        body: JSON.stringify({ localpart: `${basis}${nummer}`, displayName }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Anlegen fehlgeschlagen");
@@ -90,22 +147,118 @@ export function GurkenMailClient() {
     }
   }
 
-  async function mailOeffnen(id: string) {
+  async function mailOeffnen(id: string, quelle: LeseQuelle) {
+    setLeseQuelle(quelle);
     setAnsicht("lesen");
     setLeseLaden(true);
     setLeseFehler(null);
     setOffeneMail(null);
+    setOffeneGesendete(null);
+    setVersandHinweis(false);
     try {
-      const res = await fetch(`/api/gurkenmail/mail/${encodeURIComponent(id)}`);
+      const pfad =
+        quelle === "inbox"
+          ? `/api/gurkenmail/mail/${encodeURIComponent(id)}`
+          : `/api/gurkenmail/sent/${encodeURIComponent(id)}`;
+      const res = await fetch(pfad);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Mail konnte nicht geladen werden");
-      setOffeneMail(data.mail);
-      setMails((prev) => prev.map((m) => (m.id === id ? { ...m, read: true } : m)));
+      if (quelle === "inbox") {
+        setOffeneMail(data.mail);
+        setMails((prev) => prev.map((m) => (m.id === id ? { ...m, read: true } : m)));
+      } else {
+        setOffeneGesendete(data.mail);
+      }
     } catch (err) {
       setLeseFehler(err instanceof Error ? err.message : "Mail konnte nicht geladen werden");
     } finally {
       setLeseLaden(false);
     }
+  }
+
+  function composeOeffnen(neuerAn: string, neuerBetreff: string, neuerText: string) {
+    setAn(neuerAn);
+    setBetreff(neuerBetreff);
+    setText(neuerText);
+    setSendeOk(false);
+    setSendeIntern(false);
+    setSendeFehler(null);
+    setVersandHinweis(false);
+    setAnsicht("schreiben");
+  }
+
+  function antworten() {
+    if (!offeneMail) return;
+    const ziel = adresseAusFrom(offeneMail.from);
+    const re = offeneMail.subject.toLowerCase().startsWith("re:")
+      ? offeneMail.subject
+      : `Re: ${offeneMail.subject || "(ohne Betreff)"}`;
+    const datum = new Date(offeneMail.receivedAt).toLocaleString("de-DE");
+    composeOeffnen(
+      ziel,
+      re,
+      `\n\n---\nAm ${datum} schrieb ${offeneMail.from}:\n${zitieren(offeneMail.text)}`,
+    );
+  }
+
+  function weiterleiten() {
+    const quelle = offeneMail
+      ? {
+          von: offeneMail.from,
+          datum: new Date(offeneMail.receivedAt).toLocaleString("de-DE"),
+          betreff: offeneMail.subject || "(ohne Betreff)",
+          text: offeneMail.text,
+        }
+      : offeneGesendete
+        ? {
+            von: mailbox?.address ?? "",
+            datum: new Date(offeneGesendete.sentAt).toLocaleString("de-DE"),
+            betreff: offeneGesendete.subject || "(ohne Betreff)",
+            text: offeneGesendete.text,
+          }
+        : null;
+    if (!quelle) return;
+    const wg = quelle.betreff.toLowerCase().startsWith("wg:")
+      ? quelle.betreff
+      : `Wg: ${quelle.betreff}`;
+    composeOeffnen(
+      "",
+      wg,
+      `\n\n--- Weitergeleitete Nachricht ---\nVon: ${quelle.von}\nDatum: ${quelle.datum}\nBetreff: ${quelle.betreff}\n\n${quelle.text}`,
+    );
+  }
+
+  /** Leichte Listen-Aktualisierung ohne Lade-Screen (nach Versand). */
+  const ladeListen = useCallback(async () => {
+    try {
+      const [inboxRes, sentRes] = await Promise.all([
+        fetch("/api/gurkenmail/inbox"),
+        fetch("/api/gurkenmail/sent"),
+      ]);
+      const inbox = await inboxRes.json();
+      const sent = await sentRes.json();
+      if (Array.isArray(inbox.mails)) setMails(inbox.mails);
+      if (Array.isArray(sent.mails)) setSentMails(sent.mails);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  async function adresseKopieren() {
+    if (!mailbox) return;
+    try {
+      await navigator.clipboard.writeText(mailbox.address);
+    } catch {
+      // Fallback für alte Browser: temporäres Input-Element.
+      const el = document.createElement("input");
+      el.value = mailbox.address;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setKopiert(true);
+    setTimeout(() => setKopiert(false), 2000);
   }
 
   async function handleSenden(e: React.FormEvent) {
@@ -135,6 +288,10 @@ export function GurkenMailClient() {
       setCaptchaToken(null);
       setCaptchaReset((n) => n + 1);
       setRestHeute(data.restHeute ?? 0);
+      // Direkt zurück in die Inbox – Versendet-Tab im Hintergrund auffrischen.
+      setAnsicht("liste");
+      setVersandHinweis(true);
+      await ladeListen();
     } catch (err) {
       setSendeFehler(err instanceof Error ? err.message : "Versand fehlgeschlagen");
     } finally {
@@ -162,23 +319,28 @@ export function GurkenMailClient() {
           Wähle deine Gurken-Adresse
         </h2>
         <p className="mt-2 text-sm text-[#a3ad9a]">
-          Beim ersten Besuch suchst du dir den Namen vor dem @ aus – plus Absendername.
-          Danach heißt du z.B. <strong className="text-[#ede8d6]">gurkenfan@gurkensekte.de</strong>.
+          Deine Adresse wird aus deinem Vornamen vergeben – du kannst sie nicht frei
+          wählen. Ist sie schon besetzt, häng einfach eine Zahl an (z. B.{" "}
+          <strong className="text-[#ede8d6]">{basis}2@gurkensekte.de</strong>).
         </p>
         <form onSubmit={handleAnlegen} className="mt-5 space-y-3">
-          <label className="block text-xs font-semibold text-[#a3ad9a]">
-            Name vor dem @ (3–30 Zeichen, a–z, 0–9, . - _)
-            <span className="flex items-center gap-1">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-xs font-semibold text-[#a3ad9a]">Deine GurkenMail-Adresse</p>
+            <p className="font-display mt-1 break-all text-xl font-semibold text-[#faf8f1]">
+              {vorschauAdresse}
+            </p>
+            <label className="mt-3 block text-xs font-semibold text-[#a3ad9a]">
+              Zahl anhängen (optional, nur falls besetzt – du wählst sie selbst)
               <input
-                value={localpart}
-                onChange={(e) => setLocalpart(e.target.value)}
-                placeholder="gurkenfan"
+                value={nummer}
+                onChange={(e) => setNummer(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                placeholder="z. B. 2"
+                inputMode="numeric"
                 autoComplete="off"
                 className={inputClass}
               />
-              <span className="shrink-0 text-sm text-[#6b7565]">@gurkensekte.de</span>
-            </span>
-          </label>
+            </label>
+          </div>
           <label className="block text-xs font-semibold text-[#a3ad9a]">
             Absendername (2–40 Zeichen, steht beim Empfänger im Postfach)
             <input
@@ -208,6 +370,7 @@ export function GurkenMailClient() {
   }
 
   const ungelesen = mails.filter((m) => !m.read).length;
+  const inListe = ansicht === "liste" || ansicht === "versendet";
 
   return (
     <div className="space-y-4">
@@ -218,6 +381,12 @@ export function GurkenMailClient() {
         <p className="font-display mt-1 break-all text-2xl font-semibold text-[#faf8f1]">
           {mailbox.address}
         </p>
+        <button
+          onClick={adresseKopieren}
+          className="mt-2 flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#8fa96d]/30 px-3 py-1.5 text-[13px] font-semibold text-[#abc189] transition-colors hover:border-[#8fa96d]/60 hover:text-[#c9d6ae]"
+        >
+          {kopiert ? "✓ Kopiert!" : "📋 Adresse kopieren"}
+        </button>
         <p className="mt-1 text-sm text-[#a3ad9a]">
           Absendername: <strong className="text-[#ede8d6]">{mailbox.displayName}</strong> · Heute noch{" "}
           <strong className="tabular text-[#ede8d6]">{restHeute} / {limit}</strong> Mails
@@ -230,31 +399,52 @@ export function GurkenMailClient() {
       </div>
 
       <div className="card overflow-hidden p-0">
-        {/* Client-Kopf: Ansicht wechseln */}
+        {/* Client-Kopf: Tabs + Aktionen */}
         <div className="flex items-center justify-between gap-2 border-b border-white/[0.08] px-4 py-3 md:px-6">
           <div className="flex items-center gap-2">
-            {ansicht !== "liste" && (
+            {ansicht !== "liste" && ansicht !== "versendet" && (
               <button
-                onClick={() => setAnsicht("liste")}
+                onClick={() => setAnsicht(leseQuelle === "sent" ? "versendet" : "liste")}
                 className="flex min-h-[40px] items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-[13px] font-semibold text-[#a3ad9a] hover:border-white/20 hover:text-[#ede8d6]"
               >
                 ← Zurück
               </button>
             )}
-            <h2 className="font-display text-lg font-semibold text-[#faf8f1]">
-              {ansicht === "liste" && <>📥 Posteingang{ungelesen > 0 && <> ({ungelesen} neu)</>}</>}
-              {ansicht === "lesen" && "📨 Nachricht"}
-              {ansicht === "schreiben" && "✉️ Neue Mail"}
-            </h2>
+            {inListe ? (
+              <div className="flex gap-1 rounded-lg border border-white/10 p-1" role="tablist" aria-label="Ordner">
+                <button
+                  role="tab"
+                  aria-selected={ansicht === "liste"}
+                  onClick={() => {
+                    setVersandHinweis(false);
+                    setAnsicht("liste");
+                  }}
+                  className={`min-h-[40px] rounded-md px-3 py-1.5 text-[13px] font-semibold ${ansicht === "liste" ? "bg-[#ede8d6] text-[#0b120d]" : "text-[#a3ad9a] hover:text-[#ede8d6]"}`}
+                >
+                  📥 Posteingang{ungelesen > 0 && <> ({ungelesen})</>}
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={ansicht === "versendet"}
+                  onClick={() => {
+                    setVersandHinweis(false);
+                    setAnsicht("versendet");
+                  }}
+                  className={`min-h-[40px] rounded-md px-3 py-1.5 text-[13px] font-semibold ${ansicht === "versendet" ? "bg-[#ede8d6] text-[#0b120d]" : "text-[#a3ad9a] hover:text-[#ede8d6]"}`}
+                >
+                  📤 Versendet
+                </button>
+              </div>
+            ) : (
+              <h2 className="font-display text-lg font-semibold text-[#faf8f1]">
+                {ansicht === "lesen" && (leseQuelle === "sent" ? "📨 Gesendete Nachricht" : "📨 Nachricht")}
+                {ansicht === "schreiben" && "✉️ Neue Mail"}
+              </h2>
+            )}
           </div>
-          {ansicht === "liste" && (
+          {inListe && (
             <button
-              onClick={() => {
-                setSendeOk(false);
-                setSendeIntern(false);
-                setSendeFehler(null);
-                setAnsicht("schreiben");
-              }}
+              onClick={() => composeOeffnen("", "", "")}
               disabled={restHeute <= 0}
               className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-[#ede8d6] px-4 py-2 text-sm font-semibold text-[#0b120d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             >
@@ -265,6 +455,11 @@ export function GurkenMailClient() {
 
         {ansicht === "liste" && (
           <div className="p-4 md:p-6">
+            {versandHinweis && (
+              <p role="status" className="mb-3 rounded-xl border border-[#8fa96d]/30 bg-[#8fa96d]/[0.07] px-3 py-2 text-center text-[13px] font-semibold text-[#8fa96d]">
+                🥒 Versendet – landet gleich im Versendet-Tab.
+              </p>
+            )}
             {mails.length === 0 ? (
               <p className="py-6 text-center text-sm text-[#6b7565]">
                 {inboxBereit
@@ -276,13 +471,13 @@ export function GurkenMailClient() {
                 {mails.map((m) => (
                   <li key={m.id}>
                     <button
-                      onClick={() => mailOeffnen(m.id)}
+                      onClick={() => mailOeffnen(m.id, "inbox")}
                       className="block w-full px-2 py-3 text-left transition-colors hover:bg-white/[0.03]"
                     >
                       <span className="flex items-center gap-2">
                         {!m.read && <span className="h-2 w-2 shrink-0 rounded-full bg-[#8fa96d]" aria-label="ungelesen" />}
                         <span className={`truncate text-sm ${m.read ? "font-normal text-[#a3ad9a]" : "font-semibold text-[#ede8d6]"}`}>
-                          {m.subject || "(ohne Betreff)"}
+                          {absenderAnzeigename(m.from)}: {m.subject || "(ohne Betreff)"}
                         </span>
                       </span>
                       <span className="mt-0.5 block truncate pl-4 text-xs text-[#6b7565]">
@@ -298,10 +493,45 @@ export function GurkenMailClient() {
             )}
             <button
               onClick={laden}
-              className="mt-3 w-full min-h-[40px] rounded-lg text-[13px] font-semibold text-[#6b7565] hover:text-[#a3ad9a]"
+              className="mt-3 min-h-[40px] w-full rounded-lg text-[13px] font-semibold text-[#6b7565] hover:text-[#a3ad9a]"
             >
               ↻ Aktualisieren
             </button>
+          </div>
+        )}
+
+        {ansicht === "versendet" && (
+          <div className="p-4 md:p-6">
+            {!sentBereit ? (
+              <p className="py-6 text-center text-sm text-[#6b7565]">
+                Versendet-Verlauf wird freigeschaltet, sobald der Empfangs-Worker verbunden ist.
+              </p>
+            ) : sentMails.length === 0 ? (
+              <p className="py-6 text-center text-sm text-[#6b7565]">
+                Noch nichts versendet – schreib deine erste Gurkenpost.
+              </p>
+            ) : (
+              <ul className="divide-y divide-white/[0.06]">
+                {sentMails.map((m) => (
+                  <li key={m.id}>
+                    <button
+                      onClick={() => mailOeffnen(m.id, "sent")}
+                      className="block w-full px-2 py-3 text-left transition-colors hover:bg-white/[0.03]"
+                    >
+                      <span className="truncate text-sm font-normal text-[#a3ad9a]">
+                        {m.subject || "(ohne Betreff)"}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-[#6b7565]">
+                        An {absenderAnzeigename(m.to)} · {new Date(m.sentAt).toLocaleString("de-DE")}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[13px] text-[#6b7565]">
+                        {m.snippet}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -318,8 +548,11 @@ export function GurkenMailClient() {
                 <h3 className="font-display text-xl font-semibold text-[#faf8f1]">
                   {offeneMail.subject || "(ohne Betreff)"}
                 </h3>
-                <p className="mt-1 text-xs text-[#6b7565]">
-                  Von {offeneMail.from} · {new Date(offeneMail.receivedAt).toLocaleString("de-DE")}
+                <p className="mt-1 text-sm font-semibold text-[#ede8d6]">
+                  Von {absenderAnzeigename(offeneMail.from)}
+                </p>
+                <p className="text-xs text-[#6b7565]">
+                  {adresseAusFrom(offeneMail.from) || offeneMail.from} · {new Date(offeneMail.receivedAt).toLocaleString("de-DE")}
                 </p>
                 {offeneMail.attachmentsDropped > 0 && (
                   <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-[#6b7565]">
@@ -329,6 +562,41 @@ export function GurkenMailClient() {
                 <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#ede8d6]">
                   {offeneMail.text}
                 </p>
+                <div className="mt-5 flex gap-2">
+                  <button
+                    onClick={antworten}
+                    className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#ede8d6] px-4 py-2 text-sm font-semibold text-[#0b120d] active:scale-[0.98]"
+                  >
+                    ↩️ Antworten
+                  </button>
+                  <button
+                    onClick={weiterleiten}
+                    className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/12 px-4 py-2 text-sm font-semibold text-[#a3ad9a] hover:text-[#ede8d6]"
+                  >
+                    ➡️ Weiterleiten
+                  </button>
+                </div>
+              </article>
+            )}
+            {offeneGesendete && (
+              <article>
+                <h3 className="font-display text-xl font-semibold text-[#faf8f1]">
+                  {offeneGesendete.subject || "(ohne Betreff)"}
+                </h3>
+                <p className="mt-1 text-xs text-[#6b7565]">
+                  An {offeneGesendete.to} · {new Date(offeneGesendete.sentAt).toLocaleString("de-DE")}
+                </p>
+                <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#ede8d6]">
+                  {offeneGesendete.text}
+                </p>
+                <div className="mt-5 flex gap-2">
+                  <button
+                    onClick={weiterleiten}
+                    className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/12 px-4 py-2 text-sm font-semibold text-[#a3ad9a] hover:text-[#ede8d6]"
+                  >
+                    ➡️ Weiterleiten
+                  </button>
+                </div>
               </article>
             )}
           </div>
@@ -386,7 +654,7 @@ export function GurkenMailClient() {
               </button>
               <button
                 type="button"
-                onClick={() => setAnsicht("liste")}
+                onClick={() => setAnsicht(leseQuelle === "sent" ? "versendet" : "liste")}
                 className="min-h-[48px] rounded-lg border border-white/12 px-5 py-3 text-sm font-semibold text-[#a3ad9a] hover:text-[#ede8d6]"
               >
                 Abbrechen
@@ -396,11 +664,14 @@ export function GurkenMailClient() {
         )}
       </div>
 
-      <p className="text-center text-xs text-[#4a5548]">
-        <Link href="/mitglieder" className="underline underline-offset-2 hover:text-[#a3ad9a]">
-          Zurück zum Dashboard
+      <div className="mt-6">
+        <Link
+          href="/mitglieder"
+          className="btn-cta flex min-h-[56px] w-full items-center justify-center gap-2 !text-base"
+        >
+          ← Zurück zum Dashboard
         </Link>
-      </p>
+      </div>
       <PwaInstallPopup />
     </div>
   );

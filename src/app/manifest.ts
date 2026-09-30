@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
       "Willkommen bei der Gurken Sekte! Tritt unserem exklusiven Kult bei und spende Gurken für die Erleuchtung.",
     id: "/",
     scope: "/",
-    start_url: "/",
+    start_url: "/mitglieder",
     display: "standalone",
     background_color: "#1e3226",
     theme_color: "#1e3226",

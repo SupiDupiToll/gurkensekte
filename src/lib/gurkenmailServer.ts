@@ -8,6 +8,30 @@ export function inboundKonfiguriert(): boolean {
 }
 
 /**
+ * Gesendete Mail für den Versendet-Tab ablegen. Fail-open: Klappt der
+ * Worker-Call nicht, ist die Mail trotzdem raus – nur der Verlauf fehlt.
+ */
+export async function speichereGesendet(
+  mailboxLocalpart: string,
+  to: string,
+  subject: string,
+  text: string,
+): Promise<void> {
+  if (!inboundKonfiguriert()) return;
+  try {
+    await fetch(new URL("/sent", INBOUND_URL!), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${INBOUND_SECRET}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ mailbox: mailboxLocalpart, to, subject, text }),
+    });
+  } catch (error) {
+    console.error("GurkenMail Sent-Speichern-Fehler:", error);
+  }
+}
+/**
  * Eigene Mailbox in die D1-Tabelle des Empfangs-Workers spiegeln.
  * Best-effort (fail-open): Bei Fehler nur loggen – die Vergabe selbst
  * ist bereits in Hexclave+Upstash gespeichert, der Sync wird beim
