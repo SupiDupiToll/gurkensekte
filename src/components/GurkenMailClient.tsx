@@ -388,8 +388,11 @@ export function GurkenMailClient() {
           {kopiert ? "✓ Kopiert!" : "📋 Adresse kopieren"}
         </button>
         <p className="mt-1 text-sm text-[#a3ad9a]">
-          Absendername: <strong className="text-[#ede8d6]">{mailbox.displayName}</strong> · Heute noch{" "}
-          <strong className="tabular text-[#ede8d6]">{restHeute} / {limit}</strong> Mails
+          Absendername: <strong className="text-[#ede8d6]">{mailbox.displayName}</strong> · Schreiben heute noch{" "}
+          <strong className="tabular text-[#ede8d6]">{restHeute} / {limit}</strong>
+        </p>
+        <p className="mt-1 text-xs text-[#6b7565]">
+          Das 3er-Limit gilt nur fürs Schreiben – Empfangen ist unbegrenzt.
         </p>
         {!inboxBereit && (
           <p className="mt-2 text-xs text-[#6b7565]">
@@ -605,7 +608,7 @@ export function GurkenMailClient() {
         {ansicht === "schreiben" && (
           <form onSubmit={handleSenden} className="space-y-3 p-4 md:p-6">
             <p className="text-xs text-[#6b7565]">
-              Von: {mailbox.address} · Extern max. 3/Tag, nur Text, keine Anhänge in v1.
+              Von: {mailbox.address} · Schreiben extern max. 3/Tag, nur Text, keine Anhänge in v1. Empfangen ist immer unbegrenzt.
             </p>
             <p className="rounded-xl border border-[#8fa96d]/25 bg-[#8fa96d]/[0.06] px-3 py-2 text-xs leading-relaxed text-[#a3ad9a]">
               🥒 <strong className="text-[#ede8d6]">Gurken-Intern gratis:</strong> Mails an andere
@@ -650,7 +653,7 @@ export function GurkenMailClient() {
                 disabled={senden || restHeute <= 0}
                 className="btn-cta btn-cta-primary min-h-[48px] flex-1 !text-[15px] disabled:opacity-40"
               >
-                {restHeute <= 0 ? "Limit erreicht (morgen wieder)" : senden ? "Wird gesendet …" : "✉️ Senden"}
+                {restHeute <= 0 ? "Schreib-Limit erreicht (morgen wieder)" : senden ? "Wird gesendet …" : "✉️ Senden"}
               </button>
               <button
                 type="button"

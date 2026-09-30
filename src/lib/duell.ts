@@ -26,8 +26,8 @@
  *   Herausforderers.
  */
 
-/** Erlaubte Einsätze pro Spieler – bewusst identisch zum Casino. */
-export const DUELL_EINSAETZE = [10, 25, 50] as const;
+/** Erlaubte Einsätze pro Spieler – bis 2.000 für High-Roller-Duelle. */
+export const DUELL_EINSAETZE = [10, 25, 50, 100, 250, 500, 1000, 2000] as const;
 export type DuellEinsatz = (typeof DUELL_EINSAETZE)[number];
 
 /** Prüft, ob ein Einsatzwert aus der erlaubten Liste stammt. */

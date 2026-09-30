@@ -973,7 +973,7 @@ export function MitgliederDashboard({
           <AppKachel
             icon={<EnvelopeSimple size={44} weight="fill" className="text-[#8fa96d]" />}
             titel="GurkenMail"
-            hinweis="3 Mails pro Tag"
+            hinweis="3× schreiben/Tag · Empfang frei"
             index={7}
             href={isDemo ? demoPath("/mitglieder/gurkenmail") : "/mitglieder/gurkenmail"}
           />

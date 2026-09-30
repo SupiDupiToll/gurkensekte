@@ -17,8 +17,8 @@ export default function GurkenMailPage() {
         🥒 GurkenMail
       </h1>
       <p className="mt-3 text-sm text-[#a3ad9a]">
-        Deine Adresse auf <strong className="text-[#ede8d6]">gurkensekte.de</strong> – 3 Mails pro Tag,
-        Posteingang inklusive.
+        Deine Adresse auf <strong className="text-[#ede8d6]">gurkensekte.de</strong> – pro Tag 3 Mails
+        schreiben, unbegrenzt empfangen.
       </p>
       <div className="mt-8">
         <GurkenMailClient />
