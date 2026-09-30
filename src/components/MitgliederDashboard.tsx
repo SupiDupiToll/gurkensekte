@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
+import { ChatMarkdown } from "@/components/ChatMarkdown";
 import { Leaderboard } from "@/components/Leaderboard";
 import { AppKachel } from "@/components/AppKachel";
 import { Popup } from "@/components/Popup";
@@ -768,7 +769,11 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
                   Gürkchen
                 </span>
               )}
-              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.content}</p>
+              {msg.role === "assistant" ? (
+                <ChatMarkdown text={msg.content} />
+              ) : (
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.content}</p>
+              )}
             </div>
           </div>
         ))}
