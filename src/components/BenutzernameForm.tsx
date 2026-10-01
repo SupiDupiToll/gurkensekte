@@ -18,6 +18,7 @@ export function BenutzernameForm({
   const [wert, setWert] = useState(startwert);
   const [fehler, setFehler] = useState<string | null>(null);
   const [senden, setSenden] = useState(false);
+  const [einwilligung, setEinwilligung] = useState(false);
 
   async function absenden(e: React.FormEvent) {
     e.preventDefault();
@@ -26,13 +27,17 @@ export function BenutzernameForm({
       setFehler(lokalFehler);
       return;
     }
+    if (!einwilligung) {
+      setFehler("Bitte bestätige zuerst die Hinweise zum Benutzernamen.");
+      return;
+    }
     setSenden(true);
     setFehler(null);
     try {
       const res = await fetch("/api/mitglieder/benutzername", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ benutzername: wert }),
+        body: JSON.stringify({ benutzername: wert, einwilligung: true }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -74,9 +79,31 @@ export function BenutzernameForm({
         Öffentlich sichtbar: Der Benutzername erscheint u. a. in der Gurken-Rangliste
         und im Duell – wähle ihn entsprechend.
       </p>
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3 text-xs leading-relaxed text-[#a3ad9a]">
+        <input
+          type="checkbox"
+          checked={einwilligung}
+          onChange={(e) => {
+            setEinwilligung(e.target.checked);
+            setFehler(null);
+          }}
+          className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-[#8fa96d]"
+        />
+        <span>
+          Ich habe die{" "}
+          <a href="/datenschutz" target="_blank" rel="noreferrer" className="font-semibold text-[#abc189] underline underline-offset-2 hover:text-[#c9d6ae]">
+            Datenschutzerklärung
+          </a>{" "}
+          und die{" "}
+          <a href="/agb" target="_blank" rel="noreferrer" className="font-semibold text-[#abc189] underline underline-offset-2 hover:text-[#c9d6ae]">
+            AGB
+          </a>{" "}
+          gelesen und akzeptiert und erlaube der Gurken Sekte, mir E-Mails zu senden.
+        </span>
+      </label>
       <button
         type="submit"
-        disabled={senden || wert.trim().length === 0}
+        disabled={senden || wert.trim().length === 0 || !einwilligung}
         className="btn-cta btn-cta-primary min-h-[48px] w-full !text-[15px] disabled:opacity-50"
       >
         {senden ? "Wird gespeichert …" : absendenText}

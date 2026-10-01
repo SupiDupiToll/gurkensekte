@@ -109,6 +109,21 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  // Pflicht-Checkbox aus dem Formular (AGB/Datenschutz + E-Mail-Einwilligung).
+  if ((body as Record<string, unknown> | null)?.einwilligung !== true) {
+    return Response.json(
+      {
+        error:
+          "Bitte bestätige die Hinweise zum Benutzernamen (Datenschutz, AGB und E-Mails).",
+      },
+      { status: 400 },
+    );
+  }
+  const einwilligung = {
+    agbDatenschutz: true,
+    emails: true,
+    am: new Date().toISOString(),
+  };
 
   const env = redisEnv();
   if (!env) {
@@ -124,7 +139,7 @@ export async function POST(req: Request) {
         const frisch = (await leseUser(req)) as MetaUser | null;
         if (!frisch || frisch.id !== user.id) throw new Error("unauthorized");
         const meta = (frisch.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
-        await frisch.setClientReadOnlyMetadata!({ ...meta, benutzername: norm });
+        await frisch.setClientReadOnlyMetadata!({ ...meta, benutzername: norm, einwilligungBenutzername: einwilligung });
         return norm;
       });
       return Response.json({ benutzername: gespeichert, devHinweis: "ohne Upstash" });
@@ -162,7 +177,7 @@ export async function POST(req: Request) {
       }
       await redis.set(`gurke:benutzername:user:${user.id}`, norm);
 
-      await frisch.setClientReadOnlyMetadata!({ ...meta, benutzername: norm });
+      await frisch.setClientReadOnlyMetadata!({ ...meta, benutzername: norm, einwilligungBenutzername: einwilligung });
 
       // Alten Namen freigeben (best-effort – zeigt ggf. noch auf uns, dann löschen).
       if (alt && alt !== norm) {
