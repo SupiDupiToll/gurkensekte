@@ -481,11 +481,17 @@ export function GurkenMailClient() {
                         {!m.read && <span className="h-2 w-2 shrink-0 rounded-full bg-[#8fa96d]" aria-label="ungelesen" />}
                         <span className={`truncate text-sm ${m.read ? "font-normal text-[#a3ad9a]" : "font-semibold text-[#ede8d6]"}`}>
                           {absenderAnzeigename(m.from)}: {m.subject || "(ohne Betreff)"}
+                          {m.attachmentsDropped > 0 && <span title="Anhang entfernt"> 📎</span>}
                         </span>
                       </span>
                       <span className="mt-0.5 block truncate pl-4 text-xs text-[#6b7565]">
                         {m.from} · {new Date(m.receivedAt).toLocaleString("de-DE")}
                       </span>
+                      {m.attachmentsDropped > 0 && (
+                        <span className="mt-0.5 block truncate pl-4 text-xs text-[#abc189]">
+                          📎 {m.attachmentsDropped === 1 ? "1 Anhang entfernt" : `${m.attachmentsDropped} Anhänge entfernt`} – nur Text gespeichert
+                        </span>
+                      )}
                       <span className="mt-0.5 block truncate pl-4 text-[13px] text-[#6b7565]">
                         {m.snippet}
                       </span>
@@ -558,8 +564,10 @@ export function GurkenMailClient() {
                   {adresseAusFrom(offeneMail.from) || offeneMail.from} · {new Date(offeneMail.receivedAt).toLocaleString("de-DE")}
                 </p>
                 {offeneMail.attachmentsDropped > 0 && (
-                  <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-[#6b7565]">
-                    {offeneMail.attachmentsDropped} Anhang/Anhänge entfernt (kein Anhang-Support in v1).
+                  <p className="mt-2 rounded-lg border border-[#8fa96d]/25 bg-[#8fa96d]/[0.07] px-3 py-2 text-xs leading-relaxed text-[#abc189]">
+                    📎 {offeneMail.attachmentsDropped === 1
+                      ? "1 Anhang wurde entfernt"
+                      : `${offeneMail.attachmentsDropped} Anhänge wurden entfernt`} – Anhänge werden in GurkenMail nicht gespeichert, der Text wurde normal zugestellt.
                   </p>
                 )}
                 <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#ede8d6]">
@@ -608,7 +616,7 @@ export function GurkenMailClient() {
         {ansicht === "schreiben" && (
           <form onSubmit={handleSenden} className="space-y-3 p-4 md:p-6">
             <p className="text-xs text-[#6b7565]">
-              Von: {mailbox.address} · Schreiben extern max. 3/Tag, nur Text, keine Anhänge in v1. Empfangen ist immer unbegrenzt.
+              Von: {mailbox.address} · Schreiben extern max. 3/Tag, nur Text. Empfangen ist immer unbegrenzt – Anhänge eingehender Mails werden entfernt (nur Text wird gespeichert).
             </p>
             <p className="rounded-xl border border-[#8fa96d]/25 bg-[#8fa96d]/[0.06] px-3 py-2 text-xs leading-relaxed text-[#a3ad9a]">
               🥒 <strong className="text-[#ede8d6]">Gurken-Intern gratis:</strong> Mails an andere
