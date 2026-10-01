@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import DOMPurify from "dompurify";
 import { useUser } from "@hexclave/next";
-import { PwaInstallPopup } from "@/components/PwaInstallPopup";
 import { TurnstileWidget, turnstileKonfiguriert } from "@/components/TurnstileWidget";
 import type {
   GurkenmailDetail,
@@ -576,7 +575,6 @@ export function GurkenMailClient() {
             {anlegen ? "Wird angelegt …" : "🥒 Adresse sichern"}
           </button>
         </form>
-        <PwaInstallPopup />
       </div>
     );
   }
@@ -939,7 +937,6 @@ export function GurkenMailClient() {
           ← Zurück zum Dashboard
         </Link>
       </div>
-      <PwaInstallPopup />
     </div>
   );
 }
