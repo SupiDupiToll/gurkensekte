@@ -6,6 +6,7 @@ import {
   positionFuer,
   vergleicheEintraege,
 } from "@/lib/leaderboard";
+import { leseBenutzername } from "@/lib/benutzername";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,7 @@ function zuEintrag(user: ServerUser): LeaderboardEintrag {
       : 0;
   const name = (user.displayName ?? "").trim().slice(0, NAME_MAX) || "Anonymes Gurkenkind";
   const seit = user.signedUpAt ? new Date(user.signedUpAt).getTime() : null;
-  return { id: user.id, name, punkte, seit };
+  return { id: user.id, name, benutzername: leseBenutzername(meta), punkte, seit };
 }
 
 /**

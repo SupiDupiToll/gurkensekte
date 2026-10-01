@@ -59,3 +59,14 @@
 .hexclave-settings .text-zinc-400 {
   color: #a3ad9a;
 }
+
+/* Badges („Primary“, „Used for sign-in“, …): Theme-Variablen greifen hier
+   teils nicht – explizite lesbare Farben auf dunklem Grund. */
+.hexclave-settings .text-foreground {
+  color: #ede8d6;
+}
+.hexclave-settings div.inline-flex.items-center.rounded-md.border.text-foreground {
+  border-color: rgba(237, 232, 214, 0.3);
+  background-color: rgba(237, 232, 214, 0.07);
+  color: #ede8d6;
+}

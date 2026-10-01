@@ -70,6 +70,10 @@ export function BenutzernameForm({
           {fehler}
         </p>
       )}
+      <p className="text-xs leading-relaxed text-[#6b7565]">
+        Öffentlich sichtbar: Der Benutzername erscheint u. a. in der Gurken-Rangliste
+        und im Duell – wähle ihn entsprechend.
+      </p>
       <button
         type="submit"
         disabled={senden || wert.trim().length === 0}

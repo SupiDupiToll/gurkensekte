@@ -108,7 +108,7 @@ function InnerPopup() {
       <div className="rounded-t-2xl border border-b-0 border-white/10 bg-[#101b14]/95 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 shadow-2xl shadow-black/50 backdrop-blur-md sm:rounded-2xl sm:border-b sm:p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="font-display text-lg font-semibold text-[#faf8f1]">
-            In einem klick Gurken Sekte beitreten
+            In einem Klick der Gurken Sekte beitreten
           </p>
           <button
             type="button"

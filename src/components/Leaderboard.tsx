@@ -40,7 +40,11 @@ function RangZeile({
         {rang <= 3 ? MEDAILLEN[rang - 1] : rang}
       </span>
       <span className="min-w-0 flex-1 truncate text-sm uppercase tracking-[0.06em] text-[#ede8d6]">
-        {eintrag.name.trim().slice(0, 2)}
+        {eintrag.benutzername ? (
+          <span className="normal-case tracking-normal">@{eintrag.benutzername}</span>
+        ) : (
+          eintrag.name.trim().slice(0, 2)
+        )}
         <span
           className="ml-2 inline-block rounded-lg border border-white/10 bg-white/[0.04] px-2 py-0.5 align-middle text-[10px] font-semibold normal-case tracking-normal text-[#a3ad9a]"
           title={`${zahl(eintrag.punkte)} Punkte`}

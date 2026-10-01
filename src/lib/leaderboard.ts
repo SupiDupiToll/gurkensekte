@@ -8,6 +8,11 @@
 export type LeaderboardEintrag = {
   id: string;
   name: string;
+  /**
+   * Gesetzter Benutzername (öffentlich) – wird voll angezeigt. Ohne
+   * Benutzernamen zeigt die UI nur die ersten zwei Buchstaben von `name`.
+   */
+  benutzername: string | null;
   /** Aktuelles Punkte-Guthaben – Basis des Rankings. */
   punkte: number;
   /** Mitgliedschaft beginnend (ms seit Epoch) – dient als Gleichspiel-Regel. */
