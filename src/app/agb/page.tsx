@@ -43,13 +43,9 @@ export default function AgbPage() {
           Nutzung der Website gurkensekte.de sowie aller damit verbundenen
           Dienste (Mitgliederbereich, GurkenMail, Punkte-System, Spenden).
         </p>
-        <p className="mb-3">
-          (2) Anbieter dieser Dienste ist:
-        </p>
+        <p className="mb-3">(2) Anbieter dieser Dienste ist:</p>
         <ul className="mb-3 list-disc space-y-1 pl-5">
-          <li>[Anbietername – bitte ergänzen]</li>
-          <li>[Adresse – bitte ergänzen]</li>
-          <li>[Kontakt, z. B. E-Mail – bitte ergänzen]</li>
+          <li>Siehe Impressum im Footer</li>
         </ul>
         <p>
           (3) Mit der Registrierung als Mitglied erkennst du die jeweils
@@ -74,16 +70,15 @@ export default function AgbPage() {
       <Abschnitt nr="3" titel="Leistungen">
         <p className="mb-3">
           (1) Der Mitgliederbereich ist kostenlos und umfasst derzeit: den
-          Gürkchen-Chat, täglich generierbare Zitate, das Gurken-Casino
-          (Slots & Roulette), das Duell, GurkenMail (eigene
-          @gurkensekte.de-Adresse) sowie das Punkte- und Rang-System.
+          Gürkchen-Chat, täglich generierbare Zitate, das Gurken-Casino (Slots &
+          Roulette), das Duell, GurkenMail (eigene @gurkensekte.de-Adresse)
+          sowie das Punkte- und Rang-System.
         </p>
         <p className="mb-3">
-          (2) Casino, Roulette und Duell werden ausschließlich mit
-          Spielpunkten gespielt. Es handelt sich um kein Echtgeld-Glücksspiel:
-          Es gibt keine Einsätze in Geld, keine Gewinne in Geld und keine
-          Auszahlung. Eine Glücksspiel-Lizenz ist weder vorhanden noch
-          erforderlich.
+          (2) Casino, Roulette und Duell werden ausschließlich mit Spielpunkten
+          gespielt. Es handelt sich um kein Echtgeld-Glücksspiel: Es gibt keine
+          Einsätze in Geld, keine Gewinne in Geld und keine Auszahlung. Eine
+          Glücksspiel-Lizenz ist weder vorhanden noch erforderlich.
         </p>
         <p>
           (3) Die Antworten des Gürkchen-Chats werden von einer KI erzeugt und
@@ -152,8 +147,8 @@ export default function AgbPage() {
           </li>
         </ul>
         <p className="mb-3">
-          (2) Wer einen Bug findet, meldet ihn statt ihn auszunutzen –
-          Gürkchen belohnt Ehrlichkeit eher als Schummelei.
+          (2) Wer einen Bug findet, meldet ihn statt ihn auszunutzen – Gürkchen
+          belohnt Ehrlichkeit eher als Schummelei.
         </p>
         <p>
           (3) Wer nach einer Sperrung einen neuen Account erstellt, um die
@@ -164,8 +159,8 @@ export default function AgbPage() {
       <Abschnitt nr="8" titel="Verhalten und Inhalte">
         <p className="mb-3">
           (1) Im Chat, im Duell, in Zitaten und überall sonst sind verboten:
-          Beleidigungen, Belästigung, Hassrede, extremistische,
-          pornografische oder sonst rechtswidrige Inhalte.
+          Beleidigungen, Belästigung, Hassrede, extremistische, pornografische
+          oder sonst rechtswidrige Inhalte.
         </p>
         <p>
           (2) Dein Benutzername und dein Rang sind im Leaderboard für alle
@@ -176,9 +171,9 @@ export default function AgbPage() {
 
       <Abschnitt nr="9" titel="GurkenMail-Regeln">
         <p className="mb-3">
-          (1) Jedes Mitglied erhält eine persönliche
-          @gurkensekte.de-Adresse. Der externe Versand ist auf 3 Mails pro Tag
-          und Konto begrenzt; der Empfang ist unbegrenzt.
+          (1) Jedes Mitglied erhält eine persönliche @gurkensekte.de-Adresse.
+          Der externe Versand ist auf 3 Mails pro Tag und Konto begrenzt; der
+          Empfang ist unbegrenzt.
         </p>
         <p className="mb-3">(2) Verboten sind insbesondere:</p>
         <ul className="mb-3 list-disc space-y-1 pl-5">
@@ -198,16 +193,16 @@ export default function AgbPage() {
         </p>
         <p>
           (4) Es besteht keine Garantie für die Zustellung: Mails können in
-          Spam-Filtern der Empfänger-Provider landen (ggf. Spam-Ordner
-          prüfen). Ein Ersatzversand findet nicht statt. Missbrauch führt zur
+          Spam-Filtern der Empfänger-Provider landen (ggf. Spam-Ordner prüfen).
+          Ein Ersatzversand findet nicht statt. Missbrauch führt zur
           Einschränkung oder Sperrung des Versands bis hin zur Kontosperrung.
         </p>
       </Abschnitt>
 
       <Abschnitt nr="10" titel="Freunde werben (Referrals)">
         <p className="mb-3">
-          (1) Für jedes geworbene echte Mitglied gibt es +100 Punkte, sobald
-          die Bedingungen des Referral-Programms erfüllt sind.
+          (1) Für jedes geworbene echte Mitglied gibt es +100 Punkte, sobald die
+          Bedingungen des Referral-Programms erfüllt sind.
         </p>
         <p className="mb-3">(2) Verboten sind:</p>
         <ul className="mb-3 list-disc space-y-1 pl-5">
@@ -239,27 +234,27 @@ export default function AgbPage() {
           werden. Es besteht kein Anspruch auf bisherige Werte.
         </p>
         <p>
-          (3) Rang-Titel sind reine Ehrentitel ohne Rechte oder Ansprüche.
-          Der Punktestand wird nach bestem Wissen geführt, jedoch ohne Gewähr.
+          (3) Rang-Titel sind reine Ehrentitel ohne Rechte oder Ansprüche. Der
+          Punktestand wird nach bestem Wissen geführt, jedoch ohne Gewähr.
         </p>
       </Abschnitt>
 
       <Abschnitt nr="12" titel="Die echte Gurke (Prämie ab 1.000 Punkten)">
         <p className="mb-3">
-          (1) Ab 1.000 Punkten kannst du dir eine echte Gurke per Post
-          bestellen – solange der Vorrat reicht. Statt der Gurke gibt es kein
-          Geld und keine andere Prämie: Gurke oder nichts.
+          (1) Ab 1.000 Punkten kannst du dir eine echte Gurke per Post bestellen
+          – solange der Vorrat reicht. Statt der Gurke gibt es kein Geld und
+          keine andere Prämie: Gurke oder nichts.
         </p>
         <p className="mb-3">
-          (2) Der Versand erfolgt nur innerhalb Deutschlands und nur bei
-          Angabe einer korrekten Lieferadresse (Name, Straße, PLZ, Ort).
-          Die Lieferzeit ist unverbindlich.
+          (2) Der Versand erfolgt nur innerhalb Deutschlands und nur bei Angabe
+          einer korrekten Lieferadresse (Name, Straße, PLZ, Ort). Die Lieferzeit
+          ist unverbindlich.
         </p>
         <p className="mb-3">
-          (3) Bei falsch angegebener Adresse gibt es keinen Ersatzversand;
-          die eingelösten Punkte sind trotzdem weg. Für Verderb auf dem
-          Postweg wird kein Ersatz geleistet – es handelt sich um frisches
-          Gemüse, nicht um Goldbarren.
+          (3) Bei falsch angegebener Adresse gibt es keinen Ersatzversand; die
+          eingelösten Punkte sind trotzdem weg. Für Verderb auf dem Postweg wird
+          kein Ersatz geleistet – es handelt sich um frisches Gemüse, nicht um
+          Goldbarren.
         </p>
         <p className="mb-3">
           (4) Verzehr auf eigene Gefahr. Bei Allergien (z. B.
@@ -285,20 +280,20 @@ export default function AgbPage() {
         </p>
         <p>
           (3) Wer eine Spende ohne berechtigten Grund per Chargeback
-          zurückbucht, muss mit Prüfung und bei Missbrauch mit der Sperrung
-          des Accounts rechnen.
+          zurückbucht, muss mit Prüfung und bei Missbrauch mit der Sperrung des
+          Accounts rechnen.
         </p>
       </Abschnitt>
 
       <Abschnitt nr="14" titel="Laufzeit, Kündigung und Sperrung">
         <p className="mb-3">
-          (1) Die Mitgliedschaft ist unbefristet und kann jederzeit ohne
-          Angabe von Gründen gekündigt werden (Kontolöschung). Bei Löschung
-          verfallen Punkte, Ränge und GurkenMail-Adresse unwiderruflich.
+          (1) Die Mitgliedschaft ist unbefristet und kann jederzeit ohne Angabe
+          von Gründen gekündigt werden (Kontolöschung). Bei Löschung verfallen
+          Punkte, Ränge und GurkenMail-Adresse unwiderruflich.
         </p>
         <p>
-          (2) Bei Verstößen gegen diese AGB behalten wir uns – je nach Schwere
-          – vor: Verwarnung, zeitweise Einschränkung (z. B. Mail- oder
+          (2) Bei Verstößen gegen diese AGB behalten wir uns – je nach Schwere –
+          vor: Verwarnung, zeitweise Einschränkung (z. B. Mail- oder
           Casino-Sperre) oder dauerhafte Kontosperrung. Das Hausrecht des
           Einlegeglases bleibt unberührt.
         </p>
@@ -322,8 +317,8 @@ export default function AgbPage() {
         <p>
           (2) Bei leichter Fahrlässigkeit haften wir nur bei Verletzung
           wesentlicher Vertragspflichten und nur für den typischerweise
-          vorhersehbaren Schaden. Für kostenlose Dienste ist die Haftung
-          darüber hinaus ausgeschlossen, soweit gesetzlich zulässig.
+          vorhersehbaren Schaden. Für kostenlose Dienste ist die Haftung darüber
+          hinaus ausgeschlossen, soweit gesetzlich zulässig.
         </p>
       </Abschnitt>
 
@@ -357,10 +352,10 @@ export default function AgbPage() {
         <p className="mb-3">
           (2) Informationen zur Online-Streitbeilegung der EU und zur
           Verbraucherschlichtung: Die EU-Kommission stellt eine Plattform zur
-          Online-Streitbeilegung bereit ([Link bitte ergänzen]). Wir sind
-          weder verpflichtet noch bereit, an einem
-          Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle
-          teilzunehmen, sofern sich dies nicht ändert ([ggf. anpassen]).
+          Online-Streitbeilegung bereit ([Link bitte ergänzen]). Wir sind weder
+          verpflichtet noch bereit, an einem Streitbeilegungsverfahren vor einer
+          Verbraucherschlichtungsstelle teilzunehmen, sofern sich dies nicht
+          ändert ([ggf. anpassen]).
         </p>
         <p>
           (3) Sollte eine Bestimmung dieser AGB unwirksam sein, bleibt der Rest
