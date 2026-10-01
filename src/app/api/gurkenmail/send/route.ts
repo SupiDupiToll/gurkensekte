@@ -116,7 +116,7 @@ export async function POST(req: Request) {
           reply_to: mailbox.address,
           to: [empfaenger],
           subject: thema,
-          text: `${inhalt}\n\n— gesendet via GurkenMail 🥒`,
+          text: inhalt,
         }),
       });
       if (!res.ok) {
@@ -212,7 +212,7 @@ async function sendeIntern(
           to: zielLocal,
           from: `${mailbox.displayName} <${mailbox.address}>`,
           subject: thema,
-          text: `${inhalt}\n\n— gesendet via GurkenMail 🥒`,
+          text: inhalt,
         }),
       });
       if (res.status === 404) throw new Error("unbekannt");

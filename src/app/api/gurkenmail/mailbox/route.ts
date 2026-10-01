@@ -98,14 +98,15 @@ export async function POST(req: Request) {
         throw new Error("kein-redis");
       }
 
-      await frisch.setClientReadOnlyMetadata({
+      const update: Record<string, unknown> = {
         ...meta,
         gurkenmailLocalpart: normLocal,
         gurkenmailDisplayName: normName,
         gurkenmailSentDate: meta.gurkenmailSentDate ?? heuteISO(),
         gurkenmailSentCount:
           typeof meta.gurkenmailSentCount === "number" ? meta.gurkenmailSentCount : 0,
-      });
+      };
+      await frisch.setClientReadOnlyMetadata(update);
       // D1-Spiegel für Zustellung (fail-open – wird sonst nachgeholt).
       await syncMailboxZumWorker(normLocal, user.id);
       return {
