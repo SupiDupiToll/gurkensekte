@@ -65,6 +65,7 @@ import {
   type OeffentlicherGast,
 } from "@/lib/duell";
 import { duellStore, mitChallengeSperre, mitDuellSperre } from "@/lib/duellStore";
+import { leseBenutzername } from "@/lib/benutzername";
 
 export const runtime = "nodejs";
 
@@ -80,6 +81,7 @@ const FENSTER_MS = 60 * 60 * 1000;
 type RouteUser = {
   id: string;
   displayName?: string | null;
+  clientReadOnlyMetadata?: Record<string, unknown>;
 };
 
 async function holeUser(req: Request): Promise<RouteUser | Response> {
@@ -91,6 +93,19 @@ async function holeUser(req: Request): Promise<RouteUser | Response> {
     return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
   }
   return user as RouteUser;
+}
+
+/**
+ * Anzeigename im Duell: bevorzugt der eindeutige Benutzername (falls schon
+ * vergeben), sonst der frei wählbare Profilname mit DisplayName-Fallback.
+ * Der Server ist maßgeblich – der Client kann keinen fremden Namen setzen.
+ */
+function duellAnzeigename(user: RouteUser, wunsch: unknown): string {
+  const benutzername = leseBenutzername(
+    (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>,
+  );
+  if (benutzername) return benutzername;
+  return saubererDuellName(wunsch, user.displayName ?? "Gurkenfreund");
 }
 
 /** Zieht den Einsatz vom eigenen Konto ab (TOCTOU-sicher im Lock). */
@@ -350,10 +365,7 @@ async function handleRaum(
   user: RouteUser,
   body: Record<string, unknown>,
 ) {
-  const name = saubererDuellName(
-    body.name,
-    user.displayName ?? "Gurkenfreund",
-  );
+  const name = duellAnzeigename(user, body.name);
   const avatar: DuellAvatar = saubererDuellAvatar(body.avatar);
   const stake =
     typeof body.stake === "number" && istGueltigerDuellEinsatz(body.stake)
@@ -401,10 +413,7 @@ async function handleHerausfordern(
     return Response.json({ error: "Ungültiger Einsatz" }, { status: 400 });
   }
   const stake = body.stake;
-  const name = saubererDuellName(
-    body.name,
-    user.displayName ?? "Gurkenfreund",
-  );
+  const name = duellAnzeigename(user, body.name);
   const avatar: DuellAvatar = saubererDuellAvatar(body.avatar);
 
   if (
@@ -496,10 +505,7 @@ async function handleAntwort(
     return Response.json({ error: "Anfrage fehlt" }, { status: 400 });
   }
   const annehmen = body.annehmen === true;
-  const name = saubererDuellName(
-    body.name,
-    user.displayName ?? "Gurkenfreund",
-  );
+  const name = duellAnzeigename(user, body.name);
   const avatar: DuellAvatar = saubererDuellAvatar(body.avatar);
 
   if (!(await rateLimit(`duell:aktion:${user.id}`, AKTION_LIMIT, FENSTER_MS))) {

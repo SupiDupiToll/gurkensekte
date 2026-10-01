@@ -180,6 +180,10 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
   );
   const [captchaReset, setCaptchaReset] = useState(0);
   const speicherKey = `gurken-duell:${duellApiBase}`;
+  // Echter Benutzername (nur Realbereich): Der Server zeigt ihn im Duell
+  // maßgeblich an – das freie Namensfeld ist dann gesperrt.
+  const istDemo = duellApiBase.startsWith("/demo/");
+  const [benutzername, setBenutzername] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Bereits übernommene angenommene Challenge: Der Heartbeat lädt die Session
   // genau einmal – sonst zieht er Gewinner nach „Zurück ins Wartezimmer"
@@ -297,6 +301,38 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
       aktiv = false;
     };
   }, [duellApiBase, speicherKey, sessionId]);
+
+  // Echten Benutzernamen laden (nur Realbereich): Er ersetzt den lokalen
+  // Profilnamen und wird im Wartezimmer/Spiel für alle sichtbar angezeigt.
+  useEffect(() => {
+    if (istDemo) return;
+    let aktiv = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/mitglieder/benutzername");
+        const data = await res.json().catch(() => ({}));
+        if (!aktiv) return;
+        if (typeof data.benutzername === "string" && data.benutzername) {
+          setBenutzername(data.benutzername);
+          setProfil((prev) => {
+            if (prev.name === data.benutzername) return prev;
+            const neu = { ...prev, name: data.benutzername as string };
+            try {
+              window.localStorage.setItem(PROFIL_KEY, JSON.stringify(neu));
+            } catch {
+              // Privater Modus – gilt nur für diese Sitzung.
+            }
+            return neu;
+          });
+        }
+      } catch {
+        // Fail-open: freier Profilname wie bisher.
+      }
+    })();
+    return () => {
+      aktiv = false;
+    };
+  }, [istDemo]);
 
   // Live-Polling der laufenden Session alle 2 s.
   const sessionStatus = session?.status;
@@ -556,7 +592,7 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
                 Dein Name
                 <input
                   type="text"
-                  value={profil.name}
+                  value={benutzername ?? profil.name}
                   onChange={(e) =>
                     profilSpeichern({
                       ...profil,
@@ -566,9 +602,27 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
                   placeholder="z. B. Gurkenkönig"
                   maxLength={24}
                   autoComplete="off"
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-base text-[#ede8d6] placeholder-[#6b7565]/70 outline-none transition-colors focus:border-[#8fa96d]"
+                  disabled={benutzername !== null}
+                  title={
+                    benutzername !== null
+                      ? "Dein Benutzername – änderbar in den Einstellungen"
+                      : undefined
+                  }
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-base text-[#ede8d6] placeholder-[#6b7565]/70 outline-none transition-colors focus:border-[#8fa96d] disabled:opacity-60"
                 />
               </label>
+              {benutzername !== null && (
+                <p className="-mt-2 text-xs text-[#6b7565]">
+                  @{benutzername} · aus deinem Konto – änderbar in den{" "}
+                  <a
+                    href="/mitglieder/einstellungen"
+                    className="font-semibold text-[#abc189] underline underline-offset-2 hover:text-[#c9d6ae]"
+                  >
+                    Einstellungen
+                  </a>
+                  .
+                </p>
+              )}
 
               <div>
                 <p className="mb-2 text-xs font-semibold text-[#a3ad9a]">

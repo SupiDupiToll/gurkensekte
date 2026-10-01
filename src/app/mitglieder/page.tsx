@@ -2,6 +2,7 @@
 
 import { useUser, useHexclaveApp } from "@hexclave/next";
 import { MitgliederDashboard } from "@/components/MitgliederDashboard";
+import { BenutzernameGate } from "@/components/BenutzernameGate";
 
 export default function MitgliederPage() {
   // Signed-out visitors are sent straight to the sign-in page instead of an
@@ -10,14 +11,17 @@ export default function MitgliederPage() {
   const app = useHexclaveApp();
 
   return (
-    <MitgliederDashboard
-      user={{
-        id: user.id,
-        displayName: user.displayName,
-        primaryEmail: user.primaryEmail,
-        signedUpAt: user.signedUpAt,
-      }}
-      onSignOut={() => app.redirectToSignOut()}
-    />
+    <>
+      <MitgliederDashboard
+        user={{
+          id: user.id,
+          displayName: user.displayName,
+          primaryEmail: user.primaryEmail,
+          signedUpAt: user.signedUpAt,
+        }}
+        onSignOut={() => app.redirectToSignOut()}
+      />
+      <BenutzernameGate />
+    </>
   );
 }

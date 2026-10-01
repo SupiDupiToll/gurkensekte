@@ -11,7 +11,7 @@ import type {
   GurkenmailGesendet,
   GurkenmailGesendetDetail,
 } from "@/lib/gurkenmail";
-import { absenderMail, absenderName, absenderVorname, vorschlagsBasis } from "@/lib/gurkenmail";
+import { absenderMail, absenderName, absenderVorname, normalisiereLocalpart, vorschlagsBasis } from "@/lib/gurkenmail";
 
 type Mailbox = { localpart: string; address: string; displayName: string };
 type Ansicht = "liste" | "versendet" | "lesen" | "schreiben";
@@ -240,6 +240,7 @@ export function GurkenMailClient() {
   const [mehrLaedt, setMehrLaedt] = useState<"inbox" | "sent" | null>(null);
   const hexUser = useUser();
   const vorausgefuellt = useRef(false);
+  const [benutzernameBasis, setBenutzernameBasis] = useState<string | null>(null);
 
   const laden = useCallback(async () => {
     setLoading(true);
@@ -313,9 +314,31 @@ export function GurkenMailClient() {
     laden();
   }, [laden]);
 
-  // Adress-Vorschlag aus dem Mitgliedsnamen: Vorname → Localpart,
-  // voller Name → Absendername. Die Basis ist vorgegeben, nur die Zahl
-  // bei belegter Adresse ist frei wählbar.
+  // Adress-Vorschlag: bevorzugt der eindeutige Benutzername, Fallback der
+  // Mitgliedsname (Vorname → Localpart, voller Name → Absendername).
+  // Die Basis ist vorgegeben, nur die Zahl bei belegter Adresse ist frei wählbar.
+  useEffect(() => {
+    let aktiv = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/mitglieder/benutzername");
+        const data = await res.json().catch(() => ({}));
+        if (
+          aktiv &&
+          typeof data.benutzername === "string" &&
+          data.benutzername
+        ) {
+          setBenutzernameBasis(data.benutzername);
+        }
+      } catch {
+        // Fail-open: Fallback auf Anzeigenamen.
+      }
+    })();
+    return () => {
+      aktiv = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (vorausgefuellt.current || mailbox || loading) return;
     const name = hexUser?.displayName?.trim();
@@ -325,7 +348,9 @@ export function GurkenMailClient() {
     setDisplayName(name.replace(/[\r\n]+/g, " ").slice(0, 40));
   }, [hexUser, mailbox, loading]);
 
-  const basis = vorschlagsBasis(hexUser?.displayName);
+  const basis =
+    (benutzernameBasis && normalisiereLocalpart(benutzernameBasis)) ||
+    vorschlagsBasis(hexUser?.displayName);
   const vorschauAdresse = `${basis}${nummer}@gurkensekte.de`;
 
   async function handleAnlegen(e: React.FormEvent) {

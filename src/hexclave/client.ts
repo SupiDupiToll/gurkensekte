@@ -9,6 +9,7 @@ export const hexclaveClientApp = new HexclaveClientApp({
     handler: "/handler",
     signIn: "/mitglieder/login",
     signUp: "/mitglieder/signup",
+    accountSettings: "/mitglieder/einstellungen",
     afterSignIn: "/mitglieder",
     afterSignUp: "/mitglieder",
     afterSignOut: "/",

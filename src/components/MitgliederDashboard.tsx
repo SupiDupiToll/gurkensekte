@@ -32,6 +32,7 @@ import {
   DiceFive,
   Sword,
   EnvelopeSimple,
+  GearSix,
 } from "@phosphor-icons/react";
 import { demoPath } from "@/lib/demo";
 import { adresseFormatieren } from "@/lib/bestellung";
@@ -887,6 +888,26 @@ export function MitgliederDashboard({
   onSignOut?: () => void;
 }) {
   const email = user.primaryEmail ?? "unbekannt@sektenmitglied.de";
+  const [benutzername, setBenutzername] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isDemo) return;
+    let aktiv = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/mitglieder/benutzername");
+        const data = await res.json().catch(() => ({}));
+        if (aktiv && typeof data.benutzername === "string") {
+          setBenutzername(data.benutzername);
+        }
+      } catch {
+        // Fail-open: Dashboard bleibt nutzbar.
+      }
+    })();
+    return () => {
+      aktiv = false;
+    };
+  }, [isDemo]);
 
   return (
     <PunkteProvider apiBase={punkteApiBase}>
@@ -907,6 +928,17 @@ export function MitgliederDashboard({
             Willkommen zurück, {user.displayName ?? "Gurkenfreund"}.
           </h1>
           <p className="tabular mt-3 text-sm text-[#6b7565]">{email}</p>
+          {!isDemo && benutzername && (
+            <p className="mt-1 text-sm text-[#a3ad9a]">
+              <span className="font-semibold text-[#ede8d6]">@{benutzername}</span>{" "}
+              <Link
+                href="/mitglieder/einstellungen"
+                className="font-semibold text-[#abc189] underline underline-offset-2 hover:text-[#c9d6ae]"
+              >
+                Einstellungen
+              </Link>
+            </p>
+          )}
         </Reveal>
 
         <Reveal delay={1}>
@@ -982,6 +1014,16 @@ export function MitgliederDashboard({
             index={7}
             href={isDemo ? demoPath("/mitglieder/gurkenmail") : "/mitglieder/gurkenmail"}
           />
+
+          {!isDemo && (
+            <AppKachel
+              icon={<GearSix size={44} weight="fill" className="text-[#a3ad9a]" />}
+              titel="Einstellungen"
+              hinweis="Name, Passkey, MFA & mehr"
+              index={8}
+              href="/mitglieder/einstellungen"
+            />
+          )}
         </div>
 
         <div className="mt-8 text-center">

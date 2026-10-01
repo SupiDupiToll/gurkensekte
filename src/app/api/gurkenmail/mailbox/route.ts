@@ -10,6 +10,7 @@ import {
   passtZuBasis,
   vorschlagsBasis,
 } from "@/lib/gurkenmail";
+import { leseBenutzername } from "@/lib/benutzername";
 import { mitBenutzerSperre } from "@/lib/ratelimit";
 import { syncMailboxZumWorker } from "@/lib/gurkenmailServer";
 
@@ -39,8 +40,14 @@ export async function POST(req: Request) {
   const { localpart, displayName } = (body ?? {}) as Record<string, unknown>;
   const normLocal = normalisiereLocalpart(localpart);
   const normName = normalisiereDisplayName(displayName);
-  // Die Basis ist vorgegeben (Vorname) – nur Basis oder Basis+Zahl ist erlaubt.
-  const basis = vorschlagsBasis(user.displayName);
+  // Adress-Basis: bevorzugt der eindeutige Benutzername (neue Nutzer),
+  // Fallback der Hexclave-Anzeigename (Altbestand ohne Benutzername).
+  // Nur die Zahl bei belegter Adresse ist frei wählbar.
+  const metaVorab = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
+  const nameAusBenutzername = leseBenutzername(metaVorab);
+  const basis =
+    (nameAusBenutzername && normalisiereLocalpart(nameAusBenutzername)) ||
+    vorschlagsBasis(user.displayName);
   if (!normLocal || !passtZuBasis(normLocal, basis)) {
     return Response.json(
       {
