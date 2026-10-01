@@ -18,6 +18,9 @@ type Mailbox = { localpart: string; address: string; displayName: string };
 type Ansicht = "liste" | "versendet" | "lesen" | "schreiben";
 type LeseQuelle = "inbox" | "sent";
 
+/** So viele Mails lädt eine Seite – Rest per „Mehr laden". */
+const SEITEN_GROESSE = 5;
+
 /** Mail-Adresse aus "Name <mail>" oder purer Adresse ziehen. */
 function adresseAusFrom(from: string): string {
   const mail = absenderMail(from);
@@ -140,6 +143,7 @@ function SichereMailAnsicht({ html }: { html: string }) {
         ? null
         : `<!doctype html><html><head><meta charset="utf-8">` +
           `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+          `<base target="_blank">` +
           `<style>html,body{margin:0;padding:12px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;` +
           `font-size:14px;line-height:1.6;color:#1a1a1a;background:#fff;word-wrap:break-word}` +
           `img{max-width:100%;height:auto}a{color:#1a56db;word-break:break-all}` +
@@ -231,6 +235,10 @@ export function GurkenMailClient() {
   const [captchaReset, setCaptchaReset] = useState(0);
   const [versandHinweis, setVersandHinweis] = useState(false);
   const [kopiert, setKopiert] = useState(false);
+  // Paginierung: nur die 5 neusten laden, Rest per „Mehr laden".
+  const [inboxMehr, setInboxMehr] = useState(false);
+  const [sentMehr, setSentMehr] = useState(false);
+  const [mehrLaedt, setMehrLaedt] = useState<"inbox" | "sent" | null>(null);
   const hexUser = useUser();
   const vorausgefuellt = useRef(false);
 
@@ -244,15 +252,17 @@ export function GurkenMailClient() {
         setMailbox(box.mailbox);
         setRestHeute(box.restHeute ?? 3);
         const [inboxRes, sentRes] = await Promise.all([
-          fetch("/api/gurkenmail/inbox"),
-          fetch("/api/gurkenmail/sent"),
+          fetch(`/api/gurkenmail/inbox?limit=${SEITEN_GROESSE}&offset=0`),
+          fetch(`/api/gurkenmail/sent?limit=${SEITEN_GROESSE}&offset=0`),
         ]);
         const inbox = await inboxRes.json();
         const sent = await sentRes.json();
         setMails(Array.isArray(inbox.mails) ? inbox.mails : []);
         setInboxBereit(Boolean(inbox.bereit));
+        setInboxMehr(Boolean(inbox.hasMore));
         setSentMails(Array.isArray(sent.mails) ? sent.mails : []);
         setSentBereit(Boolean(sent.bereit));
+        setSentMehr(Boolean(sent.hasMore));
       } else if (boxRes.status === 401) {
         setFehler("Bitte einloggen, um GurkenMail zu nutzen.");
       } else {
@@ -264,6 +274,39 @@ export function GurkenMailClient() {
       setLoading(false);
     }
   }, []);
+
+  /** Nächste Seite anhängen (Posteingang oder Versendet). */
+  async function mehrLaden(quelle: "inbox" | "sent") {
+    if (mehrLaedt) return;
+    setMehrLaedt(quelle);
+    try {
+      const pfad =
+        quelle === "inbox"
+          ? `/api/gurkenmail/inbox?limit=${SEITEN_GROESSE}&offset=${mails.length}`
+          : `/api/gurkenmail/sent?limit=${SEITEN_GROESSE}&offset=${sentMails.length}`;
+      const res = await fetch(pfad);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Nachladen fehlgeschlagen");
+      const neu = Array.isArray(data.mails) ? data.mails : [];
+      if (quelle === "inbox") {
+        setMails((prev) => {
+          const bekannt = new Set(prev.map((m) => m.id));
+          return [...prev, ...neu.filter((m: GurkenmailEingang) => !bekannt.has(m.id))];
+        });
+        setInboxMehr(Boolean(data.hasMore));
+      } else {
+        setSentMails((prev) => {
+          const bekannt = new Set(prev.map((m) => m.id));
+          return [...prev, ...neu.filter((m: GurkenmailGesendet) => !bekannt.has(m.id))];
+        });
+        setSentMehr(Boolean(data.hasMore));
+      }
+    } catch {
+      // Still scheitern: Liste bleibt wie sie ist, Button bleibt klickbar.
+    } finally {
+      setMehrLaedt(null);
+    }
+  }
 
   useEffect(() => {
     // Einmaliges Laden beim Mount – kein State-Sync.
@@ -395,18 +438,23 @@ export function GurkenMailClient() {
   /** Leichte Listen-Aktualisierung ohne Lade-Screen (nach Versand). */
   const ladeListen = useCallback(async () => {
     try {
+      // Bereits nachgeladene Seiten behalten: bis zur aktuellen Anzahl neu holen.
+      const inboxLimit = Math.max(SEITEN_GROESSE, mails.length);
+      const sentLimit = Math.max(SEITEN_GROESSE, sentMails.length);
       const [inboxRes, sentRes] = await Promise.all([
-        fetch("/api/gurkenmail/inbox"),
-        fetch("/api/gurkenmail/sent"),
+        fetch(`/api/gurkenmail/inbox?limit=${inboxLimit}&offset=0`),
+        fetch(`/api/gurkenmail/sent?limit=${sentLimit}&offset=0`),
       ]);
       const inbox = await inboxRes.json();
       const sent = await sentRes.json();
       if (Array.isArray(inbox.mails)) setMails(inbox.mails);
+      setInboxMehr(Boolean(inbox.hasMore));
       if (Array.isArray(sent.mails)) setSentMails(sent.mails);
+      setSentMehr(Boolean(sent.hasMore));
     } catch {
       // ignore
     }
-  }, []);
+  }, [mails.length, sentMails.length]);
 
   async function adresseKopieren() {
     if (!mailbox) return;
@@ -670,6 +718,15 @@ export function GurkenMailClient() {
             >
               ↻ Aktualisieren
             </button>
+            {inboxMehr && mails.length > 0 && (
+              <button
+                onClick={() => mehrLaden("inbox")}
+                disabled={mehrLaedt !== null}
+                className="mt-2 min-h-[44px] w-full rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] hover:border-white/20 hover:text-[#ede8d6] disabled:opacity-50"
+              >
+                {mehrLaedt === "inbox" ? "Lädt …" : `Mehr laden (${SEITEN_GROESSE} weitere)`}
+              </button>
+            )}
           </div>
         )}
 
@@ -704,6 +761,15 @@ export function GurkenMailClient() {
                   </li>
                 ))}
               </ul>
+            )}
+            {sentMehr && sentMails.length > 0 && (
+              <button
+                onClick={() => mehrLaden("sent")}
+                disabled={mehrLaedt !== null}
+                className="mt-3 min-h-[44px] w-full rounded-lg border border-white/10 px-4 py-2 text-[13px] font-semibold text-[#a3ad9a] hover:border-white/20 hover:text-[#ede8d6] disabled:opacity-50"
+              >
+                {mehrLaedt === "sent" ? "Lädt …" : `Mehr laden (${SEITEN_GROESSE} weitere)`}
+              </button>
             )}
           </div>
         )}

@@ -33,15 +33,18 @@ export async function GET(req: Request) {
   await syncMailboxZumWorker(mailbox.localpart, user.id);
 
   try {
+    const aufruf = new URL(req.url);
     const url = new URL("/sent", INBOUND_URL);
     url.searchParams.set("mailbox", mailbox.localpart);
+    url.searchParams.set("limit", aufruf.searchParams.get("limit") ?? "5");
+    url.searchParams.set("offset", aufruf.searchParams.get("offset") ?? "0");
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${INBOUND_SECRET}` },
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`Inbound ${res.status}`);
-    const data = (await res.json()) as { mails?: GurkenmailGesendet[] };
-    return Response.json({ mailbox, mails: data.mails ?? [], bereit: true });
+    const data = (await res.json()) as { mails?: GurkenmailGesendet[]; hasMore?: boolean };
+    return Response.json({ mailbox, mails: data.mails ?? [], hasMore: data.hasMore ?? false, bereit: true });
   } catch (error) {
     console.error("GurkenMail Sent-Proxy:", error);
     return Response.json(
