@@ -34,6 +34,13 @@ export function Footer() {
         >
           Datenschutz
         </a>
+
+        <a
+          href="/agb"
+          className="cursor-pointer rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-[#abc189]/40 hover:text-[#ede8d6]"
+        >
+          AGB
+        </a>
       </div>
     </footer>
   );
