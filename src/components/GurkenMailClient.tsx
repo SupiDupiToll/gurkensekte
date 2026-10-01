@@ -43,6 +43,41 @@ function zaehleBilder(html: string): number {
   return html.match(/<img(?=[\s/>])/gi)?.length ?? 0;
 }
 
+/** HTML grob zu Vergleichstext strippen (nur für die Modus-Vorwahl, keine Anzeige). */
+function htmlVergleichstext(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * true, wenn die HTML-Version echten Mehrwert gegenüber dem Text hat.
+ * Reine Text-Hüllen („Hallo" als <div>Hallo</div>) starten direkt im Textmodus,
+ * alles mit Fett, Links, Bildern, Tabellen & Co. im formatierten Modus.
+ */
+function hatEchteFormatierung(html: string, text: string): boolean {
+  if (!html.trim()) return false;
+  if (
+    /<(a[\s>]|img[\s/>]|table[\s>]|ul[\s>]|ol[\s>]|b[\s>]|strong[\s>]|i[\s>]|em[\s>]|u[\s>]|s[\s>]|h[1-6][\s>]|font[\s>]|blockquote[\s>]|pre[\s>]|code[\s>]|video[\s>]|audio[\s>])/i.test(
+      html,
+    )
+  ) {
+    return true;
+  }
+  // Ohne Format-Tags nur dann HTML zeigen, wenn dort mehr Inhalt steht als im Text.
+  const normText = text.replace(/\s+/g, " ").trim();
+  return htmlVergleichstext(html) !== normText;
+}
+
 /**
  * Formatierte Mail-Ansicht mit doppeltem Schutz:
  * 1. DOMPurify entfernt Skripte, Formulare, Event-Handler, Frames & Co.
@@ -268,7 +303,10 @@ export function GurkenMailClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Mail konnte nicht geladen werden");
       if (quelle === "inbox") {
-        setOffeneMail({ ...data.mail, html: data.mail.html ?? "" });
+        const mail = { ...data.mail, html: data.mail.html ?? "" };
+        setOffeneMail(mail);
+        // Nur-Text-Mails starten direkt im Textmodus, formatierte im HTML-Modus.
+        setHtmlModus(hatEchteFormatierung(mail.html, mail.text ?? ""));
         setMails((prev) => prev.map((m) => (m.id === id ? { ...m, read: true } : m)));
       } else {
         setOffeneGesendete(data.mail);
