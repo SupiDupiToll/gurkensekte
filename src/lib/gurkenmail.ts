@@ -3,7 +3,9 @@
  *
  * Empfang: Cloudflare Worker `gurkenmail-inbound` (email() Handler) auf
  * `gurkensekte.de`, speichert in D1 (kein R2 in v1 – Anhänge werden
- * verworfen, nur Metadaten bleiben).
+ * verworfen, nur Metadaten bleiben). HTML wird als Roh-HTML mitgespeichert
+ * und erst im Browser sicher angezeigt (DOMPurify + Sandbox-iframe,
+ * externe Bilder erst nach Klick).
  * Versand: Resend aus Next.js, max. 3 Mails / User / Tag, keine Anhänge.
  */
 
@@ -192,6 +194,8 @@ export type GurkenmailEingang = {
   receivedAt: string;
   read: boolean;
   attachmentsDropped: number;
+  /** 1, wenn formatiertes HTML vorliegt (optional – alte Worker antworten ohne). */
+  hasHtml?: number;
 };
 
 export type GurkenmailDetail = {
@@ -199,6 +203,8 @@ export type GurkenmailDetail = {
   from: string;
   subject: string;
   text: string;
+  /** Roh-HTML der Mail ("" wenn keines). Anzeige nur sanitiert + sandboxed. */
+  html: string;
   receivedAt: string;
   attachmentsDropped: number;
 };

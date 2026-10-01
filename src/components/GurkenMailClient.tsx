@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import DOMPurify from "dompurify";
 import { useUser } from "@hexclave/next";
 import { PwaInstallPopup } from "@/components/PwaInstallPopup";
 import { TurnstileWidget, turnstileKonfiguriert } from "@/components/TurnstileWidget";
@@ -37,6 +38,107 @@ function zitieren(text: string): string {
     .join("\n");
 }
 
+/** Anzahl eingebetteter Bilder im Roh-HTML (für den Tracking-Hinweis). */
+function zaehleBilder(html: string): number {
+  return html.match(/<img(?=[\s/>])/gi)?.length ?? 0;
+}
+
+/**
+ * Formatierte Mail-Ansicht mit doppeltem Schutz:
+ * 1. DOMPurify entfernt Skripte, Formulare, Event-Handler, Frames & Co.
+ * 2. Sandbox-iframe ohne Scripts (`sandbox` ohne allow-scripts/allow-same-origin),
+ *    sodass selbst durchgeflutschtes JS nicht laufen kann. Links dürfen per
+ *    allow-popups in neuem Tab öffnen.
+ * Externe Bilder sind default aus (Tracking-Schutz) und laden erst nach Klick.
+ */
+function SichereMailAnsicht({ html }: { html: string }) {
+  const [bilderAnzeigen, setBilderAnzeigen] = useState(false);
+  const [sauber, setSauber] = useState("");
+  const bildAnzahl = useMemo(() => zaehleBilder(html), [html]);
+
+  useEffect(() => {
+    // Nur im Browser sanitizen (DOMPurify braucht window) – kein SSR.
+    const verboteneTags = [
+      "script",
+      "iframe",
+      "object",
+      "embed",
+      "form",
+      "input",
+      "button",
+      "select",
+      "textarea",
+      "option",
+      "link",
+      "meta",
+      "base",
+      "title",
+      "frame",
+      "frameset",
+      "applet",
+    ];
+    if (!bilderAnzeigen) {
+      verboteneTags.push("img", "picture", "video", "audio", "source", "track");
+    }
+    // Client-only: DOMPurify braucht window, daher kein SSR möglich.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSauber(
+      DOMPurify.sanitize(html, {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: verboteneTags,
+        FORBID_ATTR: ["action", "formaction", "background", "poster"],
+      }),
+    );
+  }, [html, bilderAnzeigen]);
+
+  const dokument = useMemo(
+    () =>
+      `<!doctype html><html><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<style>html,body{margin:0;padding:12px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;` +
+      `font-size:14px;line-height:1.6;color:#1a1a1a;background:#fff;word-wrap:break-word}` +
+      `img{max-width:100%;height:auto}a{color:#1a56db;word-break:break-all}` +
+      `table{max-width:100%;border-collapse:collapse}td,th{padding:4px 8px}` +
+      `pre,code{white-space:pre-wrap;word-break:break-word}blockquote{margin:0 0 8px;padding-left:12px;border-left:3px solid #ddd;color:#555}</style>` +
+      `</head><body>${sauber}</body></html>`,
+    [sauber],
+  );
+
+  return (
+    <div className="mt-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-[#6b7565]">
+          🔒 Sichere Ansicht – Skripte &amp; Formulare blockiert
+        </p>
+        {bildAnzahl > 0 && !bilderAnzeigen && (
+          <button
+            type="button"
+            onClick={() => setBilderAnzeigen(true)}
+            className="min-h-[40px] rounded-lg border border-[#8fa96d]/30 px-3 py-1.5 text-xs font-semibold text-[#abc189] hover:border-[#8fa96d]/60"
+          >
+            🖼️ {bildAnzahl === 1 ? "1 Bild" : `${bildAnzahl} Bilder`} laden (extern, Tracking möglich)
+          </button>
+        )}
+        {bildAnzahl > 0 && bilderAnzeigen && (
+          <button
+            type="button"
+            onClick={() => setBilderAnzeigen(false)}
+            className="min-h-[40px] rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-[#6b7565] hover:text-[#a3ad9a]"
+          >
+            Bilder wieder ausblenden
+          </button>
+        )}
+      </div>
+      <iframe
+        sandbox="allow-popups allow-popups-to-escape-sandbox"
+        srcDoc={dokument}
+        title="Formatierte Mail-Ansicht"
+        className="mt-2 h-[420px] w-full rounded-xl border border-white/10 bg-white"
+      />
+    </div>
+  );
+}
+
 /** GurkenMail als echter Mail-Client: Posteingang, Versendet, Lesen, Antworten, Weiterleiten. */
 export function GurkenMailClient() {
   const [mailbox, setMailbox] = useState<Mailbox | null>(null);
@@ -57,6 +159,7 @@ export function GurkenMailClient() {
 
   const [offeneMail, setOffeneMail] = useState<GurkenmailDetail | null>(null);
   const [offeneGesendete, setOffeneGesendete] = useState<GurkenmailGesendetDetail | null>(null);
+  const [htmlModus, setHtmlModus] = useState(true);
   const [leseLaden, setLeseLaden] = useState(false);
   const [leseFehler, setLeseFehler] = useState<string | null>(null);
 
@@ -154,6 +257,7 @@ export function GurkenMailClient() {
     setLeseFehler(null);
     setOffeneMail(null);
     setOffeneGesendete(null);
+    setHtmlModus(true);
     setVersandHinweis(false);
     try {
       const pfad =
@@ -164,7 +268,7 @@ export function GurkenMailClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Mail konnte nicht geladen werden");
       if (quelle === "inbox") {
-        setOffeneMail(data.mail);
+        setOffeneMail({ ...data.mail, html: data.mail.html ?? "" });
         setMails((prev) => prev.map((m) => (m.id === id ? { ...m, read: true } : m)));
       } else {
         setOffeneGesendete(data.mail);
@@ -570,9 +674,35 @@ export function GurkenMailClient() {
                       : `${offeneMail.attachmentsDropped} Anhänge wurden entfernt`} – Anhänge werden in GurkenMail nicht gespeichert, der Text wurde normal zugestellt.
                   </p>
                 )}
-                <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#ede8d6]">
-                  {offeneMail.text}
-                </p>
+                {(offeneMail.html || "").trim() && (
+                  <div className="mt-3 flex w-fit gap-1 rounded-lg border border-white/10 p-1" role="tablist" aria-label="Darstellung">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={htmlModus}
+                      onClick={() => setHtmlModus(true)}
+                      className={`min-h-[40px] rounded-md px-3 py-1.5 text-[13px] font-semibold ${htmlModus ? "bg-[#ede8d6] text-[#0b120d]" : "text-[#a3ad9a] hover:text-[#ede8d6]"}`}
+                    >
+                      🖼️ Formatiert
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={!htmlModus}
+                      onClick={() => setHtmlModus(false)}
+                      className={`min-h-[40px] rounded-md px-3 py-1.5 text-[13px] font-semibold ${!htmlModus ? "bg-[#ede8d6] text-[#0b120d]" : "text-[#a3ad9a] hover:text-[#ede8d6]"}`}
+                    >
+                      📝 Text
+                    </button>
+                  </div>
+                )}
+                {(offeneMail.html || "").trim() && htmlModus ? (
+                  <SichereMailAnsicht html={offeneMail.html} />
+                ) : (
+                  <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#ede8d6]">
+                    {offeneMail.text}
+                  </p>
+                )}
                 <div className="mt-5 flex gap-2">
                   <button
                     onClick={antworten}
