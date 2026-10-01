@@ -7,7 +7,7 @@ import { ChatMarkdown } from "@/components/ChatMarkdown";
 import { Leaderboard } from "@/components/Leaderboard";
 import { AppKachel } from "@/components/AppKachel";
 import { Popup } from "@/components/Popup";
-import { RangKopf, Rangstufen } from "@/components/Rangstufen";
+import { Rangstufen } from "@/components/Rangstufen";
 import { ReferralBox } from "@/components/ReferralBox";
 import { Reveal } from "@/components/Reveal";
 import { SpinningCucumber } from "@/components/SpinningCucumber";
@@ -18,8 +18,6 @@ import {
 import {
   PaperPlaneTilt,
   SignOut,
-  CalendarBlank,
-  ShieldCheck,
   ChatCircleText,
   ArrowsInSimple,
   Coins,
@@ -939,45 +937,6 @@ export function MitgliederDashboard({
               </Link>
             </p>
           )}
-        </Reveal>
-
-        <Reveal delay={1}>
-          <div className="shell mt-8">
-            <div className="core p-6 md:p-8">
-              <div className="mb-6 flex items-center gap-3">
-                <span className="text-3xl" aria-hidden="true">🥒</span>
-                <h2 className="font-display text-xl font-semibold text-[#faf8f1]">
-                  Dein spirituelles Dashboard
-                </h2>
-              </div>
-
-              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6b7565]">
-                    <CalendarBlank size={14} />
-                    Mitglied seit
-                  </p>
-                  <p className="mt-1 text-[15px] font-semibold text-[#ede8d6]">
-                    {user.signedUpAt
-                      ? new Date(user.signedUpAt).toLocaleDateString("de-DE")
-                      : "Urzeiten der Gurke"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6b7565]">
-                    <ShieldCheck size={14} />
-                    Status
-                  </p>
-                  <p className="mt-1 flex items-center gap-1.5 text-[15px] font-semibold text-[#ede8d6]">
-                    Erleuchtet
-                    <ShieldCheck size={16} weight="fill" className="text-[#8fa96d]" />
-                  </p>
-                </div>
-              </div>
-
-              <RangKopf />
-            </div>
-          </div>
         </Reveal>
 
         {/* App-Raster: zwei Kacheln pro Zeile wie auf einem Handy-Screen. */}
