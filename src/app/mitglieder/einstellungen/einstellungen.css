@@ -1,0 +1,46 @@
+/*
+ * Native Hexclave-Einstellungen: Tabs ausblenden + Gurken-Finish.
+ *
+ * AccountSettings kennt keine Props zum Filtern einzelner Tabs, daher per CSS.
+ * Die Reihenfolge der Sidebar-Buttons ist stabil: 1 = My Profile,
+ * 2 = Emails & Auth, 3 = Notifications, 4 = Active Sessions, … – optionale
+ * Tabs (API Keys, Payments, Teams) hängen hinten an und verschieben 1/3 nicht.
+ * Der Hash-Guard in page.tsx hält zusätzlich #profile/#notifications fern.
+ */
+
+/* 1 = My Profile, 3 = Notifications ausblenden (Desktop-Seitenleiste) … */
+.hexclave-settings div[class*="min-w-[200px]"] > button:nth-of-type(1),
+.hexclave-settings div[class*="min-w-[200px]"] > button:nth-of-type(3),
+/* … und in der mobilen Tab-Liste (Detailansichten bleiben unberührt). */
+.hexclave-settings .sm\:hidden > div[class*="gap-2"] > button:nth-of-type(1),
+.hexclave-settings .sm\:hidden > div[class*="gap-2"] > button:nth-of-type(3) {
+  display: none;
+}
+
+/* Doppelte „Account Settings“-Überschrift ausblenden (Seite hat schon ein H1). */
+.hexclave-settings div[class*="min-w-[200px]"] h2,
+.hexclave-settings .sm\:hidden > div[class*="gap-2"] h2 {
+  display: none;
+}
+
+/* Sidebar-Buttons: runder + Gurken-Hover … */
+.hexclave-settings div[class*="min-w-[200px]"] > button,
+.hexclave-settings .sm\:hidden > div[class*="gap-2"] > button {
+  border-radius: 0.65rem;
+}
+.hexclave-settings div[class*="min-w-[200px]"] > button:hover,
+.hexclave-settings .sm\:hidden > div[class*="gap-2"] > button:hover {
+  background-color: rgba(143, 169, 109, 0.08);
+  color: #ede8d6;
+}
+/* … aktiver Tab in Gurken-Grün statt Neutral-Grau. */
+.hexclave-settings button[class*="bg-muted"] {
+  background-color: rgba(143, 169, 109, 0.16) !important;
+  color: #ede8d6 !important;
+}
+
+/* Inhalts-Überschriften ans Seiten-Design angleichen. */
+.hexclave-settings h4 {
+  color: #faf8f1;
+  letter-spacing: -0.01em;
+}
