@@ -11,9 +11,6 @@ importers:
       '@hexclave/next':
         specifier: ^1.0.43
         version: 1.0.43(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(next@16.3.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@4.3.2)(zod@4.4.3)
-      '@idlen/chat-sdk':
-        specifier: ^1.0.5
-        version: 1.0.5(ai@6.0.217(zod@4.4.3))(react@19.2.4)
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -476,20 +473,6 @@ packages:
   '@humanwhocodes/retry@0.4.3':
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
-
-  '@idlen/chat-sdk@1.0.5':
-    resolution: {integrity: sha512-fF/xy7B3LzwGsl3IoEVivih+tFejZTaNl0vDIbwxO33OWLDCz42kODDB+X6wlPq2dR/a/9oEjDa5BtUdbCu0mw==}
-    peerDependencies:
-      ai: '>=4.0.0'
-      react: '>=18.0.0'
-      vue: '>=3.0.0'
-    peerDependenciesMeta:
-      ai:
-        optional: true
-      react:
-        optional: true
-      vue:
-        optional: true
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -4934,11 +4917,6 @@ snapshots:
   '@humanwhocodes/module-importer@1.0.1': {}
 
   '@humanwhocodes/retry@0.4.3': {}
-
-  '@idlen/chat-sdk@1.0.5(ai@6.0.217(zod@4.4.3))(react@19.2.4)':
-    optionalDependencies:
-      ai: 6.0.217(zod@4.4.3)
-      react: 19.2.4
 
   '@img/colour@1.1.0':
     optional: true

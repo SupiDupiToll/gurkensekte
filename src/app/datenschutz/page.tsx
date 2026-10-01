@@ -172,27 +172,6 @@ export default function DatenschutzPage() {
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-6">
             <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
-              Idlen (Chat-Werbung)
-            </h3>
-            <p className="text-sm text-[#6b7565] mb-2">
-              <strong>Zweck:</strong> Kontextuelle Werbung unter den Antworten
-              des Gürkchen-Chats (als „Anzeige“ gekennzeichnet)
-            </p>
-            <ul className="list-disc list-inside text-sm text-[#a3ad9a] space-y-1">
-              <li>
-                Übertragen wird der Text der Chat-Antwort zur Auswahl passender
-                Werbung
-              </li>
-              <li>Erfasst werden Anzeige (Impression) und Klicks</li>
-              <li>
-                Ohne konfigurierten Schlüssel wird keine Werbung geladen und
-                nichts übertragen
-              </li>
-            </ul>
-          </div>
-
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
-            <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
               Mangoe Impressum (Rechtliche Informationen)
             </h3>
             <p className="text-sm text-[#6b7565] mb-2">
