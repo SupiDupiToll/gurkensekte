@@ -44,3 +44,18 @@
   color: #faf8f1;
   letter-spacing: -0.01em;
 }
+
+/* Lesbarkeit: Hexclaves `dark:`-Varianten greifen nur bei dunklem OS-Theme –
+   ohne sie bleibt schwarzer/dunkelgrauer Text auf dunklem Grund. Hier hart
+   auf helle Gurken-Töne zwingen (unlayered CSS schlägt Tailwind-Utilities). */
+.hexclave-settings .text-black,
+.hexclave-settings .text-zinc-900,
+.hexclave-settings .text-zinc-800,
+.hexclave-settings .text-zinc-700,
+.hexclave-settings .text-zinc-600 {
+  color: #ede8d6;
+}
+.hexclave-settings .text-zinc-500,
+.hexclave-settings .text-zinc-400 {
+  color: #a3ad9a;
+}
