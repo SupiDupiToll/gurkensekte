@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, SignUp } from "@hexclave/next";
 import { SpinningCucumber } from "@/components/SpinningCucumber";
+import { GmailSpamHinweis } from "@/components/GmailSpamHinweis";
 
 export default function SignUpPage() {
   const user = useUser();
@@ -36,21 +37,23 @@ export default function SignUpPage() {
             </p>
           </div>
 
-          <SignUp
-            automaticRedirect
-            firstTab="password"
-            extraInfo={
-              <p className="mt-4 text-center text-xs text-[#6b7565]">
-                Bereits Mitglied?{" "}
-                <a
-                  href="/mitglieder/login"
-                  className="text-[#abc189] underline underline-offset-2 hover:text-[#c9d6ae]"
-                >
-                  Jetzt anmelden
-                </a>
-              </p>
-            }
-          />
+          <GmailSpamHinweis>
+            <SignUp
+              automaticRedirect
+              firstTab="password"
+              extraInfo={
+                <p className="mt-4 text-center text-xs text-[#6b7565]">
+                  Bereits Mitglied?{" "}
+                  <a
+                    href="/mitglieder/login"
+                    className="text-[#abc189] underline underline-offset-2 hover:text-[#c9d6ae]"
+                  >
+                    Jetzt anmelden
+                  </a>
+                </p>
+              }
+            />
+          </GmailSpamHinweis>
         </div>
       </div>
     </div>

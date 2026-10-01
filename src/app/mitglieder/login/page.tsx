@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, SignIn } from "@hexclave/next";
 import { SpinningCucumber } from "@/components/SpinningCucumber";
+import { GmailSpamHinweis } from "@/components/GmailSpamHinweis";
 
 export default function LoginPage() {
   const user = useUser();
@@ -36,7 +37,9 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <SignIn automaticRedirect firstTab="password" />
+          <GmailSpamHinweis>
+            <SignIn automaticRedirect firstTab="password" />
+          </GmailSpamHinweis>
         </div>
       </div>
     </div>
