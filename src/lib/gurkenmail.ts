@@ -169,13 +169,23 @@ export function internerLocalpart(empfaenger: string): string | null {
 }
 
 /**
+ * Voller Anzeigename aus einem Absender-String ("Name <mail>" → "Name").
+ * Pure Mail ohne Name → "".
+ */
+export function absenderName(absender: string): string {
+  const m = absender.match(/^\s*"?([^"<]+?)"?\s*<[^<>\s]+@[^<>\s]+>\s*$/);
+  const name = (m ? m[1] : "").trim().replace(/\s+/g, " ");
+  if (!name || name.includes("@")) return "";
+  return name;
+}
+
+/**
  * Anzeigenamen aus einem Absender-String ("Name <mail>" oder "mail") ziehen.
  * Vor- + Nachname → nur Vorname (erstes Wort). Kein Name (pure Mail) → "".
  */
 export function absenderVorname(absender: string): string {
-  const m = absender.match(/^\s*"?([^"<]+?)"?\s*<[^<>\s]+@[^<>\s]+>\s*$/);
-  const name = (m ? m[1] : "").trim().replace(/\s+/g, " ");
-  if (!name || name.includes("@")) return "";
+  const name = absenderName(absender);
+  if (!name) return "";
   return name.split(" ")[0];
 }
 

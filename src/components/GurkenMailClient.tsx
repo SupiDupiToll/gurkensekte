@@ -12,7 +12,7 @@ import type {
   GurkenmailGesendet,
   GurkenmailGesendetDetail,
 } from "@/lib/gurkenmail";
-import { absenderMail, absenderVorname, vorschlagsBasis } from "@/lib/gurkenmail";
+import { absenderMail, absenderName, absenderVorname, vorschlagsBasis } from "@/lib/gurkenmail";
 
 type Mailbox = { localpart: string; address: string; displayName: string };
 type Ansicht = "liste" | "versendet" | "lesen" | "schreiben";
@@ -29,6 +29,11 @@ function adresseAusFrom(from: string): string {
 /** Anzeigename für Listen: Vorname aus "Name <mail>", sonst die Adresse selbst. */
 function absenderAnzeigename(absenderOderMail: string): string {
   return absenderVorname(absenderOderMail) || absenderOderMail;
+}
+
+/** Voller Name für die "Von"-Zeile: "Name <mail>" → Name, sonst die Adresse selbst. */
+function absenderVollerName(absenderOderMail: string): string {
+  return absenderName(absenderOderMail) || absenderOderMail;
 }
 
 function zitieren(text: string): string {
@@ -88,11 +93,18 @@ function hatEchteFormatierung(html: string, text: string): boolean {
  */
 function SichereMailAnsicht({ html }: { html: string }) {
   const [bilderAnzeigen, setBilderAnzeigen] = useState(false);
-  const [sauber, setSauber] = useState("");
+  const [montiert, setMontiert] = useState(false);
+  useEffect(() => {
+    // Client-Gate: Sanitizen braucht window. Erster Render (SSR + Hydration)
+    // zeigt den Platzhalter – der Iframe mountet danach einmalig mit dem
+    // fertigen srcDoc (nie Updates an lebenden Iframes, die teils hängen).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMontiert(true);
+  }, []);
   const bildAnzahl = useMemo(() => zaehleBilder(html), [html]);
 
-  useEffect(() => {
-    // Nur im Browser sanitizen (DOMPurify braucht window) – kein SSR.
+  const sauber = useMemo(() => {
+    if (!montiert || typeof window === "undefined") return null;
     const verboteneTags = [
       "script",
       "iframe",
@@ -115,29 +127,32 @@ function SichereMailAnsicht({ html }: { html: string }) {
     if (!bilderAnzeigen) {
       verboteneTags.push("img", "picture", "video", "audio", "source", "track");
     }
-    // Client-only: DOMPurify braucht window, daher kein SSR möglich.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSauber(
-      DOMPurify.sanitize(html, {
-        USE_PROFILES: { html: true },
-        FORBID_TAGS: verboteneTags,
-        FORBID_ATTR: ["action", "formaction", "background", "poster"],
-      }),
-    );
-  }, [html, bilderAnzeigen]);
+    return DOMPurify.sanitize(html, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: verboteneTags,
+      FORBID_ATTR: ["action", "formaction", "background", "poster"],
+    });
+  }, [html, bilderAnzeigen, montiert]);
 
   const dokument = useMemo(
     () =>
-      `<!doctype html><html><head><meta charset="utf-8">` +
-      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<style>html,body{margin:0;padding:12px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;` +
-      `font-size:14px;line-height:1.6;color:#1a1a1a;background:#fff;word-wrap:break-word}` +
-      `img{max-width:100%;height:auto}a{color:#1a56db;word-break:break-all}` +
-      `table{max-width:100%;border-collapse:collapse}td,th{padding:4px 8px}` +
-      `pre,code{white-space:pre-wrap;word-break:break-word}blockquote{margin:0 0 8px;padding-left:12px;border-left:3px solid #ddd;color:#555}</style>` +
-      `</head><body>${sauber}</body></html>`,
+      sauber === null
+        ? null
+        : `<!doctype html><html><head><meta charset="utf-8">` +
+          `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+          `<style>html,body{margin:0;padding:12px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;` +
+          `font-size:14px;line-height:1.6;color:#1a1a1a;background:#fff;word-wrap:break-word}` +
+          `img{max-width:100%;height:auto}a{color:#1a56db;word-break:break-all}` +
+          `table{max-width:100%;border-collapse:collapse}td,th{padding:4px 8px}` +
+          `pre,code{white-space:pre-wrap;word-break:break-word}blockquote{margin:0 0 8px;padding-left:12px;border-left:3px solid #ddd;color:#555}</style>` +
+          `</head><body>${sauber}</body></html>`,
     [sauber],
   );
+
+  if (dokument === null) {
+    return <div className="shimmer mt-4 h-[420px] rounded-xl" aria-busy="true" />;
+  }
+  const leer = sauber !== null && sauber.trim() === "";
 
   return (
     <div className="mt-4">
@@ -164,12 +179,19 @@ function SichereMailAnsicht({ html }: { html: string }) {
           </button>
         )}
       </div>
-      <iframe
-        sandbox="allow-popups allow-popups-to-escape-sandbox"
-        srcDoc={dokument}
-        title="Formatierte Mail-Ansicht"
-        className="mt-2 h-[420px] w-full rounded-xl border border-white/10 bg-white"
-      />
+      {leer ? (
+        <p className="mt-2 rounded-xl border border-white/10 bg-white px-3 py-6 text-center text-sm text-[#6b7565]">
+          Kein sicher darstellbarer Inhalt – bitte die Textansicht nutzen.
+        </p>
+      ) : (
+        <iframe
+          key={bilderAnzeigen ? "mit-bildern" : "ohne-bilder"}
+          sandbox="allow-popups allow-popups-to-escape-sandbox"
+          srcDoc={dokument}
+          title="Formatierte Mail-Ansicht"
+          className="mt-2 h-[420px] w-full rounded-xl border border-white/10 bg-white"
+        />
+      )}
     </div>
   );
 }
@@ -700,7 +722,7 @@ export function GurkenMailClient() {
                   {offeneMail.subject || "(ohne Betreff)"}
                 </h3>
                 <p className="mt-1 text-sm font-semibold text-[#ede8d6]">
-                  Von {absenderAnzeigename(offeneMail.from)}
+                  Von {absenderVollerName(offeneMail.from)}
                 </p>
                 <p className="text-xs text-[#6b7565]">
                   {adresseAusFrom(offeneMail.from) || offeneMail.from} · {new Date(offeneMail.receivedAt).toLocaleString("de-DE")}
@@ -735,7 +757,7 @@ export function GurkenMailClient() {
                   </div>
                 )}
                 {(offeneMail.html || "").trim() && htmlModus ? (
-                  <SichereMailAnsicht html={offeneMail.html} />
+                  <SichereMailAnsicht key={offeneMail.id} html={offeneMail.html} />
                 ) : (
                   <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#ede8d6]">
                     {offeneMail.text}
