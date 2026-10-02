@@ -34,6 +34,11 @@ import {
 } from "@phosphor-icons/react";
 import { demoPath } from "@/lib/demo";
 import { adresseFormatieren } from "@/lib/bestellung";
+import {
+  EinfuehrungsTour,
+  TOUR_CHAT_ANTWORT,
+  TOUR_CHAT_NACHRICHT,
+} from "@/components/EinfuehrungsTour";
 
 type Message = {
   role: "user" | "assistant";
@@ -434,8 +439,22 @@ function PunkteInhalt() {
   );
 }
 
-function PunkteAnzeige() {
-  const [open, setOpen] = useState(false);
+function PunkteAnzeige({
+  externOffen = null,
+  onExternOffenChange,
+}: {
+  externOffen?: boolean | null;
+  onExternOffenChange?: (offen: boolean) => void;
+} = {}) {
+  const [innenOffen, setInnenOffen] = useState(false);
+  const open = externOffen ?? innenOffen;
+  function setOpen(offen: boolean) {
+    if (externOffen !== null && externOffen !== undefined) {
+      onExternOffenChange?.(offen);
+    } else {
+      setInnenOffen(offen);
+    }
+  }
   const { punkte } = usePunkte();
 
   if (!open) {
@@ -578,7 +597,24 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
   );
 }
 
-function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
+export type TourChatDemo = {
+  nachricht: string;
+  antwort: string;
+};
+
+function GurkchenChat({
+  isDemo = false,
+  tourDemo = null,
+  externOffen = null,
+  onExternOffenChange,
+}: {
+  isDemo?: boolean;
+  /** Tour-Demo: vorbereitete Nachricht + hartcodierte Antwort, ohne API/Captcha/Punkte. */
+  tourDemo?: TourChatDemo | null;
+  /** Gesteuertes Öffnen für die Einführungs-Tour (null = unkontrolliert). */
+  externOffen?: boolean | null;
+  onExternOffenChange?: (offen: boolean) => void;
+}) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -588,7 +624,15 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [innenOffen, setInnenOffen] = useState(false);
+  const open = externOffen ?? innenOffen;
+  function setOpen(offen: boolean) {
+    if (externOffen !== null && externOffen !== undefined) {
+      onExternOffenChange?.(offen);
+    } else {
+      setInnenOffen(offen);
+    }
+  }
   const [captchaRequired, setCaptchaRequired] = useState(turnstileKonfiguriert());
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileStatusText, setTurnstileStatusText] = useState<string | null>(
@@ -602,6 +646,50 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Tour-Demo: vorbereitete Nachricht sofort, hartcodierte Antwort mit
+  // Chat-Verzögerung (getippt statt gestreamt) – kein API-Call, kein
+  // Turnstile, keine Punkte. Einmalig pro Mount; alle State-Updates laufen
+  // in Timern (kein sync setState im Effekt-Body).
+  const tourGespieltRef = useRef(false);
+  useEffect(() => {
+    if (!tourDemo || !open || tourGespieltRef.current) return;
+    tourGespieltRef.current = true;
+    const demo = tourDemo;
+    const timer: Array<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>> = [];
+    const start = setTimeout(() => {
+      setLoading(true);
+      setMessages((prev) => [...prev, { role: "user", content: demo.nachricht }]);
+      const tippTimer = setTimeout(() => {
+        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+        const voll = demo.antwort;
+        let i = 0;
+        const schrittWeite = Math.max(1, Math.ceil(voll.length / 60));
+        const ticker = setInterval(() => {
+          i += schrittWeite;
+          const teil = voll.slice(0, i);
+          setMessages((prev) => {
+            const aktualisiert = [...prev];
+            aktualisiert[aktualisiert.length - 1] = { role: "assistant", content: teil };
+            return aktualisiert;
+          });
+          if (i >= voll.length) {
+            clearInterval(ticker);
+            setLoading(false);
+          }
+        }, 30);
+        timer.push(ticker);
+      }, 1400);
+      timer.push(tippTimer);
+    }, 50);
+    timer.push(start);
+    return () => {
+      for (const t of timer) {
+        clearTimeout(t as ReturnType<typeof setTimeout>);
+        clearInterval(t as ReturnType<typeof setInterval>);
+      }
+    };
+  }, [tourDemo, open]);
 
   function captchaZuruecksetzen(hinweis: string) {
     setCaptchaRequired(true);
@@ -799,7 +887,11 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
       </div>
 
       <div className="border-t border-white/[0.08] px-4 py-3 md:px-6">
-        {captchaKonfiguriert ? (
+        {tourDemo ? (
+          <p className="mx-auto w-full max-w-4xl rounded-xl border border-[#8fa96d]/25 bg-[#8fa96d]/[0.06] px-3 py-2 text-center text-xs text-[#a3ad9a]">
+            🥒 Tour-Demo – gleich chattest du echt (mit Captcha & +5 Punkten pro Nachricht).
+          </p>
+        ) : captchaKonfiguriert ? (
           <div className="mx-auto mb-2 w-full max-w-4xl">
             {captchaRequired && (
               <div>
@@ -828,16 +920,20 @@ function GurkchenChat({ isDemo = false }: { isDemo?: boolean }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Schreib deine Nachricht an Gürkchen …"
+            placeholder={
+              tourDemo
+                ? "Tour-Demo – schließen und später echt chatten …"
+                : "Schreib deine Nachricht an Gürkchen …"
+            }
             rows={2}
-            disabled={loading}
+            disabled={loading || !!tourDemo}
             inputMode="text"
             enterKeyHint="send"
             className="min-h-[44px] flex-1 resize-none rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2.5 text-base text-[#ede8d6] outline-none transition-colors placeholder:text-[#6b7565]/70 focus:border-[#8fa96d] disabled:opacity-50"
           />
           <button
             onClick={sendMessage}
-            disabled={loading || !input.trim() || (captchaRequired && !turnstileToken)}
+            disabled={loading || !!tourDemo || !input.trim() || (captchaRequired && !turnstileToken)}
             className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg bg-[#ede8d6] text-[#0b120d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 "
             aria-label="Nachricht senden"
           >
@@ -927,6 +1023,10 @@ export function MitgliederDashboard({  user,
 }) {
   const email = user.primaryEmail ?? "unbekannt@sektenmitglied.de";
   const [benutzername, setBenutzername] = useState<string | null>(null);
+  // Einführungs-Tour: gesteuertes Öffnen von Chat & Punkten (null = normal).
+  const [tourChatOffen, setTourChatOffen] = useState<boolean | null>(null);
+  const [tourPunkteOffen, setTourPunkteOffen] = useState<boolean | null>(null);
+  const tourAktiv = tourChatOffen !== null || tourPunkteOffen !== null;
 
   useEffect(() => {
     if (isDemo) return;
@@ -981,22 +1081,40 @@ export function MitgliederDashboard({  user,
 
         {/* App-Raster: zwei Kacheln pro Zeile wie auf einem Handy-Screen. */}
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <GurkchenChat isDemo={isDemo} />
+          <div data-tour-ziel="chat" className="contents">
+            <GurkchenChat
+              isDemo={isDemo}
+              tourDemo={
+                tourAktiv
+                  ? { nachricht: TOUR_CHAT_NACHRICHT, antwort: TOUR_CHAT_ANTWORT }
+                  : null
+              }
+              externOffen={tourChatOffen}
+              onExternOffenChange={(offen) => setTourChatOffen(offen ? true : null)}
+            />
+          </div>
 
-          <PunkteAnzeige />
+          <div data-tour-ziel="punkte" className="contents">
+            <PunkteAnzeige
+              externOffen={tourPunkteOffen}
+              onExternOffenChange={(offen) => setTourPunkteOffen(offen ? true : null)}
+            />
+          </div>
           <Rangstufen />
 
           <ReferralBox code={user.id ?? (isDemo ? "demo-mitglied" : null)} isDemo={isDemo} />
 
           <GurkchenQuoteCard isDemo={isDemo} />
 
-          <AppKachel
-            icon={<DiceFive size={44} weight="fill" className="text-[#c9a86a]" />}
-            titel="Casino"
-            hinweis="Slots & Roulette"
-            index={5}
-            href={isDemo ? demoPath("/mitglieder/casino") : "/mitglieder/casino"}
-          />
+          <div data-tour-ziel="casino" className="contents">
+            <AppKachel
+              icon={<DiceFive size={44} weight="fill" className="text-[#c9a86a]" />}
+              titel="Casino"
+              hinweis="Slots & Roulette"
+              index={5}
+              href={isDemo ? demoPath("/mitglieder/casino") : "/mitglieder/casino"}
+            />
+          </div>
 
           <AppKachel
             icon={<Sword size={44} weight="fill" className="text-[#8fa96d]" />}
@@ -1006,7 +1124,9 @@ export function MitgliederDashboard({  user,
             href={isDemo ? demoPath("/mitglieder/duell") : "/mitglieder/duell"}
           />
 
-          <GurkenMailKachel isDemo={isDemo} />
+          <div data-tour-ziel="gurkenmail" className="contents">
+            <GurkenMailKachel isDemo={isDemo} />
+          </div>
 
           {!isDemo && (
             <AppKachel
@@ -1043,6 +1163,17 @@ export function MitgliederDashboard({  user,
           <ChatCircleText size={15} />
           Gürkchen wacht über dein Glas.
         </div>
+
+        {!isDemo && (
+          <EinfuehrungsTour
+            user={user}
+            benutzername={benutzername}
+            chatOffen={tourChatOffen}
+            onChatOffen={setTourChatOffen}
+            punkteOffen={tourPunkteOffen}
+            onPunkteOffen={setTourPunkteOffen}
+          />
+        )}
       </div>
     </PunkteProvider>
   );

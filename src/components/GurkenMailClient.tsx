@@ -213,7 +213,6 @@ export function GurkenMailClient() {
   const [ansicht, setAnsicht] = useState<Ansicht>("liste");
   const [leseQuelle, setLeseQuelle] = useState<LeseQuelle>("inbox");
 
-  const [nummer, setNummer] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [anlegen, setAnlegen] = useState(false);
 
@@ -234,6 +233,7 @@ export function GurkenMailClient() {
   const [captchaReset, setCaptchaReset] = useState(0);
   const [versandHinweis, setVersandHinweis] = useState(false);
   const [kopiert, setKopiert] = useState(false);
+  const [detailsOffen, setDetailsOffen] = useState(false);
   // Paginierung: nur die 5 neusten laden, Rest per „Mehr laden".
   const [inboxMehr, setInboxMehr] = useState(false);
   const [sentMehr, setSentMehr] = useState(false);
@@ -408,22 +408,35 @@ export function GurkenMailClient() {
   const basis =
     (benutzernameBasis && normalisiereLocalpart(benutzernameBasis)) ||
     vorschlagsBasis(hexUser?.displayName);
-  const vorschauAdresse = `${basis}${nummer}@gurkensekte.de`;
+  const vorschauAdresse = `${basis}@gurkensekte.de`;
 
   async function handleAnlegen(e: React.FormEvent) {
     e.preventDefault();
     setAnlegen(true);
     setFehler(null);
     try {
-      const res = await fetch("/api/gurkenmail/mailbox", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ localpart: `${basis}${nummer}`, displayName }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Anlegen fehlgeschlagen");
-      setMailbox(data.mailbox);
-      await laden();
+      // Adresse = Benutzername, keine Abfrage: Bei Kollision automatisch die
+      // nächste freie Zahl anhängen (basis2, basis3, …).
+      const kandidaten = [basis];
+      for (let n = 2; n <= 9; n++) kandidaten.push(`${basis}${n}`);
+      for (const lokal of kandidaten) {
+        const res = await fetch("/api/gurkenmail/mailbox", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ localpart: lokal, displayName }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setMailbox(data.mailbox);
+          await laden();
+          return;
+        }
+        if (res.status === 409) continue; // belegt → nächste Zahl
+        throw new Error(data.error ?? "Anlegen fehlgeschlagen");
+      }
+      setFehler(
+        "Diese Basis ist komplett belegt, bitte melde dich bei Gürkchen.",
+      );
     } catch (err) {
       setFehler(err instanceof Error ? err.message : "Anlegen fehlgeschlagen");
     } finally {
@@ -631,8 +644,8 @@ export function GurkenMailClient() {
           Wähle deine Gurken-Adresse
         </h2>
         <p className="mt-2 text-sm text-[#a3ad9a]">
-          Deine Adresse wird aus deinem Vornamen vergeben – du kannst sie nicht frei
-          wählen. Ist sie schon besetzt, häng einfach eine Zahl an (z. B.{" "}
+          Deine Adresse ist automatisch dein Benutzername – ganz ohne Abfrage.
+          Ist er schon besetzt, hängen wir einfach eine Zahl an (z. B.{" "}
           <strong className="text-[#ede8d6]">{basis}2@gurkensekte.de</strong>).
         </p>
         <form onSubmit={handleAnlegen} className="mt-5 space-y-3">
@@ -641,17 +654,6 @@ export function GurkenMailClient() {
             <p className="font-display mt-1 break-all text-xl font-semibold text-[#faf8f1]">
               {vorschauAdresse}
             </p>
-            <label className="mt-3 block text-xs font-semibold text-[#a3ad9a]">
-              Zahl anhängen (optional, nur falls besetzt – du wählst sie selbst)
-              <input
-                value={nummer}
-                onChange={(e) => setNummer(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
-                placeholder="z. B. 2"
-                inputMode="numeric"
-                autoComplete="off"
-                className={inputClass}
-              />
-            </label>
           </div>
           <label className="block text-xs font-semibold text-[#a3ad9a]">
             Absendername (2–40 Zeichen, steht beim Empfänger im Postfach)
@@ -691,37 +693,86 @@ export function GurkenMailClient() {
         ← Zurück zum Dashboard
       </Link>
       <div className="rounded-2xl border border-[#8fa96d]/25 bg-[#8fa96d]/[0.06] p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8fa96d]">
-          Deine GurkenMail
-        </p>
-        <p className="font-display mt-1 break-all text-2xl font-semibold text-[#faf8f1]">
-          {mailbox.address}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl font-semibold text-[#faf8f1]">
+              GurkenMail
+            </h1>
+            <p className="font-display mt-1 break-all text-lg font-semibold text-[#ede8d6]">
+              {mailbox.address}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDetailsOffen((o) => !o)}
+            aria-expanded={detailsOffen}
+            aria-label={detailsOffen ? "Details ausblenden" : "Details anzeigen"}
+            title="Details"
+            className="flex min-h-[40px] min-w-[40px] shrink-0 items-center justify-center rounded-full border border-white/15 text-sm font-bold text-[#a3ad9a] transition-colors hover:border-white/30 hover:text-[#ede8d6]"
+          >
+            {detailsOffen ? "×" : "i"}
+          </button>
+        </div>
         <button
           onClick={adresseKopieren}
           className="mt-2 flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#8fa96d]/30 px-3 py-1.5 text-[13px] font-semibold text-[#abc189] transition-colors hover:border-[#8fa96d]/60 hover:text-[#c9d6ae]"
         >
           {kopiert ? "✓ Kopiert!" : "📋 Adresse kopieren"}
         </button>
-        <p className="mt-1 text-sm text-[#a3ad9a]">
-          Absendername: <strong className="text-[#ede8d6]">{mailbox.displayName}</strong> · Schreiben heute noch{" "}
-          <strong className="tabular text-[#ede8d6]">{restHeute} / {limit}</strong>
-        </p>
-        <p className="mt-1 text-xs text-[#6b7565]">
-          Das 3er-Limit gilt nur fürs Schreiben – Empfangen ist unbegrenzt. +10 Punkte pro versendeter Mail,
-          +5 pro empfangener (max. 2 vergütete Mails pro Stunde, insgesamt max. 10/Stunde).
-        </p>
+        {/* Basic-Infos grafisch: Schreiben, Empfang, Punkte */}
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2.5 text-center">
+            <p className="text-lg leading-none" aria-hidden="true">✏️</p>
+            <p className="tabular mt-1 text-base font-bold text-[#faf8f1]">
+              {restHeute}/{limit}
+            </p>
+            <p className="text-[11px] leading-tight text-[#6b7565]">heute frei</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2.5 text-center">
+            <p className="text-lg leading-none" aria-hidden="true">📥</p>
+            <p className="tabular mt-1 text-base font-bold text-[#faf8f1]">∞</p>
+            <p className="text-[11px] leading-tight text-[#6b7565]">Empfang</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2.5 text-center">
+            <p className="text-lg leading-none" aria-hidden="true">🥒</p>
+            <p className="tabular mt-1 text-base font-bold text-[#faf8f1]">+10/+5</p>
+            <p className="text-[11px] leading-tight text-[#6b7565]">Punkte</p>
+          </div>
+        </div>
+        {detailsOffen && (
+          <div className="mt-3 space-y-1.5 rounded-xl border border-white/10 bg-black/20 p-4 text-xs leading-relaxed text-[#a3ad9a]">
+            <p>
+              Absendername: <strong className="text-[#ede8d6]">{mailbox.displayName}</strong>
+            </p>
+            <p>
+              Das 3er-Limit gilt nur fürs Schreiben – Empfangen ist unbegrenzt. +10 Punkte
+              pro versendeter Mail, +5 pro empfangener (max. 2 vergütete Mails pro Stunde,
+              insgesamt max. 10/Stunde).
+            </p>
+            <p>
+              Gurken-intern gratis: Mails an andere @gurkensekte.de-Adressen zählen nicht
+              zum 3er-Limit.
+            </p>
+            {!inboxBereit && (
+              <p>Empfang wird gerade freigeschaltet (Cloudflare-Routing). Senden geht schon.</p>
+            )}
+          </div>
+        )}
         {punkteHinweis && (
           <p role="status" className="mt-2 rounded-xl border border-[#8fa96d]/30 bg-[#8fa96d]/[0.07] px-3 py-2 text-center text-[13px] font-semibold text-[#8fa96d]">
             {punkteHinweis}
           </p>
         )}
-        {!inboxBereit && (
-          <p className="mt-2 text-xs text-[#6b7565]">
-            Empfang wird gerade freigeschaltet (Cloudflare-Routing). Senden geht schon.
-          </p>
-        )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => void aktualisieren()}
+        disabled={aktualisiert}
+        className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-white/12 px-4 py-2.5 text-sm font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6] disabled:opacity-50"
+      >
+        {aktualisiert ? "Wird aktualisiert …" : "↻ Aktualisieren"}
+      </button>
 
       <div className="card overflow-hidden p-0">
         {/* Client-Kopf: Tabs + Aktionen */}
@@ -770,15 +821,6 @@ export function GurkenMailClient() {
           {inListe ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => void aktualisieren()}
-                disabled={aktualisiert}
-                title="Nur neue Mails laden"
-                className="flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-[#a3ad9a] hover:border-white/20 hover:text-[#ede8d6] disabled:opacity-50"
-              >
-                {aktualisiert ? "…" : "↻"}
-                <span className="hidden sm:inline">Aktualisieren</span>
-              </button>
-              <button
                 onClick={() => composeOeffnen("", "", "")}
                 disabled={restHeute <= 0}
                 className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-[#ede8d6] px-4 py-2 text-sm font-semibold text-[#0b120d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
@@ -796,7 +838,13 @@ export function GurkenMailClient() {
                 🥒 Versendet – landet gleich im Versendet-Tab.
               </p>
             )}
-            {mails.length === 0 ? (
+            {aktualisiert ? (
+              <div className="space-y-2" aria-busy="true" aria-label="Mails werden aktualisiert">
+                <div className="shimmer h-16 rounded-xl" />
+                <div className="shimmer h-16 rounded-xl" />
+                <div className="shimmer h-16 rounded-xl" />
+              </div>
+            ) : mails.length === 0 ? (
               <p className="py-6 text-center text-sm text-[#6b7565]">
                 {inboxBereit
                   ? "Noch keine Mails – dein Postfach wartet auf Gurkenpost."

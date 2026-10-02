@@ -12,7 +12,7 @@ const SHOW_DELAY_MS = 1200;
 
 type Provider = "google" | "discord";
 
-function GoogleGLogo() {
+export function GoogleGLogo() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
       <path

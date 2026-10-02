@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import { hexclaveClientApp } from "@/hexclave/client";
+import { GoogleGLogo } from "@/components/GoogleOneTapPopup";
 
 function istGmailAdresse(wert: string): boolean {
   const mail = wert.trim().toLowerCase();
@@ -29,6 +31,22 @@ function findeMailFelder(root: ParentNode): HTMLInputElement[] {
  */
 export function GmailSpamHinweis({ children }: { children: ReactNode }) {
   const [offen, setOffen] = useState(false);
+  const [gmailErkannt, setGmailErkannt] = useState(false);
+  const [googleLaedt, setGoogleLaedt] = useState(false);
+  const [googleFehler, setGoogleFehler] = useState<string | null>(null);
+
+  async function mitGoogleAnmelden() {
+    setGoogleLaedt(true);
+    setGoogleFehler(null);
+    try {
+      await hexclaveClientApp.signInWithOAuth("google", {
+        returnTo: "/mitglieder",
+      });
+    } catch {
+      setGoogleLaedt(false);
+      setGoogleFehler("Weiterleitung zu Google hat nicht geklappt – bitte erneut versuchen.");
+    }
+  }
 
   useEffect(() => {
     if (!offen) return;
@@ -52,6 +70,7 @@ export function GmailSpamHinweis({ children }: { children: ReactNode }) {
     const siehtNachVersandAus =
       /mail|code|link|otp|verif|send|senden|zusenden|anfordern|bestätig|bestaetig/.test(knopfText);
     if (!hatPasswortFeld || siehtNachVersandAus) {
+      setGmailErkannt(true);
       setOffen(true);
     }
   }
@@ -59,6 +78,28 @@ export function GmailSpamHinweis({ children }: { children: ReactNode }) {
   return (
     <div onSubmit={beiAbsenden}>
       {children}
+      {gmailErkannt && (
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <p className="text-center text-xs leading-relaxed text-[#6b7565]">
+            Kein Code angekommen? Dann einfach direkt mit einem Klick über
+            Google anmelden – ganz ohne Code:
+          </p>
+          <button
+            type="button"
+            onClick={mitGoogleAnmelden}
+            disabled={googleLaedt}
+            className="mt-2 flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-xl bg-[#faf8f1] px-4 py-3 text-sm font-semibold text-[#0b120d] transition-all hover:bg-white disabled:cursor-wait disabled:opacity-70"
+          >
+            <GoogleGLogo />
+            {googleLaedt ? "Weiter zu Google …" : "Mit Google anmelden"}
+          </button>
+          {googleFehler && (
+            <p role="alert" className="mt-2 text-center text-xs font-semibold text-red-300">
+              {googleFehler}
+            </p>
+          )}
+        </div>
+      )}
       {offen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
