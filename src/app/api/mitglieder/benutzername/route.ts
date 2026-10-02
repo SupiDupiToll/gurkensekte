@@ -1,8 +1,11 @@
 import { hexclaveServerApp } from "@/hexclave/server";
 import {
+  BENUTZERNAME_RESERVIERT,
   benutzernameVorschlag,
+  hatUngueltigenBenutzernamen,
   leseBenutzername,
   normalisiereBenutzername,
+  roherBenutzername,
 } from "@/lib/benutzername";
 import { mitBenutzerSperre, istSperreBelegtFehler } from "@/lib/ratelimit";
 
@@ -11,6 +14,7 @@ export const runtime = "nodejs";
 type MetaUser = {
   id: string;
   displayName?: string | null;
+  primaryEmail?: string | null;
   clientReadOnlyMetadata?: Record<string, unknown>;
   setClientReadOnlyMetadata?: (meta: Record<string, unknown>) => Promise<unknown>;
 };
@@ -48,7 +52,11 @@ export async function GET(req: Request) {
   }
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
   const benutzername = leseBenutzername(meta);
-  const vorschlag = benutzernameVorschlag(user.displayName);
+  const vorschlag = benutzernameVorschlag(user.displayName, user.primaryEmail);
+  // Selbstheilungs-Signal: In Hexclave steht ein Rohwert, der heute
+  // ungültig/reserviert wäre (Altbestand oder Außeneingriff). Die UI zeigt
+  // dann „bitte neu wählen“ statt still „kein Name“.
+  const ungueltigGespeichert = hatUngueltigenBenutzernamen(meta);
 
   const url = new URL(req.url);
   const pruefe = url.searchParams.get("pruefe");
@@ -79,7 +87,7 @@ export async function GET(req: Request) {
     return Response.json({ frei: true });
   }
 
-  return Response.json({ benutzername, vorschlag });
+  return Response.json({ benutzername, vorschlag, ...(ungueltigGespeichert ? { ungueltigGespeichert: true } : {}) });
 }
 
 /**
@@ -101,6 +109,18 @@ export async function POST(req: Request) {
     (body as Record<string, unknown> | null)?.benutzername,
   );
   if (!norm) {
+    // Validierung zuerst: Vor jedem Redis-/Hexclave-Schreibzugriff –
+    // blockierte Namen werden nie persistiert.
+    const rohEingabe =
+      typeof (body as Record<string, unknown> | null)?.benutzername === "string"
+        ? ((body as Record<string, unknown>).benutzername as string).trim().toLowerCase()
+        : null;
+    if (rohEingabe && BENUTZERNAME_RESERVIERT.has(rohEingabe)) {
+      return Response.json(
+        { error: "Dieser Name ist reserviert – bitte einen anderen wählen." },
+        { status: 400 },
+      );
+    }
     return Response.json(
       {
         error:
@@ -179,11 +199,26 @@ export async function POST(req: Request) {
 
       await frisch.setClientReadOnlyMetadata!({ ...meta, benutzername: norm, einwilligungBenutzername: einwilligung });
 
-      // Alten Namen freigeben (best-effort – zeigt ggf. noch auf uns, dann löschen).
-      if (alt && alt !== norm) {
+      // Alte Namen freigeben (best-effort – nur eigene Keys löschen).
+      // `altRoh` heilt zusätzlich Keys aus früher gespeicherten
+      // blockierten/ungültigen Namen, die `leseBenutzername` (validiert)
+      // nicht mehr sieht – sonst bliebe der Key ewig belegt und der
+      // Betroffene käme aus dem Zustand nicht mehr heraus.
+      const freigaben = new Set<string>();
+      if (alt && alt !== norm) freigaben.add(alt);
+      const altRoh = roherBenutzername(meta)?.trim().toLowerCase();
+      if (
+        altRoh &&
+        altRoh !== norm &&
+        altRoh !== alt &&
+        /^[a-z0-9._-]{3,20}$/.test(altRoh)
+      ) {
+        freigaben.add(altRoh);
+      }
+      for (const name of freigaben) {
         try {
-          const altBesitzer = await redis.get<string>(`gurke:benutzername:${alt}`);
-          if (altBesitzer === user.id) await redis.del(`gurke:benutzername:${alt}`);
+          const besitzer = await redis.get<string>(`gurke:benutzername:${name}`);
+          if (besitzer === user.id) await redis.del(`gurke:benutzername:${name}`);
         } catch {
           // Freigabe fehlgeschlagen: Name bleibt reserviert, Funktion ok.
         }

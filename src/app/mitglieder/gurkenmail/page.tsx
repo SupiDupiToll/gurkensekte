@@ -4,7 +4,7 @@ import { GurkenMailClient } from "@/components/GurkenMailClient";
 export const metadata: Metadata = {
   title: "GurkenMail – dein Postfach | Gurken Sekte",
   description:
-    "Deine name@gurkensekte.de Adresse: 3 Mails pro Tag senden, Posteingang lesen, als App-Symbol installieren.",
+    "Deine name@gurkensekte.de Adresse: 3 Mails pro Tag senden, Posteingang lesen, Punkte sammeln, als App-Symbol installieren.",
   // Eigenes Manifest: Installation von hier startet direkt im Postfach.
   manifest: "/mitglieder/gurkenmail/manifest.webmanifest",
 };
@@ -18,7 +18,8 @@ export default function GurkenMailPage() {
       </h1>
       <p className="mt-3 text-sm text-[#a3ad9a]">
         Deine Adresse auf <strong className="text-[#ede8d6]">gurkensekte.de</strong> – pro Tag 3 Mails
-        schreiben, unbegrenzt empfangen.
+        schreiben, unbegrenzt empfangen. Fürs Versenden gibt es +10 Punkte, fürs Empfangen +5
+        (max. 2 vergütete Mails pro Stunde).
       </p>
       <div className="mt-8">
         <GurkenMailClient />

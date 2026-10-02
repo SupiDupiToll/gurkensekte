@@ -11,7 +11,14 @@ import {
   leseMailbox,
 } from "@/lib/gurkenmail";
 import { inboundKonfiguriert, speichereGesendet } from "@/lib/gurkenmailServer";
-import { mitBenutzerSperre, rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
+import {
+  PUNKTE_GURKENMAIL_SENDEN,
+  gurkenmailBonusUpdate,
+  lesePunkte,
+  lesePunkteGesamt,
+  leseVerlauf,
+} from "@/lib/punkte";
+import { istSperreBelegtFehler, mitBenutzerSperre, rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
@@ -127,13 +134,32 @@ export async function POST(req: Request) {
         throw new Error("resend");
       }
 
+      // Versand-Punkte (+10, max. 10/Stunde über Senden+Empfangen):
+      // Stunden-Deckel anwenden, Punkte + Verlauf in denselben Write.
+      const jetztMs = Date.now();
+      const { bonus, update } = gurkenmailBonusUpdate(meta, jetztMs, PUNKTE_GURKENMAIL_SENDEN);
+      const stand = lesePunkte({ ...meta, ...update });
+      const verlauf = leseVerlauf(meta).slice(-9);
+      if (bonus > 0) {
+        verlauf.push({
+          datum: new Date().toISOString(),
+          aktion: "gurkenmail-versand",
+          punkte: bonus,
+          saldo: stand + bonus,
+        });
+      }
+
       await frisch.setClientReadOnlyMetadata({
         ...meta,
+        ...update,
         gurkenmailSentDate: heute,
         gurkenmailSentCount: bisher + 1,
+        punkte: stand + bonus,
+        punkteGesamt: lesePunkteGesamt(meta, lesePunkte(meta)) + bonus,
+        punkteVerlauf: verlauf,
       });
       await speichereGesendet(mailbox.localpart, empfaenger, thema, inhalt);
-      return { restHeute: GURKENMAIL_MAX_PRO_TAG - (bisher + 1) };
+      return { restHeute: GURKENMAIL_MAX_PRO_TAG - (bisher + 1), punkteDelta: bonus };
     });
     return Response.json({ ok: true, ...ergebnis });
   } catch (error) {
@@ -154,6 +180,12 @@ export async function POST(req: Request) {
     }
     if (error instanceof Error && error.message === "unauthorized") {
       return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
+    }
+    if (istSperreBelegtFehler(error)) {
+      return Response.json(
+        { error: "Bitte kurz warten und erneut versuchen." },
+        { status: 409 },
+      );
     }
     console.error("GurkenMail Versand-Fehler:", error);
     return Response.json({ error: "Versand fehlgeschlagen." }, { status: 500 });
@@ -218,15 +250,32 @@ async function sendeIntern(
       if (res.status === 404) throw new Error("unbekannt");
       if (!res.ok) throw new Error("worker");
 
+      // Auch interne Mails geben Versand-Punkte (gleicher Stunden-Deckel).
+      const jetztMs = Date.now();
+      const { bonus, update } = gurkenmailBonusUpdate(meta, jetztMs, PUNKTE_GURKENMAIL_SENDEN);
+      const stand = lesePunkte(meta);
+      const verlauf = leseVerlauf(meta).slice(-9);
+      if (bonus > 0) {
+        verlauf.push({
+          datum: new Date().toISOString(),
+          aktion: "gurkenmail-versand",
+          punkte: bonus,
+          saldo: stand + bonus,
+        });
+      }
       await frisch.setClientReadOnlyMetadata({
         ...meta,
+        ...update,
         gurkenmailInternSentDate: heute,
         gurkenmailInternSentCount: bisher + 1,
+        punkte: stand + bonus,
+        punkteGesamt: lesePunkteGesamt(meta, stand) + bonus,
+        punkteVerlauf: verlauf,
       });
       await speichereGesendet(mailbox.localpart, empfaenger, thema, inhalt);
       // Externes Kontingent bleibt unangetastet – zur Anzeige zurückgeben.
       const extern = gesendetHeute(meta, heute);
-      return { restHeute: GURKENMAIL_MAX_PRO_TAG - extern, intern: true as const };
+      return { restHeute: GURKENMAIL_MAX_PRO_TAG - extern, intern: true as const, punkteDelta: bonus };
     });
     return Response.json({ ok: true, ...ergebnis });
   } catch (error) {
@@ -250,6 +299,12 @@ async function sendeIntern(
     }
     if (error instanceof Error && error.message === "unauthorized") {
       return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
+    }
+    if (istSperreBelegtFehler(error)) {
+      return Response.json(
+        { error: "Bitte kurz warten und erneut versuchen." },
+        { status: 409 },
+      );
     }
     console.error("GurkenMail Intern-Fehler:", error);
     return Response.json({ error: "Zustellung fehlgeschlagen." }, { status: 500 });

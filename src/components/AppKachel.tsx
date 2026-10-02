@@ -8,6 +8,8 @@ type AppKachelProps = {
   titel: string;
   /** Einzeiliger Hinweis unter dem Titel (z. B. Live-Stand). */
   hinweis?: string;
+  /** Ungelesene-Anzahl als Badge oben rechts (z. B. neue GurkenMails). */
+  badge?: number;
   /** Position im Raster für gestaffelten Einstieg (0–7). */
   index?: number;
   onOpen?: () => void;
@@ -23,14 +25,23 @@ export function AppKachel({
   icon,
   titel,
   hinweis,
+  badge = 0,
   index = 0,
   onOpen,
   href,
 }: AppKachelProps) {
   const klasse =
-    "app-eintrag group flex min-h-[148px] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center transition-[transform,border-color,background-color] duration-200 ease-out hover:border-white/25 hover:bg-white/[0.05] active:scale-[0.97]";
+    "app-eintrag group relative flex min-h-[148px] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center transition-[transform,border-color,background-color] duration-200 ease-out hover:border-white/25 hover:bg-white/[0.05] active:scale-[0.97]";
   const inhalt = (
     <>
+      {badge > 0 && (
+        <span
+          aria-label={`${badge} ungelesene Nachrichten`}
+          className="tabular absolute right-3 top-3 flex min-h-[24px] min-w-[24px] items-center justify-center rounded-full bg-[#8fa96d] px-1.5 text-xs font-bold text-[#0b120d]"
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
       {icon}
       <span className="font-display text-lg font-semibold leading-tight text-[#faf8f1]">
         {titel}

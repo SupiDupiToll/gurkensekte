@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@hexclave/next";
 import { BenutzernameForm } from "@/components/BenutzernameForm";
+import { benutzernameVorschlag } from "@/lib/benutzername";
 
 /**
  * Onboarding-Gate: Wer noch keinen Benutzernamen hat, wird beim nächsten
- * Besuch gefragt. Vorschlag = normalisierter Hexclave-Anzeigename.
- * Nicht wegklickbar (erzwungen) – der Name ist Pflicht für GurkenMail & Co.
+ * Besuch gefragt. Vorschlag = Teil vor dem @ der E-Mail, sonst normalisierter
+ * Hexclave-Anzeigename. Nicht wegklickbar (erzwungen) – der Name ist Pflicht
+ * für GurkenMail & Co.
  */
 export function BenutzernameGate() {
   const hexUser = useUser();
@@ -31,7 +33,7 @@ export function BenutzernameGate() {
           const fallback =
             typeof data.vorschlag === "string" && data.vorschlag
               ? data.vorschlag
-              : (hexUser?.displayName ?? "gurkenfreund");
+              : benutzernameVorschlag(hexUser?.displayName, hexUser?.primaryEmail);
           setZustand({ phase: "fragen", vorschlag: fallback });
         }
       } catch {
@@ -41,7 +43,7 @@ export function BenutzernameGate() {
     return () => {
       aktiv = false;
     };
-  }, [hexUser?.displayName]);
+  }, [hexUser?.displayName, hexUser?.primaryEmail]);
 
   if (zustand.phase !== "fragen") return null;
 

@@ -368,6 +368,8 @@ function PunkteInhalt() {
           <ul className="tabular mt-2 space-y-1 text-[13px] text-[#a3ad9a]">
             <li>Zitat generieren (3× täglich): +5</li>
             <li>Chat-Nachricht: +5</li>
+            <li>GurkenMail versenden: +10</li>
+            <li>GurkenMail empfangen: +5 (max. 2/Stunde)</li>
             <li>Täglicher Bonus: +20</li>
             <li>Freund werben: +100</li>
           </ul>
@@ -874,8 +876,46 @@ function GurkchenQuoteCard({ isDemo = false }: { isDemo?: boolean }) {
   );
 }
 
-export function MitgliederDashboard({
-  user,
+/** GurkenMail-Kachel mit Ungelesen-Badge (echte Zahl aus dem Postfach). */
+function GurkenMailKachel({ isDemo = false }: { isDemo?: boolean }) {
+  const [ungelesen, setUngelesen] = useState(0);
+
+  useEffect(() => {
+    if (isDemo) return;
+    let aktiv = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/gurkenmail/unread");
+        const data = await res.json().catch(() => ({}));
+        if (aktiv && res.ok && typeof data.ungelesen === "number") {
+          setUngelesen(data.ungelesen);
+        }
+      } catch {
+        // Fail-open: Kachel bleibt ohne Badge nutzbar.
+      }
+    })();
+    return () => {
+      aktiv = false;
+    };
+  }, [isDemo]);
+
+  return (
+    <AppKachel
+      icon={<EnvelopeSimple size={44} weight="fill" className="text-[#8fa96d]" />}
+      titel="GurkenMail"
+      hinweis={
+        ungelesen > 0
+          ? `${ungelesen} ungelesen · 3× schreiben/Tag`
+          : "3× schreiben/Tag · Empfang frei"
+      }
+      badge={ungelesen}
+      index={7}
+      href={isDemo ? demoPath("/mitglieder/gurkenmail") : "/mitglieder/gurkenmail"}
+    />
+  );
+}
+
+export function MitgliederDashboard({  user,
   isDemo = false,
   punkteApiBase = "/api/mitglieder/punkte",
   onSignOut,
@@ -966,13 +1006,7 @@ export function MitgliederDashboard({
             href={isDemo ? demoPath("/mitglieder/duell") : "/mitglieder/duell"}
           />
 
-          <AppKachel
-            icon={<EnvelopeSimple size={44} weight="fill" className="text-[#8fa96d]" />}
-            titel="GurkenMail"
-            hinweis="3× schreiben/Tag · Empfang frei"
-            index={7}
-            href={isDemo ? demoPath("/mitglieder/gurkenmail") : "/mitglieder/gurkenmail"}
-          />
+          <GurkenMailKachel isDemo={isDemo} />
 
           {!isDemo && (
             <AppKachel

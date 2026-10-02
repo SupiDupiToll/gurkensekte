@@ -55,3 +55,32 @@ export async function syncMailboxZumWorker(
     console.error("GurkenMail Sync-Fehler:", error);
   }
 }
+
+/**
+ * Willkommens-Mail direkt ins frische Postfach legen (fail-open).
+ * Nutzt die interne Zustellung (`/deliver`) – kein Resend, keine
+ * Limit-Anrechnung. Wird nur bei der allerersten Vergabe aufgerufen.
+ */
+export async function stelleWillkommensMailZu(
+  localpart: string,
+  willkommen: { subject: string; text: string; from: string },
+): Promise<void> {
+  if (!inboundKonfiguriert()) return;
+  try {
+    await fetch(new URL("/deliver", INBOUND_URL!), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${INBOUND_SECRET}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: localpart,
+        from: willkommen.from,
+        subject: willkommen.subject,
+        text: willkommen.text,
+      }),
+    });
+  } catch (error) {
+    console.error("GurkenMail Willkommens-Mail-Fehler:", error);
+  }
+}

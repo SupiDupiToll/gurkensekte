@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { benutzernameFehlerText } from "@/lib/benutzername";
 
 /** Wiederverwendbares Formular: Benutzernamen setzen/ändern (Onboarding + Einstellungen). */
@@ -19,6 +19,17 @@ export function BenutzernameForm({
   const [fehler, setFehler] = useState<string | null>(null);
   const [senden, setSenden] = useState(false);
   const [einwilligung, setEinwilligung] = useState(false);
+  // Der Startwert kommt async (API-Vorschlag). Ohne Sync bliebe ein
+  // veralteter – ggf. blockierter – Name im Feld stehen, auch wenn der Parent
+  // längst einen gültigen Vorschlag liefert. Eigene Eingaben nie klobben.
+  const prevStartwert = useRef(startwert);
+  useEffect(() => {
+    if (prevStartwert.current !== startwert) {
+      const alt = prevStartwert.current;
+      prevStartwert.current = startwert;
+      setWert((aktuell) => (aktuell === alt ? startwert : aktuell));
+    }
+  }, [startwert]);
 
   async function absenden(e: React.FormEvent) {
     e.preventDefault();

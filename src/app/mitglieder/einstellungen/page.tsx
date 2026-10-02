@@ -4,6 +4,7 @@ import { Suspense, useEffect, useLayoutEffect, useState } from "react";
 import Link from "next/link";
 import { AccountSettings, useUser } from "@hexclave/next";
 import { BenutzernameForm } from "@/components/BenutzernameForm";
+import { anzeigenameFehlerText, benutzernameVorschlag } from "@/lib/benutzername";
 import "./einstellungen.css";
 
 /**
@@ -38,6 +39,7 @@ function BenutzernameBereich() {
   const [vorschlag, setVorschlag] = useState("gurkenfreund");
   const [laedt, setLaedt] = useState(true);
   const [bearbeiten, setBearbeiten] = useState(false);
+  const [ungueltigHinweis, setUngueltigHinweis] = useState(false);
 
   useEffect(() => {
     let aktiv = true;
@@ -51,10 +53,11 @@ function BenutzernameBereich() {
             ? data.benutzername
             : null,
         );
+        setUngueltigHinweis(data.ungueltigGespeichert === true);
         if (typeof data.vorschlag === "string" && data.vorschlag) {
           setVorschlag(data.vorschlag);
-        } else if (hexUser?.displayName) {
-          setVorschlag(hexUser.displayName);
+        } else {
+          setVorschlag(benutzernameVorschlag(hexUser?.displayName, hexUser?.primaryEmail));
         }
       } catch {
         // Fail-open: Rest der Einstellungen bleibt nutzbar.
@@ -65,7 +68,7 @@ function BenutzernameBereich() {
     return () => {
       aktiv = false;
     };
-  }, [hexUser?.displayName]);
+  }, [hexUser?.displayName, hexUser?.primaryEmail]);
 
   return (
     <section className="card p-6 md:p-8" aria-label="Benutzername">
@@ -83,8 +86,15 @@ function BenutzernameBereich() {
             onGespeichert={(name) => {
               setBenutzername(name);
               setBearbeiten(false);
+              setUngueltigHinweis(false);
             }}
           />
+          {ungueltigHinweis && !benutzername && (
+            <p role="status" className="mt-2 text-xs font-semibold text-amber-200">
+              Dein bisher gespeicherter Name war ungültig oder reserviert und
+              wurde verworfen – bitte wähle einen neuen.
+            </p>
+          )}
           {benutzername && (
             <button
               type="button"
@@ -129,7 +139,12 @@ function AnzeigenameBereich() {
 
   async function speichern(e: React.FormEvent) {
     e.preventDefault();
-    const name = wert.trim();
+    const gesperrtFehler = anzeigenameFehlerText(wert);
+    if (gesperrtFehler) {
+      setFehler(gesperrtFehler);
+      return;
+    }
+    const name = wert.trim().replace(/[\r\n]+/g, " ").replace(/\s+/g, " ");
     if (name.length < 2) return;
     setSenden(true);
     setInfo(null);
@@ -165,7 +180,7 @@ function AnzeigenameBereich() {
         />
         <button
           type="submit"
-          disabled={senden || wert.trim() === gespeichert || wert.trim().length < 2}
+          disabled={senden || wert.trim() === gespeichert || anzeigenameFehlerText(wert) !== null}
           className="btn-cta btn-cta-primary min-h-[48px] shrink-0 !px-5 !text-[15px] disabled:opacity-50"
         >
           {senden ? "…" : "Speichern"}

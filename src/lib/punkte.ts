@@ -23,6 +23,16 @@ export const PUNKTE_CHAT = 5;
 export const PUNKTE_ZITAT = 5;
 /** Max. Zitat-Boni pro Konto und Tag. */
 export const ZITAT_MAX_PRO_TAG = 3;
+/**
+ * GurkenMail-Boni: 10 pro versendeter Mail, 5 pro empfangener Mail –
+ * gedeckelt auf insgesamt 10 Punkte pro Stunde (Rolling-Window).
+ */
+export const PUNKTE_GURKENMAIL_SENDEN = 10;
+export const PUNKTE_GURKENMAIL_EMPFANGEN = 5;
+export const PUNKTE_GURKENMAIL_MAX_PRO_STUNDE = 10;
+export const GURKENMAIL_PUNKTE_FENSTER_MS = 60 * 60 * 1000;
+/** Max. gespeicherte Mail-IDs für die Einmal-Gutschrift empfangener Mails. */
+export const GURKENMAIL_AWARDED_IDS_MAX = 200;
 
 /** Fehler mit HTTP-Status für Buchungs-Abbrüche (Quota, Guthaben, Login). */
 export class PunkteFehler extends Error {
@@ -78,6 +88,81 @@ export function zitatZaehlerHeute(
       ? gespeichert
       : 0;
   return Math.max(anzahl, 1);
+}
+
+/** Guarded Read für das GurkenMail-Stundenfenster (Rolling-Window). */
+export function leseGurkenmailPunkteStand(
+  meta: Record<string, unknown>,
+  jetztMs: number,
+): { fensterStart: number; inFenster: number } {
+  const start = meta.gurkenmailPunkteFenster;
+  const drin = meta.gurkenmailPunkteInFenster;
+  const fensterStart =
+    typeof start === "number" && Number.isFinite(start) && start > 0 && start <= jetztMs
+      ? start
+      : 0;
+  const inFenster =
+    typeof drin === "number" && Number.isFinite(drin) && drin > 0 ? Math.floor(drin) : 0;
+  // Abgelaufenes Fenster gilt als leer (Reset passiert beim Buchen).
+  if (!fensterStart || jetztMs - fensterStart >= GURKENMAIL_PUNKTE_FENSTER_MS) {
+    return { fensterStart: 0, inFenster: 0 };
+  }
+  return { fensterStart, inFenster };
+}
+
+/** Bereits per Punkte honorierte Empfangs-Mail-IDs (guarded, gedeckelt). */
+export function leseGurkenmailAwardedIds(meta: Record<string, unknown>): string[] {
+  const wert = meta.gurkenmailPunkteMailIds;
+  if (!Array.isArray(wert)) return [];
+  return wert.filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 100);
+}
+
+/**
+ * Wendet den Stunden-Deckel auf einen Wunsch-Bonus an und liefert das
+ * Update-Fragment für die Metadaten (Fenster-Start + Zähler).
+ * Teilgutschrift: Reicht das Restbudget nicht, gibt es den Rest.
+ * (Versand – selten, max. 3/Tag extern.)
+ */
+export function gurkenmailBonusUpdate(
+  meta: Record<string, unknown>,
+  jetztMs: number,
+  wunsch: number,
+): { bonus: number; update: { gurkenmailPunkteFenster: number; gurkenmailPunkteInFenster: number } } {
+  const stand = leseGurkenmailPunkteStand(meta, jetztMs);
+  const abgelaufen = stand.fensterStart === 0;
+  const bisher = abgelaufen ? 0 : stand.inFenster;
+  const rest = Math.max(0, PUNKTE_GURKENMAIL_MAX_PRO_STUNDE - bisher);
+  const bonus = Math.max(0, Math.min(Math.floor(wunsch), rest));
+  return {
+    bonus,
+    update: {
+      gurkenmailPunkteFenster: abgelaufen ? jetztMs : stand.fensterStart,
+      gurkenmailPunkteInFenster: bisher + bonus,
+    },
+  };
+}
+
+/**
+ * Empfangs-Bonus in ganzen Einheiten: +5 nur bei ausreichendem Restbudget,
+ * sonst +0 – pro Stunde werden also max. 2 empfangene Mails vergütet
+ * (2×5 = 10 = Stundendeckel). Keine Teilbeträge beim Empfang.
+ */
+export function gurkenmailEmpfangsBonus(
+  meta: Record<string, unknown>,
+  jetztMs: number,
+): { bonus: 0 | 5; update: { gurkenmailPunkteFenster: number; gurkenmailPunkteInFenster: number } } {
+  const stand = leseGurkenmailPunkteStand(meta, jetztMs);
+  const abgelaufen = stand.fensterStart === 0;
+  const bisher = abgelaufen ? 0 : stand.inFenster;
+  const rest = PUNKTE_GURKENMAIL_MAX_PRO_STUNDE - bisher;
+  const bonus: 0 | 5 = rest >= PUNKTE_GURKENMAIL_EMPFANGEN ? 5 : 0;
+  return {
+    bonus,
+    update: {
+      gurkenmailPunkteFenster: abgelaufen ? jetztMs : stand.fensterStart,
+      gurkenmailPunkteInFenster: bisher + bonus,
+    },
+  };
 }
 
 /**

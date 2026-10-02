@@ -168,6 +168,31 @@ export function internerLocalpart(empfaenger: string): string | null {
   return normalisiereLocalpart(lokal);
 }
 
+/** Absender der automatischen Willkommens-Mail nach der Adress-Registrierung. */
+export const WILLKOMMEN_ABSENDER = `Gürkchen <willkommen@${GURKENMAIL_DOMAIN}>`;
+
+/** Begrüßungs-Mail für frisch angelegte Postfächer (echte Mail im Postfach). */
+export function willkommensMail(adresse: string, displayName: string): { subject: string; text: string } {
+  return {
+    subject: "Willkommen bei GurkenMail! 🥒",
+    text:
+      `Sei gegrüßt im Glas, ${displayName}!\n` +
+      `\n` +
+      `Deine GurkenMail-Adresse ${adresse} ist bereit – und sie funktioniert wie eine echte E-Mail-Adresse, weil sie eine ist:\n` +
+      `\n` +
+      `• Schreiben: Oben auf „Senden“ tippen und an jede beliebige E-Mail-Adresse weltweit schreiben (z. B. an Freunde mit Gmail & Co.). Pro Tag kannst du 3 externe Mails schreiben.\n` +
+      `• Empfangen: Unbegrenzt. Jeder kann dir an ${adresse} schreiben – die Mail landet hier im Posteingang, ganz ohne Weiterleitung.\n` +
+      `• Gurken-intern gratis: Mails an andere @${GURKENMAIL_DOMAIN}-Adressen landen direkt in deren GurkenMail-Postfach und zählen NICHT zu deinem 3er-Limit.\n` +
+      `• Punkte: +10 pro versendeter Mail, +5 pro empfangener Mail – pro Stunde werden max. 2 empfangene Mails vergütet (insgesamt max. 10 Punkte pro Stunde).\n` +
+      `• Gut zu wissen: Nur Text wird gespeichert, Anhänge werden aus Sicherheitsgründen entfernt. Externe Bilder in Mails lädst du per Klick nach.\n` +
+      `\n` +
+      `Tipp: Installiere dir GurkenMail als App (Teilen → „Zum Home-Bildschirm“) – dann hast du dein Postfach immer dabei.\n` +
+      `\n` +
+      `Viel Freude beim Gurkenposten!\n` +
+      `Dein Gürkchen 🥒`,
+  };
+}
+
 /**
  * Voller Anzeigename aus einem Absender-String ("Name <mail>" → "Name").
  * Pure Mail ohne Name → "".

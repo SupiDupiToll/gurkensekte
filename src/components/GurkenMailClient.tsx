@@ -238,6 +238,11 @@ export function GurkenMailClient() {
   const [inboxMehr, setInboxMehr] = useState(false);
   const [sentMehr, setSentMehr] = useState(false);
   const [mehrLaedt, setMehrLaedt] = useState<"inbox" | "sent" | null>(null);
+  // Inkrementelles Aktualisieren (nur neue Mails statt Full-Fetch) + Punkte.
+  const [aktualisiert, setAktualisiert] = useState(false);
+  const [ungelesen, setUngelesen] = useState(0);
+  const [punkteHinweis, setPunkteHinweis] = useState<string | null>(null);
+  const ungelesenRef = useRef(0);
   const hexUser = useUser();
   const vorausgefuellt = useRef(false);
   const [benutzernameBasis, setBenutzernameBasis] = useState<string | null>(null);
@@ -257,9 +262,19 @@ export function GurkenMailClient() {
         ]);
         const inbox = await inboxRes.json();
         const sent = await sentRes.json();
-        setMails(Array.isArray(inbox.mails) ? inbox.mails : []);
+        const inboxMails: GurkenmailEingang[] = Array.isArray(inbox.mails) ? inbox.mails : [];
+        setMails(inboxMails);
         setInboxBereit(Boolean(inbox.bereit));
         setInboxMehr(Boolean(inbox.hasMore));
+        const ungelesenNeu =
+          typeof inbox.ungelesen === "number" && Number.isFinite(inbox.ungelesen)
+            ? inbox.ungelesen
+            : inboxMails.filter((m) => !m.read).length;
+        setUngelesen(ungelesenNeu);
+        ungelesenRef.current = ungelesenNeu;
+        if (typeof inbox.punkteDelta === "number" && inbox.punkteDelta > 0) {
+          setPunkteHinweis(`+${inbox.punkteDelta} Punkte für neue GurkenPost! 🥒`);
+        }
         setSentMails(Array.isArray(sent.mails) ? sent.mails : []);
         setSentBereit(Boolean(sent.bereit));
         setSentMehr(Boolean(sent.hasMore));
@@ -313,6 +328,48 @@ export function GurkenMailClient() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     laden();
   }, [laden]);
+
+  /**
+   * Inkrementelles Aktualisieren: holt nur Mails neuer als die neuste
+   * bekannte (`since`) statt der ganzen Liste. Merge per ID-Dedupe,
+   * sortiert neueste zuerst.
+   */
+  const aktualisieren = useCallback(async () => {
+    if (aktualisiert) return 0;
+    setAktualisiert(true);
+    try {
+      const neueste = mails.length > 0 ? mails[0].receivedAt : null;
+      const pfad = neueste
+        ? `/api/gurkenmail/inbox?since=${encodeURIComponent(neueste)}&limit=20`
+        : `/api/gurkenmail/inbox?limit=${SEITEN_GROESSE}&offset=0`;
+      const res = await fetch(pfad);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Aktualisieren fehlgeschlagen");
+      const neu = Array.isArray(data.mails) ? (data.mails as GurkenmailEingang[]) : [];
+      if (neu.length > 0) {
+        setMails((prev) => {
+          const bekannt = new Set(prev.map((m) => m.id));
+          const frisch = neu.filter((m) => !bekannt.has(m.id));
+          if (frisch.length === 0) return prev;
+          return [...frisch, ...prev].sort(
+            (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+          );
+        });
+      }
+      if (typeof data.ungelesen === "number" && Number.isFinite(data.ungelesen)) {
+        setUngelesen(data.ungelesen);
+        ungelesenRef.current = data.ungelesen;
+      }
+      if (typeof data.punkteDelta === "number" && data.punkteDelta > 0) {
+        setPunkteHinweis(`+${data.punkteDelta} Punkte für neue GurkenPost! 🥒`);
+      }
+      return neu.length;
+    } catch {
+      return 0;
+    } finally {
+      setAktualisiert(false);
+    }
+  }, [aktualisiert, mails]);
 
   // Adress-Vorschlag: bevorzugt der eindeutige Benutzername, Fallback der
   // Mitgliedsname (Vorname → Localpart, voller Name → Absendername).
@@ -396,7 +453,14 @@ export function GurkenMailClient() {
         setOffeneMail(mail);
         // Nur-Text-Mails starten direkt im Textmodus, formatierte im HTML-Modus.
         setHtmlModus(hatEchteFormatierung(mail.html, mail.text ?? ""));
+        const warUngelesen = mails.some((m) => m.id === id && !m.read);
         setMails((prev) => prev.map((m) => (m.id === id ? { ...m, read: true } : m)));
+        // Zähler leise nachführen (Server markiert read_at).
+        if (warUngelesen) {
+          const neu = Math.max(0, ungelesenRef.current - 1);
+          ungelesenRef.current = neu;
+          setUngelesen(neu);
+        }
       } else {
         setOffeneGesendete(data.mail);
       }
@@ -471,8 +535,17 @@ export function GurkenMailClient() {
       ]);
       const inbox = await inboxRes.json();
       const sent = await sentRes.json();
-      if (Array.isArray(inbox.mails)) setMails(inbox.mails);
+      if (Array.isArray(inbox.mails)) {
+        setMails(inbox.mails);
+      }
       setInboxMehr(Boolean(inbox.hasMore));
+      if (typeof inbox.ungelesen === "number" && Number.isFinite(inbox.ungelesen)) {
+        setUngelesen(inbox.ungelesen);
+        ungelesenRef.current = inbox.ungelesen;
+      }
+      if (typeof inbox.punkteDelta === "number" && inbox.punkteDelta > 0) {
+        setPunkteHinweis(`+${inbox.punkteDelta} Punkte für neue GurkenPost! 🥒`);
+      }
       if (Array.isArray(sent.mails)) setSentMails(sent.mails);
       setSentMehr(Boolean(sent.hasMore));
     } catch {
@@ -524,6 +597,9 @@ export function GurkenMailClient() {
       setCaptchaToken(null);
       setCaptchaReset((n) => n + 1);
       setRestHeute(data.restHeute ?? 0);
+      if (typeof data.punkteDelta === "number" && data.punkteDelta > 0) {
+        setPunkteHinweis(`+${data.punkteDelta} Punkte fürs Versenden! 🥒`);
+      }
       // Direkt zurück in die Inbox – Versendet-Tab im Hintergrund auffrischen.
       setAnsicht("liste");
       setVersandHinweis(true);
@@ -604,11 +680,16 @@ export function GurkenMailClient() {
     );
   }
 
-  const ungelesen = mails.filter((m) => !m.read).length;
   const inListe = ansicht === "liste" || ansicht === "versendet";
 
   return (
     <div className="space-y-4">
+      <Link
+        href="/mitglieder"
+        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-[13px] font-semibold text-[#a3ad9a] hover:border-white/20 hover:text-[#ede8d6]"
+      >
+        ← Zurück zum Dashboard
+      </Link>
       <div className="rounded-2xl border border-[#8fa96d]/25 bg-[#8fa96d]/[0.06] p-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8fa96d]">
           Deine GurkenMail
@@ -627,8 +708,14 @@ export function GurkenMailClient() {
           <strong className="tabular text-[#ede8d6]">{restHeute} / {limit}</strong>
         </p>
         <p className="mt-1 text-xs text-[#6b7565]">
-          Das 3er-Limit gilt nur fürs Schreiben – Empfangen ist unbegrenzt.
+          Das 3er-Limit gilt nur fürs Schreiben – Empfangen ist unbegrenzt. +10 Punkte pro versendeter Mail,
+          +5 pro empfangener (max. 2 vergütete Mails pro Stunde, insgesamt max. 10/Stunde).
         </p>
+        {punkteHinweis && (
+          <p role="status" className="mt-2 rounded-xl border border-[#8fa96d]/30 bg-[#8fa96d]/[0.07] px-3 py-2 text-center text-[13px] font-semibold text-[#8fa96d]">
+            {punkteHinweis}
+          </p>
+        )}
         {!inboxBereit && (
           <p className="mt-2 text-xs text-[#6b7565]">
             Empfang wird gerade freigeschaltet (Cloudflare-Routing). Senden geht schon.
@@ -680,15 +767,26 @@ export function GurkenMailClient() {
               </h2>
             )}
           </div>
-          {inListe && (
-            <button
-              onClick={() => composeOeffnen("", "", "")}
-              disabled={restHeute <= 0}
-              className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-[#ede8d6] px-4 py-2 text-sm font-semibold text-[#0b120d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ✏️ Senden
-            </button>
-          )}
+          {inListe ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => void aktualisieren()}
+                disabled={aktualisiert}
+                title="Nur neue Mails laden"
+                className="flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-[#a3ad9a] hover:border-white/20 hover:text-[#ede8d6] disabled:opacity-50"
+              >
+                {aktualisiert ? "…" : "↻"}
+                <span className="hidden sm:inline">Aktualisieren</span>
+              </button>
+              <button
+                onClick={() => composeOeffnen("", "", "")}
+                disabled={restHeute <= 0}
+                className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-[#ede8d6] px-4 py-2 text-sm font-semibold text-[#0b120d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ✏️ Senden
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {ansicht === "liste" && (
@@ -735,12 +833,6 @@ export function GurkenMailClient() {
                 ))}
               </ul>
             )}
-            <button
-              onClick={laden}
-              className="mt-3 min-h-[40px] w-full rounded-lg text-[13px] font-semibold text-[#6b7565] hover:text-[#a3ad9a]"
-            >
-              ↻ Aktualisieren
-            </button>
             {inboxMehr && mails.length > 0 && (
               <button
                 onClick={() => mehrLaden("inbox")}
@@ -895,7 +987,7 @@ export function GurkenMailClient() {
         {ansicht === "schreiben" && (
           <form onSubmit={handleSenden} className="space-y-3 p-4 md:p-6">
             <p className="text-xs text-[#6b7565]">
-              Von: {mailbox.address} · Schreiben extern max. 3/Tag, nur Text. Empfangen ist immer unbegrenzt – Anhänge eingehender Mails werden entfernt (nur Text wird gespeichert).
+              Von: {mailbox.address} · Schreiben extern max. 3/Tag, nur Text. Empfangen ist immer unbegrenzt – Anhänge eingehender Mails werden entfernt (nur Text wird gespeichert). +10 Punkte pro versendeter Mail, +5 pro empfangener (max. 2 vergütete Mails pro Stunde).
             </p>
             <p className="rounded-xl border border-[#8fa96d]/25 bg-[#8fa96d]/[0.06] px-3 py-2 text-xs leading-relaxed text-[#a3ad9a]">
               🥒 <strong className="text-[#ede8d6]">Gurken-Intern gratis:</strong> Mails an andere

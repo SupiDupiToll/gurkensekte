@@ -9,10 +9,12 @@ import {
   normalisiereLocalpart,
   passtZuBasis,
   vorschlagsBasis,
+  WILLKOMMEN_ABSENDER,
+  willkommensMail,
 } from "@/lib/gurkenmail";
 import { leseBenutzername } from "@/lib/benutzername";
 import { mitBenutzerSperre } from "@/lib/ratelimit";
-import { syncMailboxZumWorker } from "@/lib/gurkenmailServer";
+import { stelleWillkommensMailZu, syncMailboxZumWorker } from "@/lib/gurkenmailServer";
 
 export const runtime = "nodejs";
 
@@ -116,6 +118,14 @@ export async function POST(req: Request) {
       await frisch.setClientReadOnlyMetadata(update);
       // D1-Spiegel für Zustellung (fail-open – wird sonst nachgeholt).
       await syncMailboxZumWorker(normLocal, user.id);
+      // Begrüßung direkt ins frische Postfach (fail-open, nur bei Neuvergabe).
+      const adresse = gurkenmailAdresse(normLocal);
+      const gruss = willkommensMail(adresse, normName);
+      await stelleWillkommensMailZu(normLocal, {
+        subject: gruss.subject,
+        text: gruss.text,
+        from: WILLKOMMEN_ABSENDER,
+      });
       return {
         localpart: normLocal,
         address: gurkenmailAdresse(normLocal),
