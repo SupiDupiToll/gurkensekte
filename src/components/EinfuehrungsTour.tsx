@@ -15,14 +15,14 @@ import "./EinfuehrungsTour.css";
 /**
  * Einführungs-Tour („Setup") direkt nach dem Benutzernamen-Gate:
  * Gurke → Chat (Skript-Demo) → Punkte (Daily + Rangliste) → Casino
- * (nur zeigen) → GurkenMail (Name + Auto-Adresse) → Fertig.
+ * (nur zeigen, nicht klickbar) → GurkenMail (Name + Auto-Adresse) → Fertig.
  * Fortschritt liegt serverseitig (`/api/mitglieder/tour`), Konten älter als
- * 24 h dürfen überspringen.
+ * 24 h dürfen überspringen. +50 Startbonus gibt es automatisch dazu.
  */
 
 export const TOUR_CHAT_NACHRICHT = "Hallo Gürkchen! Was kannst du eigentlich alles?";
 export const TOUR_CHAT_ANTWORT =
-  "Sei gegrüßt, frisches Gurken-Kind! 🥒 Ich beantworte deine Fragen rund um die Sekte, schenke dir jeden Tag ein Zitat (+5 Punkte) und für jede echte Nachricht bekommst du +5 Punkte. Sammle 1.000 Punkte und es gibt eine echte Salatgurke per Post – das hier war nur die Tour-Demo, gleich chattest du echt!";
+  "Sei gegrüßt, frisches Gurken-Kind! 🥒 Ich beantworte deine Fragen, schenke dir Zitate und für jede echte Nachricht gibt es +5 Punkte. Sammle 1.000 und es gibt eine echte Gurke per Post – das hier war nur die Tour-Demo, gleich chattest du echt!";
 
 const SCHRITT_TITEL: Record<TourSchritt, string> = {
   gurke: "Dein Ziel: echte Gurke",
@@ -61,8 +61,13 @@ async function speichereTour(
   }
 }
 
-function kartenKlasse(extra = "") {
-  return `rounded-2xl border border-white/10 bg-[#101b14] px-5 py-5 shadow-2xl md:px-6 ${extra}`;
+function Chip({ icon, text }: { icon: string; text: string }) {
+  return (
+    <span className="tabular inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-[#ede8d6]">
+      <span aria-hidden="true">{icon}</span>
+      {text}
+    </span>
+  );
 }
 
 function Fortschritt({ schritt }: { schritt: TourSchritt }) {
@@ -92,7 +97,7 @@ export function EinfuehrungsTour({
   onPunkteOffen: (offen: boolean | null) => void;
 }) {
   const hexUser = (useUser() ?? {}) as HexUserMitUpdate;
-  const { dailyAvailable, refresh } = usePunkte();
+  const { dailyAvailable, verlauf, refresh, claim } = usePunkte();
   const [laden, setLaden] = useState(true);
   const [sichtbar, setSichtbar] = useState(false);
   const [schritt, setSchritt] = useState<TourSchritt>("gurke");
@@ -101,29 +106,20 @@ export function EinfuehrungsTour({
   const [mailArbeitet, setMailArbeitet] = useState(false);
   const [mailAdresse, setMailAdresse] = useState<string | null>(null);
   const [mailPrueft, setMailPrueft] = useState(false);
+  const [chatFertig, setChatFertig] = useState(false);
   const nameVorbelegt = useRef(false);
+  const starterVersucht = useRef(false);
 
   const ueberspringbar = istTourUeberspringbar(user.signedUpAt);
   const chatWarOffen = useRef(false);
-
-  // Chat-Demo geschlossen → automatisch weiter zu den Punkten.
-  useEffect(() => {
-    if (schritt !== "chat") return;
-    if (chatOffen) {
-      chatWarOffen.current = true;
-      return;
-    }
-    if (chatWarOffen.current) {
-      chatWarOffen.current = false;
-      setSchritt("punkte");
-      void speichereTour({ schritt: "punkte" });
-    }
-  }, [schritt, chatOffen]);
+  const starterDrin = verlauf.some((e) => e.aktion === "starter");
 
   // Start: Server-Status laden. Abgeschlossen → nie zeigen. Ohne
   // Benutzernamen → nicht starten (BenutzernameGate ist zuständig).
+  // Läuft erneut, sobald der Benutzername da ist (Gate-Event ohne Reload).
   useEffect(() => {
     let aktiv = true;
+    if (!benutzername) return;
     (async () => {
       try {
         const res = await fetch("/api/mitglieder/tour");
@@ -134,7 +130,7 @@ export function EinfuehrungsTour({
           | undefined;
         if (tour?.abgeschlossen) {
           setSichtbar(false);
-        } else if (benutzername) {
+        } else {
           if (
             tour?.schritt === "gurke" ||
             tour?.schritt === "chat" ||
@@ -149,7 +145,7 @@ export function EinfuehrungsTour({
         }
       } catch {
         // Fail-open: bei Netzfehler Tour anbieten statt blockieren.
-        if (benutzername) setSichtbar(true);
+        setSichtbar(true);
       } finally {
         if (aktiv) setLaden(false);
       }
@@ -161,11 +157,32 @@ export function EinfuehrungsTour({
 
   const weiter = useCallback(
     (naechster: TourSchritt) => {
+      setChatFertig(false);
       setSchritt(naechster);
       void speichereTour({ schritt: naechster });
     },
     [],
   );
+
+  // +50 Startbonus automatisch gutschreiben (einmalig, Server dedupliziert).
+  useEffect(() => {
+    if (!sichtbar || !benutzername || starterVersucht.current) return;
+    starterVersucht.current = true;
+    (async () => {
+      await claim("starter").catch(() => null);
+      await refresh().catch(() => {});
+    })();
+  }, [sichtbar, benutzername, claim, refresh]);
+
+  // Chat-Demo zu Ende getippt → Hinweis zum Schließen zeigen.
+  useEffect(() => {
+    if (schritt !== "chat") return;
+    function fertig() {
+      setChatFertig(true);
+    }
+    window.addEventListener("gurke:tour-chat-fertig", fertig);
+    return () => window.removeEventListener("gurke:tour-chat-fertig", fertig);
+  }, [schritt]);
 
   async function ueberspringen() {
     setSichtbar(false);
@@ -249,6 +266,20 @@ export function EinfuehrungsTour({
     }
   }, [sichtbar, schritt, mailAdresse, hexUser.displayName, benutzername]);
 
+  // Chat-Demo geschlossen → automatisch weiter zu den Punkten.
+  useEffect(() => {
+    if (schritt !== "chat") return;
+    if (chatOffen) {
+      chatWarOffen.current = true;
+      return;
+    }
+    if (chatWarOffen.current) {
+      chatWarOffen.current = false;
+      setSchritt("punkte");
+      void speichereTour({ schritt: "punkte" });
+    }
+  }, [schritt, chatOffen]);
+
   if (laden || !sichtbar || !benutzername) return null;
 
   const schrittNr = SCHRITT_INDEX[schritt] + 1;
@@ -257,7 +288,7 @@ export function EinfuehrungsTour({
     e.preventDefault();
     const name = mailName.trim().replace(/[\r\n]+/g, " ").replace(/\s+/g, " ");
     if (!normalisiereDisplayName(name)) {
-      setMailFehler("Absendername ungültig: 2–40 Zeichen, bitte einen echten Namen (keine E-Mail-Adresse).");
+      setMailFehler("2–40 Zeichen, bitte einen echten Namen.");
       return;
     }
     setMailArbeitet(true);
@@ -309,26 +340,30 @@ export function EinfuehrungsTour({
     }
   }
 
-  // Während der Chat-Demo läuft nur der echte Chat (mit Skript) – kein Overlay.
-  if (schritt === "chat" && chatOffen) return null;
+  // Demo-Chat offen: nur Hinweis-Pille zum Schließen (sobald geantwortet).
+  if (schritt === "chat" && chatOffen) {
+    if (!chatFertig) return null;
+    return (
+      <div className="tour-pille" role="status">
+        <span aria-hidden="true">👆</span> Tippe oben auf „Schließen“ – dann geht’s weiter
+      </div>
+    );
+  }
 
   // Punkte-Popup ist offen: nur schwebender Hinweis, Popup bleibt bedienbar.
   if (schritt === "punkte" && punkteOffen) {
     return (
       <div className="tour-hinweis">
-        <div className={kartenKlasse()}>
+        <div className="rounded-2xl border border-white/10 bg-[#101b14] px-5 py-5 shadow-2xl md:px-6">
           <Fortschritt schritt={schritt} />
           <h2 className="font-display mt-3 text-lg font-semibold text-[#faf8f1]">
-            Hole deinen täglichen Bonus ab
+            {dailyAvailable ? "🎁 Hole deine +20 ab" : "✅ +20 sind drauf!"}
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-[#a3ad9a]">
             {dailyAvailable ? (
-              <>
-                Tippe im Popup auf <strong className="text-[#ede8d6]">„Abholen“ (+20)</strong> –
-                direkt hier, ohne Wegklicken.
-              </>
+              <>Erst kurz das Captcha lösen, dann auf „Abholen“ tippen.</>
             ) : (
-              <>Bonus abgeholt – stark! 🥒 Scrolle im Popup nach unten: dort wartet die Rangliste.</>
+              <>Unten im Popup wartet die Rangliste. 🏆</>
             )}
           </p>
           <button
@@ -339,7 +374,7 @@ export function EinfuehrungsTour({
             }}
             className="btn-cta btn-cta-primary mt-4 min-h-[48px] w-full !text-[15px]"
           >
-            Weiter zum Casino →
+            Weiter →
           </button>
         </div>
       </div>
@@ -350,28 +385,26 @@ export function EinfuehrungsTour({
     <>
       <div className="tour-overlay" aria-hidden="true" />
       <div className="tour-karte" role="dialog" aria-modal="true" aria-label={SCHRITT_TITEL[schritt]}>
-        <div className={kartenKlasse()}>
+        <div className="rounded-2xl border border-white/10 bg-[#101b14] px-5 py-5 text-center shadow-2xl md:px-6">
           <Fortschritt schritt={schritt} />
-          <p className="mt-3 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6b7565]">
-            Einrichtung · Schritt {schrittNr} von 6
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6b7565]">
+            Schritt {schrittNr} von 6
           </p>
 
           {schritt === "gurke" && (
-            <div className="tour-balance mt-2 text-center">
+            <div className="tour-balance mt-2">
               <span className="tour-gurke" aria-hidden="true">🥒</span>
               <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
-                Ab 1.000 Punkten gibt’s eine echte Salatgurke
+                1.000 Punkte = echte Gurke
               </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#a3ad9a]">
-                Sammle Punkte im Chat, mit Zitaten, Bonus und GurkenMail – bei{" "}
-                <strong className="text-[#ede8d6]">1.000 Punkten</strong> schickt dir Gürkchen eine
-                echte Salatgurke (oder Sauergurke, solange der Vorrat reicht) per Post.
-              </p>
-              <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-[#6b7565]">
-                Es gilt die AGB-Regel: Versand nur in Deutschland, keine Geld-Alternative, keine
-                Ersatzlieferung bei falscher Adresse oder Verderb, Verzehr auf eigene Gefahr.{" "}
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <Chip icon="🎁" text={starterDrin ? "+50 Startbonus ist da!" : "+50 Startbonus für dich"} />
+                <Chip icon="📬" text="Versand nur in DE" />
+              </div>
+              <p className="mx-auto mt-3 max-w-md text-xs leading-relaxed text-[#6b7565]">
+                Salat- oder Sauergurke, solange Vorrat reicht – kein Geldersatz.{" "}
                 <Link href="/agb" className="font-semibold text-[#abc189] underline underline-offset-2">
-                  AGB § 12 lesen
+                  AGB § 12
                 </Link>
               </p>
               <button
@@ -379,21 +412,21 @@ export function EinfuehrungsTour({
                 onClick={() => weiter("chat")}
                 className="btn-cta btn-cta-primary mt-4 min-h-[52px] w-full !text-base"
               >
-                Weiter – Gürkchen kennenlernen →
+                Weiter →
               </button>
             </div>
           )}
 
           {schritt === "chat" && (
-            <div className="tour-balance mt-2 text-center">
+            <div className="tour-balance mt-2">
+              <span className="tour-gurke" aria-hidden="true">💬</span>
               <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
                 Sag Hallo zu Gürkchen
               </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#a3ad9a]">
-                Der Gürkchen-Chat pulsiert gerade grün. Ich öffne ihn für dich mit einer
-                vorbereiteten Nachricht – die Antwort kommt wie beim echten Chat mit
-                kurzer Verzögerung.
-              </p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <Chip icon="💬" text="+5 pro Nachricht" />
+                <Chip icon="💭" text="+5 pro Zitat" />
+              </div>
               <button
                 type="button"
                 onClick={() => {
@@ -401,67 +434,71 @@ export function EinfuehrungsTour({
                 }}
                 className="btn-cta btn-cta-primary mt-4 min-h-[52px] w-full !text-base"
               >
-                💬 Chat öffnen
+                Chat öffnen
               </button>
             </div>
           )}
 
           {schritt === "punkte" && (
-            <div className="tour-balance mt-2 text-center">
+            <div className="tour-balance mt-2">
+              <span className="tour-gurke" aria-hidden="true">🏆</span>
               <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
-                Deine Punkte & die Rangliste
+                Punkte & Rangliste
               </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#a3ad9a]">
-                Chat-Nachricht +5, Zitat +5 (3× täglich), GurkenMail +10 / +5, täglicher
-                Bonus +20, Freund werben +100. Unten im Punkte-Popup siehst du die
-                Rangliste der Sekte.
-              </p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <Chip icon="🎁" text="+20 Bonus täglich" />
+                <Chip icon="✉️" text="+10 pro Mail" />
+                <Chip icon="🤝" text="+100 pro Freund" />
+              </div>
               <button
                 type="button"
                 onClick={() => onPunkteOffen(true)}
                 className="btn-cta btn-cta-primary mt-4 min-h-[52px] w-full !text-base"
               >
-                🎁 Punkte öffnen & Bonus abholen
+                Punkte öffnen
               </button>
             </div>
           )}
 
           {schritt === "casino" && (
-            <div className="tour-balance mt-2 text-center">
+            <div className="tour-balance mt-2">
+              <span className="tour-gurke" aria-hidden="true">🎰</span>
               <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
-                Zocken im Casino
+                Das Casino
               </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#a3ad9a]">
-                Hinter der <strong className="text-[#ede8d6]">Casino-Kachel</strong> warten{" "}
-                <strong className="text-[#ede8d6]">Slotmaschine und Roulette</strong> – Einsätze
-                10 / 25 / 50 Punkte. Heute nur schauen, spielen kannst du später (jede
-                Runde kostet ein frisches Captcha).
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <Chip icon="🎰" text="Slot" />
+                <Chip icon="🎡" text="Roulette" />
+                <Chip icon="🪙" text="10 / 25 / 50" />
+              </div>
+              <p className="mx-auto mt-3 max-w-md text-xs leading-relaxed text-[#6b7565]">
+                Heute nur schauen – spielen kannst du später. 👀
               </p>
               <button
                 type="button"
                 onClick={() => weiter("mail")}
                 className="btn-cta btn-cta-primary mt-4 min-h-[52px] w-full !text-base"
               >
-                Weiter – Postfach sichern →
+                Weiter →
               </button>
             </div>
           )}
 
           {schritt === "mail" && (
             <div className="tour-balance mt-2">
-              <h2 className="font-display mt-2 text-center text-2xl font-semibold text-[#faf8f1]">
-                Deine GurkenMail-Adresse
+              <span className="tour-gurke" aria-hidden="true">✉️</span>
+              <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
+                Deine GurkenMail
               </h2>
               {mailAdresse ? (
-                <div className="mt-3 text-center">
-                  <p className="text-sm text-[#a3ad9a]">Dein Postfach ist bereit:</p>
-                  <p className="font-display mt-1 break-all text-xl font-semibold text-[#faf8f1]">
-                    {mailAdresse}
+                <div className="mt-3">
+                  <p className="font-display break-all text-xl font-semibold text-[#faf8f1]">
+                    ✅ {mailAdresse}
                   </p>
-                  <p className="mt-2 text-xs leading-relaxed text-[#6b7565]">
-                    3× schreiben pro Tag, Empfang unbegrenzt, Gurken-intern gratis. Eine
-                    Willkommens-Mail liegt schon im Postfach.
-                  </p>
+                  <div className="mt-3 flex flex-wrap justify-center gap-2">
+                    <Chip icon="✏️" text="3× schreiben/Tag" />
+                    <Chip icon="📥" text="Empfang frei" />
+                  </div>
                   <button
                     type="button"
                     onClick={() => weiter("fertig")}
@@ -471,21 +508,14 @@ export function EinfuehrungsTour({
                   </button>
                 </div>
               ) : (
-                <form onSubmit={mailAnlegen} className="mt-3 space-y-3">
-                  <p className="text-center text-sm leading-relaxed text-[#a3ad9a]">
-                    Deine Adresse ist automatisch{" "}
-                    <strong className="break-all text-[#ede8d6]">@{benutzername}-Postfach</strong> –
-                    ganz ohne Abfrage. Sag uns nur noch, wie du als Absender heißen willst
-                    (wird auch dein Anzeigename).
-                  </p>
+                <form onSubmit={mailAnlegen} className="mt-3 space-y-3 text-left">
                   <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-center">
-                    <p className="text-xs font-semibold text-[#a3ad9a]">Deine GurkenMail-Adresse</p>
-                    <p className="font-display mt-1 break-all text-xl font-semibold text-[#faf8f1]">
+                    <p className="font-display break-all text-xl font-semibold text-[#faf8f1]">
                       {mailPrueft ? "…" : `${benutzername}@gurkensekte.de`}
                     </p>
                   </div>
                   <label className="block text-xs font-semibold text-[#a3ad9a]">
-                    Dein Name (Absendername, 2–40 Zeichen)
+                    Dein Name als Absender
                     <input
                       value={mailName}
                       onChange={(e) => {
@@ -508,7 +538,7 @@ export function EinfuehrungsTour({
                     disabled={mailArbeitet}
                     className="btn-cta btn-cta-primary min-h-[52px] w-full !text-base disabled:opacity-50"
                   >
-                    {mailArbeitet ? "Wird gesichert …" : "🥒 Namen speichern & Postfach sichern"}
+                    {mailArbeitet ? "Wird gesichert …" : "🥒 Sichern"}
                   </button>
                 </form>
               )}
@@ -516,20 +546,17 @@ export function EinfuehrungsTour({
           )}
 
           {schritt === "fertig" && (
-            <div className="tour-balance mt-2 text-center">
+            <div className="tour-balance mt-2">
               <span className="tour-gurke" aria-hidden="true">🎉</span>
               <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
-                Eingelegt! Du kennst jetzt fast alles
+                Eingelegt!
               </h2>
-              <ul className="mx-auto mt-3 max-w-md space-y-1.5 text-left text-sm text-[#a3ad9a]">
-                <li>💬 Gürkchen-Chat – frag das Einlegeglas</li>
-                <li>🎁 Punkte – Bonus abholen, Rangliste erklimmen</li>
-                <li>🎰 Casino – Slot & Roulette für Mutige</li>
-                <li>✉️ GurkenMail – {mailAdresse ?? "dein Postfach ist bereit"}</li>
+              <ul className="mx-auto mt-3 max-w-xs space-y-1.5 text-left text-sm text-[#a3ad9a]">
+                <li>💬 Gürkchen-Chat</li>
+                <li>🎁 Bonus & Rangliste</li>
+                <li>🎰 Casino gefunden</li>
+                <li>✉️ {mailAdresse ?? "Postfach bereit"}</li>
               </ul>
-              <p className="mx-auto mt-3 max-w-md text-xs leading-relaxed text-[#6b7565]">
-                Später entdecken: Duell (Tic Tac Toe live) und Freunde werben (+100 Punkte).
-              </p>
               <button
                 type="button"
                 onClick={abschliessen}

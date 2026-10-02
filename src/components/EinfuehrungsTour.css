@@ -53,6 +53,48 @@
   animation: tour-karte-ein 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
+/* Kleine Hinweis-Pille oben (z. B. „Chat schließen") – blockiert nichts. */
+.tour-pille {
+  position: fixed;
+  z-index: 70;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  pointer-events: none;
+  border-radius: 999px;
+  border: 1px solid rgba(143, 169, 109, 0.45);
+  background: rgba(16, 27, 20, 0.95);
+  padding: 0.6rem 1.1rem;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ede8d6;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: tour-pille-ein 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes tour-pille-ein {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Casino ist während der Tour nur Deko – kein Wegklicken aus dem Setup. */
+body[data-tour-schritt] [data-tour-ziel="casino"] a,
+body[data-tour-schritt] [data-tour-ziel="casino"] button {
+  pointer-events: none;
+}
+
+body[data-tour-schritt] [data-tour-ziel="casino"] > *:not(.tour-ziel-aktiv) {
+  filter: saturate(0.6);
+}
+
 /* Spotlight-Ziel: über den Overlay heben + pulsierender Gurken-Ring. */
 .tour-ziel-aktiv {
   position: relative;

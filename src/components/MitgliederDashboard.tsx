@@ -607,6 +607,7 @@ function GurkchenChat({
   tourDemo = null,
   externOffen = null,
   onExternOffenChange,
+  onTourDemoFertig,
 }: {
   isDemo?: boolean;
   /** Tour-Demo: vorbereitete Nachricht + hartcodierte Antwort, ohne API/Captcha/Punkte. */
@@ -614,6 +615,8 @@ function GurkchenChat({
   /** Gesteuertes Öffnen für die Einführungs-Tour (null = unkontrolliert). */
   externOffen?: boolean | null;
   onExternOffenChange?: (offen: boolean) => void;
+  /** Wird aufgerufen, sobald die Tour-Demo-Antwort fertig getippt ist. */
+  onTourDemoFertig?: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -676,6 +679,7 @@ function GurkchenChat({
           if (i >= voll.length) {
             clearInterval(ticker);
             setLoading(false);
+            onTourDemoFertig?.();
           }
         }, 30);
         timer.push(ticker);
@@ -689,6 +693,8 @@ function GurkchenChat({
         clearInterval(t as ReturnType<typeof setInterval>);
       }
     };
+    // onTourDemoFertig ist ein reiner Event-Dispatch (stabil per Vertrag).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourDemo, open]);
 
   function captchaZuruecksetzen(hinweis: string) {
@@ -1028,6 +1034,18 @@ export function MitgliederDashboard({  user,
   const [tourPunkteOffen, setTourPunkteOffen] = useState<boolean | null>(null);
   const tourAktiv = tourChatOffen !== null || tourPunkteOffen !== null;
 
+  // Benutzername sofort übernehmen, wenn das Gate ihn vergibt (ohne Reload
+  // startet dadurch auch die Einführungs-Tour).
+  useEffect(() => {
+    if (isDemo) return;
+    function onName(e: Event) {
+      const name = (e as CustomEvent<string>).detail;
+      if (typeof name === "string" && name) setBenutzername(name);
+    }
+    window.addEventListener("gurke:benutzername-gesetzt", onName);
+    return () => window.removeEventListener("gurke:benutzername-gesetzt", onName);
+  }, [isDemo]);
+
   useEffect(() => {
     if (isDemo) return;
     let aktiv = true;
@@ -1091,6 +1109,7 @@ export function MitgliederDashboard({  user,
               }
               externOffen={tourChatOffen}
               onExternOffenChange={(offen) => setTourChatOffen(offen ? true : null)}
+              onTourDemoFertig={() => window.dispatchEvent(new Event("gurke:tour-chat-fertig"))}
             />
           </div>
 

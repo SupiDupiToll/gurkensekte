@@ -28,6 +28,10 @@ const POINTS = {
   chat: 5,
   daily: 20,
   einloesen: -1000,
+  // Einmaliger Startbonus für neue Konten (ohne Captcha – einmalig pro
+  // Konto, wie der Referral-Bonus; Missbrauch limitiert den Schaden auf
+  // Kleinstbeträge ohne Geldwert).
+  starter: 50,
 } as const;
 
 type Action = keyof typeof POINTS;
@@ -107,15 +111,18 @@ export async function POST(req: Request) {
   // Buchung ein frisch gelöstes Captcha (`frischesToken`) – sonst farmt ein
   // Skript mit einer einzigen Lösung 30 Minuten lang Punkte. Daily und
   // Einlösen haben eigene Quoten (Tag / Rate-Limit) und nutzen die Sitzung.
+  // Der einmalige Starter-Bonus braucht kein Captcha (einmal pro Konto).
   // Geprüft wird vor allen Kontingent-Checks, damit Fehlversuche kein
   // Tageslimit verbrauchen.
-  const captcha = await pruefeTurnstile(req, {
-    token: body.turnstileToken,
-    userId: user.id,
-    frischesToken: action === "chat" || action === "zitat",
-  });
-  if (!captcha.ok) {
-    return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+  if (action !== "starter") {
+    const captcha = await pruefeTurnstile(req, {
+      token: body.turnstileToken,
+      userId: user.id,
+      frischesToken: action === "chat" || action === "zitat",
+    });
+    if (!captcha.ok) {
+      return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+    }
   }
 
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
@@ -127,6 +134,10 @@ export async function POST(req: Request) {
   // verbindlich geprüft wird erneut im Lock mit frischem Stand.
   if (action === "daily" && meta.letzterDailyBonus === today) {
     return Response.json({ error: "Heute schon abgeholt" }, { status: 400 });
+  }
+
+  if (action === "starter" && meta.starterBonusGeholt === true) {
+    return Response.json({ error: "Startbonus schon erhalten" }, { status: 400 });
   }
 
   if (action === "zitat" && quoteCountToday >= 3) {
@@ -156,6 +167,9 @@ export async function POST(req: Request) {
       // Verbindliche Re-Checks im Lock (TOCTOU-Schutz).
       if (action === "daily" && frischeMeta.letzterDailyBonus === today) {
         throw new PunkteFehler(400, "Heute schon abgeholt");
+      }
+      if (action === "starter" && frischeMeta.starterBonusGeholt === true) {
+        throw new PunkteFehler(400, "Startbonus schon erhalten");
       }
       if (action === "zitat" && zitatHeute >= 3) {
         throw new PunkteFehler(400, "Heute schon 3 Zitate generiert");
@@ -237,6 +251,9 @@ export async function POST(req: Request) {
 
       if (action === "daily") {
         update.letzterDailyBonus = today;
+      }
+      if (action === "starter") {
+        update.starterBonusGeholt = true;
       }
       if (action === "zitat") {
         update.letzterZitatBonus = today;

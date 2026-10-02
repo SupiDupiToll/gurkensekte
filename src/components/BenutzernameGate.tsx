@@ -66,7 +66,13 @@ export function BenutzernameGate() {
             startwert={zustand.vorschlag}
             absendenText="🥒 Benutzernamen sichern"
             erzwungen
-            onGespeichert={(name) => setZustand({ phase: "fertig", benutzername: name })}
+            onGespeichert={(name) => {
+              setZustand({ phase: "fertig", benutzername: name });
+              // Dashboard + Tour sofort (ohne Reload) informieren.
+              window.dispatchEvent(
+                new CustomEvent<string>("gurke:benutzername-gesetzt", { detail: name }),
+              );
+            }}
           />
         </div>
       </div>
