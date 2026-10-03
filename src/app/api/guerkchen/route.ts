@@ -2,6 +2,7 @@ import { hexclaveServerApp } from "@/hexclave/server";
 import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 import { bucheBonus, istPunkteFehler } from "@/lib/punkte";
+import { hatKiAnbieter, holeChatStream } from "@/lib/ki-anbieter";
 
 const GUERKCHEN_SYSTEM_PROMPT =
   "Du bist Gürkchen, der selbsternannte, größenwahnsinnige und leicht absurde " +
@@ -14,23 +15,6 @@ const GUERKCHEN_SYSTEM_PROMPT =
 
 const FALLBACK_REPLY =
   "Gürkchen meditiert gerade im Glas und ist nicht erreichbar. Versuch's gleich nochmal. 🥒";
-
-function getApiKeys(): string[] {
-  const keys: string[] = [];
-  // Enges Muster (OPENROUTER_API_KEY, _2, _3, …), damit keine versehentlich
-  // ähnlich benannten Env-Variablen als API-Key verwendet werden.
-  const muster = /^OPENROUTER_API_KEY(_\d+)?$/;
-  for (const [key, value] of Object.entries(process.env)) {
-    if (
-      muster.test(key) &&
-      value &&
-      value !== "your_openrouter_api_key_here"
-    ) {
-      keys.push(value);
-    }
-  }
-  return keys;
-}
 
 /** Begrenzt Kosten-Exhaustion: maximal diese Nachrichtenzahl … */
 const MAX_NACHRICHTEN = 20;
@@ -126,103 +110,23 @@ export async function POST(req: Request) {
       }
     }
 
-    const apiKeys = getApiKeys();
-
-    if (apiKeys.length === 0) {
-      console.error("Gürkchen-Chat: kein OPENROUTER_API_KEY gesetzt");
+    // Sail Research zuerst, OpenRouter free als Fallback (siehe src/lib/ki-anbieter.ts).
+    if (!hatKiAnbieter()) {
+      console.error("Gürkchen-Chat: weder SAIL_API_KEY noch OPENROUTER_API_KEY gesetzt");
       return Response.json({ reply: FALLBACK_REPLY });
     }
 
-    let lastError: unknown = null;
+    const streamAntwort = await holeChatStream(
+      [
+        { role: "system", content: GUERKCHEN_SYSTEM_PROMPT },
+        ...verlauf,
+      ],
+      MAX_ANTOWORT_TOKENS,
+    );
 
-    for (const [index, apiKey] of apiKeys.entries()) {
-      try {
-        const response = await fetch(
-          "https://openrouter.ai/api/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": "https://gurkensekte.de",
-              "X-Title": "Gurken Sekte",
-            },
-            body: JSON.stringify({
-              model: "openrouter/free",
-              stream: true,
-              max_tokens: MAX_ANTOWORT_TOKENS,
-              messages: [
-                { role: "system", content: GUERKCHEN_SYSTEM_PROMPT },
-                ...verlauf,
-              ],
-            }),
-          },
-        );
+    if (streamAntwort) return streamAntwort;
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(
-            `Gürkchen-Chat: OpenRouter Fehler (${response.status}) mit Key #${index + 1}:`,
-            errorText,
-          );
-          lastError = new Error(`HTTP ${response.status}: ${errorText}`);
-          continue;
-        }
-
-        const decoder = new TextDecoder();
-        const encoder = new TextEncoder();
-        const openRouterReader = response.body!.getReader();
-
-        const stream = new ReadableStream({
-          async start(controller) {
-            let buffer = "";
-
-            try {
-              while (true) {
-                const { done, value } = await openRouterReader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split("\n");
-                buffer = lines.pop() || "";
-
-                for (const line of lines) {
-                  const trimmed = line.trim();
-                  if (!trimmed || !trimmed.startsWith("data: ")) continue;
-                  if (trimmed === "data: [DONE]") continue;
-
-                  try {
-                    const json = JSON.parse(trimmed.slice(6));
-                    const content = json.choices?.[0]?.delta?.content || "";
-                    if (content) {
-                      controller.enqueue(encoder.encode(content));
-                    }
-                  } catch {
-                    // skip malformed lines
-                  }
-                }
-              }
-            } catch (err) {
-              console.error("Gürkchen-Chat: Stream-Fehler:", err);
-            } finally {
-              controller.close();
-            }
-          },
-        });
-
-        return new Response(stream, {
-          headers: { "Content-Type": "text/plain; charset=utf-8" },
-        });
-      } catch (error) {
-        console.error(
-          `Gürkchen-Chat: Network-Fehler mit Key #${index + 1}:`,
-          error,
-        );
-        lastError = error;
-      }
-    }
-
-    console.error("Gürkchen-Chat: alle API-Keys fehlgeschlagen", lastError);
+    console.error("Gürkchen-Chat: alle KI-Anbieter fehlgeschlagen");
     return Response.json({ reply: FALLBACK_REPLY });
   } catch (error) {
     console.error("Gürkchen-Chat: Fehler im Route Handler:", error);

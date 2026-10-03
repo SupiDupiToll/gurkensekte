@@ -2,6 +2,7 @@ import { hexclaveServerApp } from "@/hexclave/server";
 import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 import { bucheBonus, istPunkteFehler } from "@/lib/punkte";
+import { hatKiAnbieter, holeChatAntwort } from "@/lib/ki-anbieter";
 
 const QUOTE_SYSTEM_PROMPT =
   "Du bist Gürkchen, der selbsternannte Anführer der 'Gurken Sekte'. " +
@@ -12,23 +13,6 @@ const QUOTE_SYSTEM_PROMPT =
 
 const FALLBACK_QUOTE =
   "Die Gurke ist der Urknall in essbarer Form. – Gürkchen 🥒";
-
-function getApiKeys(): string[] {
-  const keys: string[] = [];
-  // Enges Muster (OPENROUTER_API_KEY, _2, _3, …), damit keine versehentlich
-  // ähnlich benannten Env-Variablen als API-Key verwendet werden.
-  const muster = /^OPENROUTER_API_KEY(_\d+)?$/;
-  for (const [key, value] of Object.entries(process.env)) {
-    if (
-      muster.test(key) &&
-      value &&
-      value !== "your_openrouter_api_key_here"
-    ) {
-      keys.push(value);
-    }
-  }
-  return keys;
-}
 
 /** Antwort-Deckel pro Zitat-Anfrage (Kostenschutz). */
 const MAX_ANTOWORT_TOKENS = 150;
@@ -84,53 +68,15 @@ export async function GET(req: Request) {
     }
   }
 
-  const apiKeys = getApiKeys();
-
-  if (apiKeys.length === 0) {
+  // Sail Research zuerst, OpenRouter free als Fallback (siehe src/lib/ki-anbieter.ts).
+  if (!hatKiAnbieter()) {
     return Response.json({ quote: FALLBACK_QUOTE });
   }
 
-  for (const [index, apiKey] of apiKeys.entries()) {
-    try {
-      const response = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://gurkensekte.de",
-            "X-Title": "Gurken Sekte",
-          },
-          body: JSON.stringify({
-            model: "openrouter/free",
-            stream: false,
-            max_tokens: MAX_ANTOWORT_TOKENS,
-            messages: [{ role: "user", content: QUOTE_SYSTEM_PROMPT }],
-          }),
-        },
-      );
+  const quote = await holeChatAntwort(
+    [{ role: "user", content: QUOTE_SYSTEM_PROMPT }],
+    MAX_ANTOWORT_TOKENS,
+  );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          `Gürkchen-Quote: Fehler (${response.status}) mit Key #${index + 1}:`,
-          errorText,
-        );
-        continue;
-      }
-
-      const data = await response.json();
-      const quote =
-        data.choices?.[0]?.message?.content?.trim() || FALLBACK_QUOTE;
-      return Response.json({ quote });
-    } catch (error) {
-      console.error(
-        `Gürkchen-Quote: Network-Fehler mit Key #${index + 1}:`,
-        error,
-      );
-    }
-  }
-
-  return Response.json({ quote: FALLBACK_QUOTE });
+  return Response.json({ quote: quote ?? FALLBACK_QUOTE });
 }
