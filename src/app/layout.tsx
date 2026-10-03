@@ -7,11 +7,54 @@ import { PwaRegister } from "@/components/PwaRegister";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import "./globals.css";
 
+const seitenUrl =
+  (process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://gurkensekte.de")
+    .trim()
+    .replace(/\/+$/, "") || "https://gurkensekte.de";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(seitenUrl),
   title: "Gurken Sekte – Offizielle Kult-Website",
   description:
-    "Willkommen bei der Gurken Sekte! Tritt unserem exklusiven Kult bei und spende Gurken für die Erleuchtung.",
+    "Tritt der Gurken Sekte bei: Gürkchen-Chat, tägliche Zitate, Punkte & Casino, GurkenMail-Adresse und Spenden – sammle 1.000 Segen für eine echte Gurke.",
   applicationName: "Gurken Sekte",
+  keywords: [
+    "Gurken Sekte",
+    "Gürkchen",
+    "GurkenMail",
+    "Mitgliederbereich",
+    "Punkte sammeln",
+    "Casino",
+    "Spenden",
+  ],
+  alternates: { canonical: "/" },
+  robots: { index: true, follow: true },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    locale: "de_DE",
+    url: "/",
+    siteName: "Gurken Sekte",
+    title: "Gurken Sekte – Offizielle Kult-Website",
+    description:
+      "Tritt der Gurken Sekte bei: Gürkchen-Chat, tägliche Zitate, Punkte & Casino, GurkenMail-Adresse und Spenden – sammle 1.000 Segen für eine echte Gurke.",
+    images: [{ url: "/icon.png", width: 512, height: 512, alt: "Gurken Sekte Logo" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Gurken Sekte – Offizielle Kult-Website",
+    description:
+      "Tritt der Gurken Sekte bei: Gürkchen-Chat, tägliche Zitate, Punkte & Casino, GurkenMail-Adresse und Spenden – sammle 1.000 Segen für eine echte Gurke.",
+    images: ["/icon.png"],
+  },
   appleWebApp: {
     capable: true,
     title: "Gurken Sekte",

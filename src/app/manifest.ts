@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Gurken Sekte – Offizielle Kult-Website",
     short_name: "Gurken Sekte",
     description:
-      "Willkommen bei der Gurken Sekte! Tritt unserem exklusiven Kult bei und spende Gurken für die Erleuchtung.",
+      "Tritt der Gurken Sekte bei: Gürkchen-Chat, tägliche Zitate, Punkte & Casino, GurkenMail-Adresse und Spenden – sammle 1.000 Segen für eine echte Gurke.",
     id: "/",
     scope: "/",
     start_url: "/mitglieder",
