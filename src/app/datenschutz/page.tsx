@@ -83,15 +83,32 @@ export default function DatenschutzPage() {
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-6">
             <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
-              OpenRouter API (KI-Chat)
+              Sail Research (KI-Chat, primär)
             </h3>
             <p className="text-sm text-[#6b7565] mb-2">
               <strong>Zweck:</strong> Bereitstellung des KI-gestützten
-              Gürkchen-Chat-Dienstes (Eingaben können von OpenRouter und
-              Partnern gespeichert werden!)
+              Gürkchen-Chat-Dienstes (Eingaben können von Sail Research
+              gespeichert werden!)
             </p>
             <ul className="list-disc list-inside text-sm text-[#a3ad9a] space-y-1">
               <li>Bereitstellung des Gürkchen-Chat-Features</li>
+              <li>Generierung von KI-Antworten und -Erklärungen</li>
+              <li>Verarbeitung von Chat-Anfragen</li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+            <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
+              OpenRouter API (KI-Chat, Fallback)
+            </h3>
+            <p className="text-sm text-[#6b7565] mb-2">
+              <strong>Zweck:</strong> Fallback für den KI-gestützten
+              Gürkchen-Chat-Dienst, falls Sail Research nicht verfügbar ist
+              (Eingaben können von OpenRouter und Partnern gespeichert
+              werden!)
+            </p>
+            <ul className="list-disc list-inside text-sm text-[#a3ad9a] space-y-1">
+              <li>Ersatzweise Bereitstellung des Gürkchen-Chat-Features</li>
               <li>Generierung von KI-Antworten und -Erklärungen</li>
               <li>Verarbeitung von Chat-Anfragen</li>
             </ul>

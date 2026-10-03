@@ -5,13 +5,26 @@
  *   POST {SAIL_BASE_URL}/chat/completions
  *   Authorization: Bearer $SAIL_API_KEY
  * Modell (Default): deepseek-ai/DeepSeek-V4-Flash-0731
+ * Preis-Fenster (Default): "flex" (günstigstes Best-Effort-Fenster, kann
+ * langsam sein – per SAIL_COMPLETION_WINDOW änderbar, z. B. "asap" für
+ * interaktiven Chat). Siehe https://docs.sailresearch.com/completion-windows
  *
  * OpenRouter bleibt als Fallback mit Modell "openrouter/free".
+ *
+ * Wichtig: `holeChatStream` gibt erst einen Stream zurück, wenn der Anbieter
+ * tatsächlich einen ersten Inhalts-Chunk geliefert hat. Leere oder hängende
+ * Upstream-Streams werden verworfen und der nächste Anbieter wird probiert –
+ * sonst sieht der Client eine leere Blase ohne Fehlermeldung.
  */
 
 const STANDARD_SAIL_MODELL = "deepseek-ai/DeepSeek-V4-Flash-0731";
 const STANDARD_SAIL_BASIS_URL = "https://api.sailresearch.com/v1";
+const STANDARD_SAIL_FENSTER = "flex";
 const STANDARD_OPENROUTER_MODELL = "openrouter/free";
+/** Max. Wartezeit auf den ersten Inhalts-Chunk eines Anbieters. */
+const STANDARD_ERSTER_TOKEN_TIMEOUT_MS = 20_000;
+/** Max. Gesamtdauer einer nicht-streamenden Anfrage. */
+const STANDARD_ANTOWORT_TIMEOUT_MS = 60_000;
 
 function leseEnvNamen(muster: RegExp): string[] {
   const keys: string[] = [];
@@ -55,6 +68,34 @@ export function holeSailBasisUrl(): string {
   return roh.replace(/\/$/, "");
 }
 
+/** Preis-/Latenz-Fenster für Sail: asap, priority, standard oder flex. */
+export function holeSailFenster(): string {
+  const roh =
+    process.env.SAIL_COMPLETION_WINDOW?.trim() ||
+    process.env.SAIL_RESEARCH_COMPLETION_WINDOW?.trim() ||
+    STANDARD_SAIL_FENSTER;
+  return roh || STANDARD_SAIL_FENSTER;
+}
+
+function holeTimeoutMs(envWert: string | undefined, standard: number): number {
+  const ms = Number.parseInt(envWert?.trim() ?? "", 10);
+  return Number.isFinite(ms) && ms > 0 ? ms : standard;
+}
+
+export function holeErsterTokenTimeoutMs(): number {
+  return holeTimeoutMs(
+    process.env.KI_ERSTER_TOKEN_TIMEOUT_MS,
+    STANDARD_ERSTER_TOKEN_TIMEOUT_MS,
+  );
+}
+
+export function holeAntwortTimeoutMs(): number {
+  return holeTimeoutMs(
+    process.env.KI_ANTOWORT_TIMEOUT_MS,
+    STANDARD_ANTOWORT_TIMEOUT_MS,
+  );
+}
+
 export function holeOpenRouterModell(): string {
   return process.env.OPENROUTER_MODEL?.trim() || STANDARD_OPENROUTER_MODELL;
 }
@@ -64,12 +105,15 @@ type AnbieterVersuch = {
   url: string;
   headers: Record<string, string>;
   modell: string;
+  /** Zusätzliche Body-Felder nur für diesen Anbieter (z. B. Sail-metadata). */
+  extraBody?: Record<string, unknown>;
 };
 
 export function baueAnbieterListe(): AnbieterVersuch[] {
   const liste: AnbieterVersuch[] = [];
   const sailBasis = holeSailBasisUrl();
   const sailModell = holeSailModell();
+  const sailFenster = holeSailFenster();
 
   for (const key of holeSailKeys()) {
     liste.push({
@@ -80,6 +124,7 @@ export function baueAnbieterListe(): AnbieterVersuch[] {
         "Content-Type": "application/json",
       },
       modell: sailModell,
+      extraBody: { metadata: { completion_window: sailFenster } },
     });
   }
 
@@ -102,6 +147,35 @@ export function baueAnbieterListe(): AnbieterVersuch[] {
 
 type ChatNachricht = { role: "system" | "user" | "assistant"; content: string };
 
+/** Extrahiert Delta-Texte aus fertigen SSE-Zeilen (OpenAI-Chunk-Format). */
+function extrahiereDeltaTexte(zeilen: string[]): string {
+  let text = "";
+  for (const zeile of zeilen) {
+    const getrimmt = zeile.trim();
+    if (!getrimmt || !getrimmt.startsWith("data: ")) continue;
+    if (getrimmt === "data: [DONE]") continue;
+    try {
+      const json = JSON.parse(getrimmt.slice(6));
+      const inhalt = json.choices?.[0]?.delta?.content;
+      if (typeof inhalt === "string" && inhalt) text += inhalt;
+    } catch {
+      // fehlerhafte Zeilen überspringen
+    }
+  }
+  return text;
+}
+
+/** Löst mit null auf, wenn `versprechen` nicht innerhalb von `ms` fertig wird. */
+function mitAblauf<T>(versprechen: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const ablauf = new Promise<null>((loese) => {
+    timer = setTimeout(() => loese(null), ms);
+  });
+  return Promise.race([versprechen, ablauf]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
 /**
  * Nicht-streamende Anfrage: probiert Sail zuerst, dann OpenRouter.
  * Gibt den Antworttext zurück oder null, wenn alle Anbieter scheitern.
@@ -111,6 +185,7 @@ export async function holeChatAntwort(
   maxTokens: number,
 ): Promise<string | null> {
   const anbieter = baueAnbieterListe();
+  const timeoutMs = holeAntwortTimeoutMs();
   let index = 0;
   for (const versuch of anbieter) {
     index += 1;
@@ -118,11 +193,13 @@ export async function holeChatAntwort(
       const response = await fetch(versuch.url, {
         method: "POST",
         headers: versuch.headers,
+        signal: AbortSignal.timeout(timeoutMs),
         body: JSON.stringify({
           model: versuch.modell,
           stream: false,
           max_tokens: maxTokens,
           messages: nachrichten,
+          ...versuch.extraBody,
         }),
       });
 
@@ -153,14 +230,17 @@ export async function holeChatAntwort(
 
 /**
  * Streamende Anfrage: probiert Sail zuerst, dann OpenRouter.
- * Gibt bei Erfolg direkt eine Text-Stream-Response zurück,
- * sonst null (Caller antwortet dann mit Fallback).
+ * Gibt erst dann eine Text-Stream-Response zurück, wenn der Anbieter
+ * tatsächlich einen ersten Inhalts-Chunk geliefert hat – sonst wird der
+ * nächste Anbieter probiert. Gibt null zurück, wenn alle scheitern
+ * (Caller antwortet dann mit Fallback und vergibt KEINE Punkte).
  */
 export async function holeChatStream(
   nachrichten: ChatNachricht[],
   maxTokens: number,
 ): Promise<Response | null> {
   const anbieter = baueAnbieterListe();
+  const timeoutMs = holeErsterTokenTimeoutMs();
   let index = 0;
   for (const versuch of anbieter) {
     index += 1;
@@ -168,11 +248,13 @@ export async function holeChatStream(
       const response = await fetch(versuch.url, {
         method: "POST",
         headers: versuch.headers,
+        signal: AbortSignal.timeout(timeoutMs),
         body: JSON.stringify({
           model: versuch.modell,
           stream: true,
           max_tokens: maxTokens,
           messages: nachrichten,
+          ...versuch.extraBody,
         }),
       });
 
@@ -185,37 +267,58 @@ export async function holeChatStream(
         continue;
       }
 
-      const decoder = new TextDecoder();
-      const encoder = new TextEncoder();
+      // Ersten Inhalts-Chunk abwarten (mit Timeout): Nur wer wirklich
+      // liefert, wird an den Client durchgereicht.
       const leser = response.body.getReader();
+      const decoder = new TextDecoder();
+      let puffer = "";
+      let vorschau = "";
+      let stromEnde = false;
+      const beginn = Date.now();
+      while (!vorschau && !stromEnde) {
+        const rest = timeoutMs - (Date.now() - beginn);
+        if (rest <= 0) break;
+        const teil = await mitAblauf(leser.read(), rest);
+        if (!teil) break; // Timeout ohne Inhalt
+        if (teil.done) {
+          stromEnde = true;
+          break;
+        }
+        puffer += decoder.decode(teil.value, { stream: true });
+        const zeilen = puffer.split("\n");
+        puffer = zeilen.pop() || "";
+        vorschau = extrahiereDeltaTexte(zeilen);
+      }
 
+      if (!vorschau) {
+        console.error(
+          `Gürkchen: ${versuch.name} lieferte keinen Inhalt (Timeout/leer) bei Versuch #${index} – nächster Anbieter`,
+        );
+        try {
+          await leser.cancel();
+        } catch {
+          // ignore
+        }
+        continue;
+      }
+
+      const encoder = new TextEncoder();
+      const restPuffer = puffer;
       const stream = new ReadableStream({
         async start(controller) {
-          let buffer = "";
+          // Bereits empfangenen Anfang zuerst ausliefern …
+          controller.enqueue(encoder.encode(vorschau));
+          let buf = restPuffer;
           try {
             while (true) {
               const { done, value } = await leser.read();
               if (done) break;
 
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed || !trimmed.startsWith("data: ")) continue;
-                if (trimmed === "data: [DONE]") continue;
-
-                try {
-                  const json = JSON.parse(trimmed.slice(6));
-                  const content = json.choices?.[0]?.delta?.content || "";
-                  if (content) {
-                    controller.enqueue(encoder.encode(content));
-                  }
-                } catch {
-                  // skip malformed lines
-                }
-              }
+              buf += decoder.decode(value, { stream: true });
+              const zeilen = buf.split("\n");
+              buf = zeilen.pop() || "";
+              const inhalt = extrahiereDeltaTexte(zeilen);
+              if (inhalt) controller.enqueue(encoder.encode(inhalt));
             }
           } catch (err) {
             console.error("Gürkchen: Stream-Fehler:", err);

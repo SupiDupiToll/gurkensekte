@@ -1,7 +1,15 @@
 import { hexclaveServerApp } from "@/hexclave/server";
 import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
-import { bucheBonus, istPunkteFehler } from "@/lib/punkte";
+import {
+  bucheBonus,
+  heuteISO,
+  istPunkteFehler,
+  mitFrischemBenutzer,
+  PunkteFehler,
+  ZITAT_MAX_PRO_TAG,
+  zitatZaehlerHeute,
+} from "@/lib/punkte";
 import { hatKiAnbieter, holeChatAntwort } from "@/lib/ki-anbieter";
 
 const QUOTE_SYSTEM_PROMPT =
@@ -51,12 +59,47 @@ export async function GET(req: Request) {
     return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
   }
 
-  // Eingeloggte Mitglieder erhalten +5 Zitat-Punkte direkt hier (max. 3/Tag):
-  // separates Claimen würde das Single-Use-Token ein zweites Mal prüfen.
+  // Eingeloggte Mitglieder erhalten +5 Zitat-Punkte (max. 3/Tag) – aber
+  // erst nach erfolgreicher LLM-Antwort (siehe unten). Das Single-Use-Token
+  // ist hier bereits verbraucht, separates Claimen entfällt.
   const mitglied = await hexclaveServerApp.getUser({
     tokenStore: req,
     or: "return-null",
   });
+
+  // Quota-Vorabcheck (nur lesend, ohne Buchung): Bei 3/3 wird gar kein
+  // LLM-Call verschwendet. Die echte Durchsetzung bleibt in bucheBonus
+  // (Lock + Re-Read) weiter unten.
+  if (mitglied) {
+    try {
+      await mitFrischemBenutzer(req, mitglied.id, async (_frisch, meta) => {
+        if (zitatZaehlerHeute(meta, heuteISO()) >= ZITAT_MAX_PRO_TAG) {
+          throw new PunkteFehler(400, "Heute schon 3 Zitate generiert");
+        }
+      });
+    } catch (error) {
+      if (istPunkteFehler(error)) {
+        return Response.json({ error: error.message }, { status: error.status });
+      }
+      throw error;
+    }
+  }
+
+  // Sail Research (flex) zuerst, OpenRouter free als Fallback (siehe src/lib/ki-anbieter.ts).
+  if (!hatKiAnbieter()) {
+    return Response.json({ quote: FALLBACK_QUOTE });
+  }
+
+  const quote = await holeChatAntwort(
+    [{ role: "user", content: QUOTE_SYSTEM_PROMPT }],
+    MAX_ANTOWORT_TOKENS,
+  );
+
+  // Kein LLM-Erfolg = keine Punkte, nur Fallback-Zitat.
+  if (!quote) {
+    return Response.json({ quote: FALLBACK_QUOTE });
+  }
+
   if (mitglied) {
     try {
       await bucheBonus(req, mitglied.id, "zitat");
@@ -68,15 +111,5 @@ export async function GET(req: Request) {
     }
   }
 
-  // Sail Research zuerst, OpenRouter free als Fallback (siehe src/lib/ki-anbieter.ts).
-  if (!hatKiAnbieter()) {
-    return Response.json({ quote: FALLBACK_QUOTE });
-  }
-
-  const quote = await holeChatAntwort(
-    [{ role: "user", content: QUOTE_SYSTEM_PROMPT }],
-    MAX_ANTOWORT_TOKENS,
-  );
-
-  return Response.json({ quote: quote ?? FALLBACK_QUOTE });
+  return Response.json({ quote });
 }

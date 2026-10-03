@@ -726,6 +726,23 @@ function GurkchenChat({
       return;
     }
 
+    // Stall-Erkennung: Kommen 5 s lang keine neuen Inhalte, wird der
+    // Stream abgebrochen und eine Fehlermeldung gezeigt (statt einer leeren
+    // Blase). Die nächste Nachricht bleibt normal schickbar (loading=false,
+    // frisches Captcha) – und Punkte gibt es nur bei echter Antwort, denn
+    // der Server bucht ebenfalls nur bei LLM-Erfolg.
+    const STALL_MS = 5000;
+    const STALL_TEXT =
+      "Gürkchen antwortet gerade nicht – versuch es gleich nochmal. 🥒";
+
+    function ersetzeLetzteBlase(text: string) {
+      setMessages((prev) => {
+        const aktualisiert = [...prev];
+        aktualisiert[aktualisiert.length - 1] = { role: "assistant", content: text };
+        return aktualisiert;
+      });
+    }
+
     setInput("");
     const userMessage: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMessage]);
@@ -759,39 +776,70 @@ function GurkchenChat({
       }
 
       const contentType = res.headers.get("Content-Type") || "";
+      // Nur bei echter Antwort gibt es Punkte (Server bucht ebenfalls nur
+      // bei LLM-Erfolg).
+      let erfolg = false;
 
-      if (contentType.includes("text/plain")) {
-        const reader = res.body!.getReader();
+      if (contentType.includes("text/plain") && res.body) {
+        const reader = res.body.getReader();
         const decoder = new TextDecoder();
 
         setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
         let fullContent = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          fullContent += decoder.decode(value, { stream: true });
-          setMessages((prev) => {
-            const updated = [...prev];
-            updated[updated.length - 1] = {
-              role: "assistant",
-              content: fullContent,
-            };
-            return updated;
-          });
+        let letzterChunk = Date.now();
+        let abgebrochen = false;
+        const stallTimer = setInterval(() => {
+          if (Date.now() - letzterChunk > STALL_MS) {
+            abgebrochen = true;
+            reader.cancel().catch(() => {
+              // ignore
+            });
+            clearInterval(stallTimer);
+          }
+        }, 1000);
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done || abgebrochen) break;
+            const stueck = decoder.decode(value, { stream: true });
+            if (!stueck) continue;
+            letzterChunk = Date.now();
+            fullContent += stueck;
+            ersetzeLetzteBlase(fullContent);
+          }
+        } finally {
+          clearInterval(stallTimer);
+        }
+
+        if (abgebrochen || !fullContent.trim()) {
+          // Leere/hängende Antwort: leere Blase durch Fehlermeldung ersetzen.
+          ersetzeLetzteBlase(STALL_TEXT);
+        } else {
+          erfolg = true;
         }
       } else {
-        const data = await res.json();
-        setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+        const data = (await res.json().catch(() => ({}))) as { reply?: unknown };
+        const text = typeof data.reply === "string" ? data.reply.trim() : "";
+        if (text) {
+          setMessages((prev) => [...prev, { role: "assistant", content: text }]);
+          erfolg = true;
+        } else {
+          setMessages((prev) => [...prev, { role: "assistant", content: STALL_TEXT }]);
+        }
       }
 
       // Die +5 Chat-Punkte schreibt /api/guerkchen direkt gut (frisches
-      // Captcha pro Nachricht). Nur die Demo braucht ihren separaten
-      // Demo-Claim – die frische IP-Sitzung aus dem Chat genügt ihm.
-      if (isDemo) {
-        claim("chat");
+      // Captcha pro Nachricht) – aber nur bei Erfolg. Die Demo braucht
+      // ihren separaten Demo-Claim – die frische IP-Sitzung aus dem Chat
+      // genügt ihm.
+      if (erfolg) {
+        if (isDemo) {
+          claim("chat");
+        }
+        refresh();
       }
-      refresh();
       if (captchaKonfiguriert) {
         captchaZuruecksetzen(
           "Für jede Nachricht bitte kurz das Captcha lösen.",

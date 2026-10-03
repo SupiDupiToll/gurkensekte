@@ -88,29 +88,19 @@ export async function POST(req: Request) {
       });
     }
 
-    // Eingeloggte Mitglieder erhalten +5 Chat-Punkte direkt hier: Das Token
-    // ist Single-Use und darf nicht zusätzlich an die Punkte-Route zur
-    // Prüfung weitergereicht werden. Anonyme Chatter bekommen nur Antwort.
-    // Schlägt die Gutschrift fehl, antwortet Gürkchen trotzdem (der
-    // LLM-Erfolg zählt, die +5 sind dann eben verloren – fail-open für
-    // Verfügbarkeit, kein Punkte-Verlust für den Chat selbst).
+    // Eingeloggte Mitglieder erhalten +5 Chat-Punkte – aber erst nach
+    // erfolgreicher LLM-Antwort (siehe unten): Bei leerer/fehlender Antwort
+    // gibt es keine Punkte. Das Token ist Single-Use und darf nicht
+    // zusätzlich an die Punkte-Route zur Prüfung weitergereicht werden.
+    // Anonyme Chatter bekommen nur Antwort.
     const mitglied = await hexclaveServerApp.getUser({
       tokenStore: req,
       or: "return-null",
     });
-    if (mitglied) {
-      try {
-        await bucheBonus(req, mitglied.id, "chat");
-      } catch (error) {
-        if (istPunkteFehler(error)) {
-          console.error("Gürkchen-Chat: Gutschrift fehlgeschlagen:", error.message);
-        } else {
-          throw error;
-        }
-      }
-    }
 
-    // Sail Research zuerst, OpenRouter free als Fallback (siehe src/lib/ki-anbieter.ts).
+    // Sail Research (flex) zuerst, OpenRouter free als Fallback
+    // (siehe src/lib/ki-anbieter.ts). holeChatStream liefert nur dann einen
+    // Stream, wenn der Anbieter echten Inhalt schickt – sonst null.
     if (!hatKiAnbieter()) {
       console.error("Gürkchen-Chat: weder SAIL_API_KEY noch OPENROUTER_API_KEY gesetzt");
       return Response.json({ reply: FALLBACK_REPLY });
@@ -124,10 +114,27 @@ export async function POST(req: Request) {
       MAX_ANTOWORT_TOKENS,
     );
 
-    if (streamAntwort) return streamAntwort;
+    if (!streamAntwort) {
+      console.error("Gürkchen-Chat: alle KI-Anbieter fehlgeschlagen");
+      return Response.json({ reply: FALLBACK_REPLY });
+    }
 
-    console.error("Gürkchen-Chat: alle KI-Anbieter fehlgeschlagen");
-    return Response.json({ reply: FALLBACK_REPLY });
+    // Erst jetzt (LLM-Erfolg steht fest) die +5 gutschreiben. Schlägt die
+    // Gutschrift fehl, antwortet Gürkchen trotzdem (fail-open für
+    // Verfügbarkeit – die +5 sind dann eben verloren).
+    if (mitglied) {
+      try {
+        await bucheBonus(req, mitglied.id, "chat");
+      } catch (error) {
+        if (istPunkteFehler(error)) {
+          console.error("Gürkchen-Chat: Gutschrift fehlgeschlagen:", error.message);
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    return streamAntwort;
   } catch (error) {
     console.error("Gürkchen-Chat: Fehler im Route Handler:", error);
     return Response.json({ reply: FALLBACK_REPLY });
