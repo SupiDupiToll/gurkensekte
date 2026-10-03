@@ -340,12 +340,27 @@ export function EinfuehrungsTour({
     }
   }
 
-  // Demo-Chat offen: nur Hinweis-Pille zum Schließen (sobald geantwortet).
+  // Demo-Chat offen: Unten kommt wieder eine Karte mit Schließen-Button
+  // (sobald Gürkchen geantwortet hat).
   if (schritt === "chat" && chatOffen) {
     if (!chatFertig) return null;
     return (
-      <div className="tour-pille" role="status">
-        <span aria-hidden="true">👆</span> Tippe oben auf „Schließen“ – dann geht’s weiter
+      <div className="tour-hinweis">
+        <div className="rounded-2xl border border-white/10 bg-[#101b14] px-5 py-5 text-center shadow-2xl md:px-6">
+          <h2 className="font-display text-lg font-semibold text-[#faf8f1]">
+            ✅ Gürkchen hat geantwortet!
+          </h2>
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            <Chip icon="💬" text="+5 Punkte pro echter Nachricht" />
+          </div>
+          <button
+            type="button"
+            onClick={() => onChatOffen(false)}
+            className="btn-cta btn-cta-primary mt-4 min-h-[48px] w-full !text-[15px]"
+          >
+            Chat schließen →
+          </button>
+        </div>
       </div>
     );
   }
