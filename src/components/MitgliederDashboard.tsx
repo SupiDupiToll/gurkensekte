@@ -548,6 +548,10 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
   );
 
   useEffect(() => {
+    // Mit Captcha-Pflicht kein Auto-Start: erst Captcha lösen, dann Button
+    // klicken – sonst löst ein (ggf. automatisches) Captcha direkt das
+    // nächste Zitat aus und man kann es nicht lesen.
+    if (turnstileKonfiguriert()) return;
     fetchQuote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -558,7 +562,7 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
         <div className="shimmer mx-auto h-16 max-w-md rounded-xl" aria-busy="true" />
       ) : (
         <blockquote className="font-display mx-auto min-h-[3rem] max-w-xl text-xl italic leading-relaxed text-[#ede8d6]">
-          „{quote}“
+          {quote ? `„${quote}“` : "Löse das Captcha und tippe auf „Neues Zitat“."}
         </blockquote>
       )}
       {captchaPflicht && (
@@ -567,8 +571,7 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
             resetKey={captchaReset}
             onVerify={(token) => {
               setTurnstileToken(token);
-              setCaptchaHinweis(null);
-              fetchQuote(token);
+              setCaptchaHinweis("Captcha gelöst – tippe jetzt auf „Neues Zitat“.");
             }}
             onExpire={() => {
               setTurnstileToken(null);
@@ -585,8 +588,9 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
       <div className="mt-5 flex flex-col items-center gap-2">
         <button
           onClick={() => fetchQuote()}
-          disabled={loading || !quoteAvailable}
+          disabled={loading || !quoteAvailable || (captchaPflicht && !turnstileToken)}
           className="flex min-h-[44px] items-center gap-2 rounded-lg bg-[#ede8d6] px-6 py-2.5 text-sm font-semibold text-[#0b120d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 "
+          title={captchaPflicht && !turnstileToken ? "Bitte zuerst das Captcha lösen" : undefined}
         >
           <Quotes size={17} weight="fill" />
           {quoteAvailable ? "Neues Zitat" : "Morgen wieder"}
