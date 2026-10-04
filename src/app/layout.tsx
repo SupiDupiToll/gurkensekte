@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Fraunces, Outfit } from "next/font/google";
 import { HexclaveProvider, HexclaveTheme } from "@hexclave/next";
 import { hexclaveServerApp } from "@/hexclave/server";
 import { CultHeader } from "@/components/CultHeader";
@@ -6,6 +7,24 @@ import { Footer } from "@/components/Footer";
 import { PwaRegister } from "@/components/PwaRegister";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import "./globals.css";
+
+// Taste-Regel 3.A: Fonts immer via next/font (self-hosted, display:swap),
+// nie via <link> oder @import. Sans (Outfit) ist der Default für alles;
+// Fraunces-Serif nur für Zitate (font-serif) – siehe Fix 4.
+const outfit = Outfit({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-outfit",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-fraunces",
+});
 
 const seitenUrl =
   (process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://gurkensekte.de")
@@ -73,12 +92,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de" className="h-full" data-stack-theme="dark">
+    <html lang="de" className={`h-full ${outfit.variable} ${fraunces.variable}`} data-stack-theme="dark">
       <head>
         <script
           src="https://embed.impressum.mangoe.de/impressum-embed.js"
           async
         />
+        {/* Reveal startet bei opacity:0 – ohne JS bliebe alles unsichtbar. */}
+        <noscript>
+          <style>{`.reveal{opacity:1 !important;transform:none !important;}`}</style>
+        </noscript>
       </head>
       <body className="min-h-full flex flex-col">
         <HexclaveProvider app={hexclaveServerApp}>

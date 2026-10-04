@@ -69,7 +69,7 @@ export function HomePage({ base = "" }: { base?: string }) {
             <div className="shell">
               <div className="core p-7 md:p-8">
                 <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#c9a86a]/30 bg-[#c9a86a]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#e2d9bf]">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#8fa96d]/30 bg-[#8fa96d]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#e2d9bf]">
                     <SealCheck size={14} weight="fill" />
                     Manifest
                   </span>
@@ -80,7 +80,7 @@ export function HomePage({ base = "" }: { base?: string }) {
                 <div className="my-6 flex h-44 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02]">
                   <SpinningCucumber size="text-8xl" />
                 </div>
-                <blockquote className="font-display text-xl italic leading-snug text-[#ede8d6]">
+                <blockquote className="font-serif text-xl italic leading-snug text-[#ede8d6]">
                   „Es gibt keine Probleme, nur Gurken, die noch nicht entdeckt wurden.“
                 </blockquote>
                 <p className="mt-3 text-sm text-[#a3ad9a]">
@@ -97,7 +97,6 @@ export function HomePage({ base = "" }: { base?: string }) {
         <Reveal>
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="eyebrow">Das Sektenleben</p>
               <h2 className="font-display mt-3 max-w-2xl text-3xl font-semibold leading-tight text-[#faf8f1] md:text-[2.6rem]">
                 Drei Wege zur Erleuchtung, ein Einlegeglas.
               </h2>
@@ -106,7 +105,7 @@ export function HomePage({ base = "" }: { base?: string }) {
               href={`${base}/mitglieder`}
               className="group inline-flex items-center gap-2 rounded-lg border border-white/12 px-4 py-2 text-sm font-semibold text-[#cfc8b0] transition-all duration-300 hover:border-[#abc189]/40 hover:text-[#faf8f1]"
             >
-              Mitgliederbereich
+              Zum Mitgliederbereich
               <ArrowRight size={16} className="transition-transform duration-300 " />
             </Link>
           </div>
@@ -117,7 +116,7 @@ export function HomePage({ base = "" }: { base?: string }) {
             <div className="shell h-full">
               <div className="core flex h-full flex-col justify-between p-7 md:p-9">
                 <div>
-                  <Coins size={28} weight="fill" className="text-[#c9a86a]" />
+                  <Coins size={28} weight="fill" className="text-[#8fa96d]" />
                   <h3 className="font-display mt-4 text-2xl font-semibold text-[#faf8f1]">
                     Sammle Segen, ernte Gurken
                   </h3>
@@ -137,7 +136,7 @@ export function HomePage({ base = "" }: { base?: string }) {
           </Reveal>
 
           <Reveal className="md:col-span-5" delay={2}>
-            <div className="shell h-full">
+            <div className="shell shell-tint h-full">
               <div className="core flex h-full flex-col justify-between p-7 md:p-9">
                 <div>
                   <ChatCircleText size={28} weight="fill" className="text-[#8fa96d]" />
@@ -148,7 +147,7 @@ export function HomePage({ base = "" }: { base?: string }) {
                     Weisheit mit Segen pro Nachricht.
                   </p>
                 </div>
-                <p className="font-display mt-6 border-l-2 border-[#8fa96d]/50 pl-4 text-[15px] italic leading-relaxed text-[#e2d9bf]">
+                <p className="font-serif mt-6 border-l-2 border-[#8fa96d]/50 pl-4 text-[15px] italic leading-relaxed text-[#e2d9bf]">
                   „Sei gegrüßt, mein Gurken-Kind. Was bedrückt deine eingelegte Seele?“
                 </p>
               </div>
@@ -156,10 +155,10 @@ export function HomePage({ base = "" }: { base?: string }) {
           </Reveal>
 
           <Reveal className="md:col-span-5" delay={1}>
-            <Link href={`${base}/mitglieder/casino`} className="shell group block h-full">
+            <Link href={`${base}/mitglieder/casino`} className="shell shell-pattern group block h-full">
               <div className="core flex h-full items-center justify-between gap-4 p-7">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#c9a86a]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8fa96d]">
                     Spielgeld · Punkte
                   </p>
                   <h3 className="font-display mt-2 text-xl font-semibold text-[#faf8f1]">
@@ -206,7 +205,6 @@ export function HomePage({ base = "" }: { base?: string }) {
           <div className="md:col-span-4">
             <Reveal>
               <div className="md:sticky md:top-28">
-                <p className="eyebrow">Weisheiten</p>
                 <h2 className="font-display mt-3 text-3xl font-semibold leading-tight text-[#faf8f1] md:text-4xl">
                   Vier Sätze, null Salat.
                 </h2>
@@ -233,7 +231,7 @@ export function HomePage({ base = "" }: { base?: string }) {
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div>
-                      <p className="font-display text-xl italic leading-snug text-[#ede8d6] transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]  md:text-2xl">
+                      <p className="font-serif text-xl italic leading-snug text-[#ede8d6] transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]  md:text-2xl">
                         „{q.text}“
                       </p>
                       <p className="mt-2 text-xs font-medium uppercase tracking-[0.12em] text-[#6b7565]">
@@ -259,7 +257,6 @@ export function HomePage({ base = "" }: { base?: string }) {
                 </div>
               </div>
               <div className="md:col-span-8">
-                <p className="eyebrow">Der Erleuchtete</p>
                 <h2 className="font-display mt-3 text-3xl font-semibold text-[#faf8f1] md:text-4xl">
                   Gürkchen, geboren 1987 im bayerischen Kleingarten.
                 </h2>
@@ -286,7 +283,7 @@ export function HomePage({ base = "" }: { base?: string }) {
                 <SpinningCucumber size="text-5xl" />
                 <SpinningCucumber size="text-3xl" />
               </div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8fa96d]">
+              <p className="text-sm font-medium text-[#8fa96d]">
                 Salatsaison ohne Ende
               </p>
               <h2 className="font-display mx-auto mt-4 max-w-3xl text-4xl font-semibold leading-[1.05] text-[#faf8f1] md:text-6xl">

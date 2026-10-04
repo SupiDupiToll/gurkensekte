@@ -31,7 +31,7 @@ function CtaLinks({
   if (variant === "join") {
     return (
       <Link href={mitgliederHref} className="btn-cta btn-cta-primary">
-        {signedIn ? "Zum Mitgliederbereich" : "Der Sekte beitreten"}
+        {signedIn ? "Zum Mitgliederbereich" : "Mitglied werden"}
         <span className="btn-dot">
           <ArrowRight size={18} weight="bold" />
         </span>

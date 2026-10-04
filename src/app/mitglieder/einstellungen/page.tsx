@@ -72,7 +72,6 @@ function BenutzernameBereich() {
 
   return (
     <section className="card p-6 md:p-8" aria-label="Benutzername">
-      <p className="eyebrow">Benutzername</p>
       <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
         Dein eindeutiger Name
       </h2>
@@ -161,7 +160,6 @@ function AnzeigenameBereich() {
 
   return (
     <section className="card p-6 md:p-8" aria-label="Anzeigename">
-      <p className="eyebrow">Profil</p>
       <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
         Anzeigename
       </h2>
@@ -215,7 +213,6 @@ export default function EinstellungenPage() {
 
         {/* Konto & Sicherheit: E-Mails, Passwort, Passkey, MFA, Sessions */}
         <section className="card p-6 md:p-8" aria-label="Konto und Sicherheit">
-          <p className="eyebrow">Konto &amp; Sicherheit</p>
           <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
             E-Mails, Login &amp; Sessions
           </h2>

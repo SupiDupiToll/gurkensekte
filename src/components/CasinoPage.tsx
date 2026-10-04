@@ -42,7 +42,7 @@ function CasinoInhalt({ apiBase, backHref }: { apiBase: string; backHref: string
       <div className="mb-6 flex justify-start">
         <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-5 pr-6">
           <SpinningCucumber size="text-2xl" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
+          <span className="text-sm font-semibold text-[#6b7565]">
             Guthaben
           </span>
           <span className="tabular font-display text-xl font-semibold text-[#ede8d6]">

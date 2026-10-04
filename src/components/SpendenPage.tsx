@@ -207,7 +207,7 @@ export function SpendenPage() {
                   </p>
                 )}
 
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8fa96d]">
+                <p className="text-sm font-semibold text-[#8fa96d]">
                   Betrag wählen
                 </p>
 
@@ -323,7 +323,7 @@ export function SpendenPage() {
             onClick={schliesseModal}
             className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
           />
-          <div className="relative flex h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101b14] shadow-2xl">
+          <div className="relative flex h-[88dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101b14] shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-3.5">
               <p className="text-sm font-semibold text-[#ede8d6]">
                 <span aria-hidden="true">🥒</span> {betragLabel} € spenden{" "}

@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Outfit:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme inline {
-  --font-display: 'Fraunces', Georgia, serif;
-  --font-sans: 'Outfit', system-ui, sans-serif;
+  /* Taste-Regel 4.1: Sans als Default. Serif (Fraunces) nur für Zitate via font-serif. */
+  --font-display: var(--font-outfit), system-ui, sans-serif;
+  --font-sans: var(--font-outfit), system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, serif;
 
   /* Gurken-Skala: entsättigt, ruhig. Namen bleiben für Kompatibilität. */
   --color-gurken-50: #f3f5ec;
@@ -33,7 +34,6 @@
   --animate-wiggle: wiggle 4s ease-in-out infinite;
   --animate-float: float 7s ease-in-out infinite;
   --animate-shake: shake 6s ease-in-out infinite;
-  --animate-marquee: marquee 64s linear infinite;
   --animate-bounce-gentle: bounce-gentle 4s ease-in-out infinite;
   --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
   --animate-cucumber-spin: cucumber-spin 18s linear infinite;
@@ -53,10 +53,6 @@
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   50% { transform: translateX(1px); }
-}
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
 }
 @keyframes bounce-gentle {
   0%, 100% { transform: translateY(0); }
@@ -122,7 +118,7 @@ html {
 body {
   background: #1e3226;
   color: #ede8d6;
-  font-family: 'Outfit', system-ui, sans-serif;
+  font-family: var(--font-outfit), system-ui, sans-serif;
   min-height: 100dvh;
   touch-action: manipulation;
   overscroll-behavior: none;
@@ -136,12 +132,13 @@ body {
 }
 
 h1, h2, h3, .font-display {
-  font-family: 'Fraunces', Georgia, serif;
+  /* Taste-Regel 4.1: Headlines in Sans (Outfit). Serif nur für Zitate. */
+  font-family: var(--font-outfit), system-ui, sans-serif;
   text-wrap: balance;
   letter-spacing: -0.015em;
 }
 .font-heading {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-outfit), system-ui, sans-serif;
   letter-spacing: -0.015em;
 }
 
@@ -169,11 +166,26 @@ p {
 }
 
 /* ── Fläche: flach, 1px Haarlinie, 12px Radius ──
-   Klassennamen bleiben, damit alle Komponenten automatisch minimal werden. */
+   Klassennamen bleiben, damit alle Komponenten automatisch minimal werden.
+   Taste-Regeln, dokumentiert:
+   - Farbe: einziger Seiten-Akzent = Gurken-Grün (#8fa96d / #abc189).
+     Gold (#c9a86a) nur noch für Reward-Semantik (Coins, Trophäen, Casino-
+     Highlight) – kein zweiter CTA-/Deko-Akzent. Restliches Gold folgt.
+   - Form: Cards 12px, Buttons/Inputs 8px, Pills vollrund.
+   - Bento: pro Grid mind. 2 Zellen mit echter Variation (.shell-tint,
+     .shell-pattern) statt 4× gleiche Fläche. */
 .shell {
   background: #101b14;
   border: 1px solid rgba(237, 232, 214, 0.09);
   border-radius: 12px;
+}
+.shell-tint {
+  background: #122016;
+}
+.shell-pattern {
+  background-color: #101b14;
+  background-image: radial-gradient(rgba(171, 193, 137, 0.1) 1px, transparent 1px);
+  background-size: 18px 18px;
 }
 .shell > .core {
   background: transparent;
@@ -227,7 +239,7 @@ p {
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.95rem;
-  font-family: 'Outfit', system-ui, sans-serif;
+  font-family: var(--font-outfit), system-ui, sans-serif;
   letter-spacing: -0.01em;
   transition: transform 0.2s ease-out, background 0.2s ease, border-color 0.2s ease;
   cursor: pointer;

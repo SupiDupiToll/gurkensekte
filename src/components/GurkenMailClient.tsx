@@ -639,7 +639,6 @@ export function GurkenMailClient() {
   if (!mailbox) {
     return (
       <div className="card p-6 md:p-8">
-        <p className="eyebrow">GurkenMail</p>
         <h2 className="font-display mt-2 text-2xl font-semibold text-[#faf8f1]">
           Wähle deine Gurken-Adresse
         </h2>
