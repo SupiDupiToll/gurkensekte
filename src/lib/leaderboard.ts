@@ -12,11 +12,16 @@ export type LeaderboardEintrag = {
    * Benutzernamen zeigt die UI nur die ersten zwei Buchstaben von `name`.
    */
   benutzername: string | null;
-  /** Aktuelles Punkte-Guthaben – Basis des Rankings. */
+  /** Je gesammelte XP (fällt nie) – Basis des Rankings. */
   punkte: number;
   /** Mitgliedschaft beginnend (ms seit Epoch) – dient als Gleichspiel-Regel. */
   seit: number | null;
+  /** Laufende Tages-Serie (Streak) – ab Schwelle gibt es die Flamme. */
+  streak: number;
 };
+
+/** Ab so vielen Serien-Tagen brennt die Flamme in der Rangliste. */
+export const FLAMME_AB_STREAK = 2;
 
 export type LeaderboardDaten = {
   eintraege: LeaderboardEintrag[];

@@ -42,7 +42,10 @@ type PunkteContextType = {
   /** Comeback möglich (Pause lang) / Freeze frei / Extra des heutigen Claims. */
   comebackMoeglich: boolean;
   freezeVerfuegbar: boolean;
-  letzterExtra: "comeback" | "freeze" | null;
+  letzterExtra: "comeback" | "freeze" | "wochenbonus" | null;
+  /** Wochen-Streak (Mo–So): abgeholte Tage + Bonus-Status. */
+  wochenTage: boolean[];
+  wochenBonusGeholt: boolean;
   /** Sammelalbum ("Mein Glas", neueste zuerst) + kumulierte Werbungspunkte. */
   sammlung: string[];
   werbungPunkte: number | null;
@@ -73,6 +76,8 @@ const PunkteContext = createContext<PunkteContextType>({
   comebackMoeglich: false,
   freezeVerfuegbar: true,
   letzterExtra: null,
+  wochenTage: [false, false, false, false, false, false, false],
+  wochenBonusGeholt: false,
   sammlung: [],
   werbungPunkte: null,
   leaderboardApiBase: "/api/mitglieder/punkte/leaderboard",
@@ -104,8 +109,18 @@ export function PunkteProvider({
   const [comebackMoeglich, setComebackMoeglich] = useState(false);
   const [freezeVerfuegbar, setFreezeVerfuegbar] = useState(true);
   const [letzterExtra, setLetzterExtra] = useState<
-    "comeback" | "freeze" | null
+    "comeback" | "freeze" | "wochenbonus" | null
   >(null);
+  const [wochenTage, setWochenTage] = useState<boolean[]>([
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ]);
+  const [wochenBonusGeholt, setWochenBonusGeholt] = useState(false);
   const [sammlung, setSammlung] = useState<string[]>([]);
   const [werbungPunkte, setWerbungPunkte] = useState<number | null>(null);
 
@@ -133,10 +148,18 @@ export function PunkteProvider({
       setComebackMoeglich(data.comebackMoeglich === true);
       setFreezeVerfuegbar(data.freezeVerfuegbar !== false);
       setLetzterExtra(
-        data.letzterExtra === "comeback" || data.letzterExtra === "freeze"
+        data.letzterExtra === "comeback" ||
+          data.letzterExtra === "freeze" ||
+          data.letzterExtra === "wochenbonus"
           ? data.letzterExtra
           : null,
       );
+      setWochenTage(
+        Array.isArray(data.woche?.tage) && data.woche.tage.length === 7
+          ? data.woche.tage.map((t: unknown) => t === true)
+          : [false, false, false, false, false, false, false],
+      );
+      setWochenBonusGeholt(data.woche?.bonusGeholt === true);
       setSammlung(Array.isArray(data.sammlung) ? data.sammlung : []);
       setWerbungPunkte(
         typeof data.werbungPunkte === "number" ? data.werbungPunkte : null,
@@ -204,6 +227,8 @@ export function PunkteProvider({
         comebackMoeglich,
         freezeVerfuegbar,
         letzterExtra,
+        wochenTage,
+        wochenBonusGeholt,
         sammlung,
         werbungPunkte,
         leaderboardApiBase: `${apiBase}/leaderboard`,

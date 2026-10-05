@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trophy } from "@phosphor-icons/react";
+import { Flame, Trophy } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
 import {
+  FLAMME_AB_STREAK,
   type LeaderboardDaten,
   type LeaderboardEintrag,
   rangTitelFuer,
@@ -24,6 +25,11 @@ function RangZeile({
   rang: number;
   istDu: boolean;
 }) {
+  const streak =
+    typeof eintrag.streak === "number" && Number.isFinite(eintrag.streak)
+      ? Math.floor(eintrag.streak)
+      : 0;
+  const brennt = streak >= FLAMME_AB_STREAK;
   return (
     <li
       className={`flex items-center gap-3 border-b border-white/[0.05] px-3 py-2.5 last:border-0 ${
@@ -44,6 +50,15 @@ function RangZeile({
           <span className="normal-case tracking-normal">@{eintrag.benutzername}</span>
         ) : (
           eintrag.name.trim().slice(0, 2)
+        )}
+        {brennt && (
+          <span
+            className="ml-1.5 inline-flex align-middle text-[#e8933c]"
+            title={`Serie: ${streak} Tage in Folge`}
+            aria-label={`Serie: ${streak} Tage in Folge`}
+          >
+            <Flame size={15} weight="fill" />
+          </span>
         )}
         <span
           className="ml-2 inline-block rounded-lg border border-white/10 bg-white/[0.04] px-2 py-0.5 align-middle text-[10px] font-semibold normal-case tracking-normal text-[#a3ad9a]"
@@ -111,7 +126,8 @@ export function Leaderboard() {
       </div>
       <p className="mb-4 text-xs leading-relaxed text-[#6b7565]">
         Nach je gesammelten XP sortiert, bei Gleichstand gewinnt das ältere
-        Mitglied. Wer eine echte Gurke einlöst, behält seinen Rang.
+        Mitglied. Wer eine echte Gurke einlöst, behält seinen Rang. Flamme =
+        Serie ab {FLAMME_AB_STREAK} Tagen.
       </p>
 
       {!geladen && (

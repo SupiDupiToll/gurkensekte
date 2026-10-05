@@ -7,6 +7,7 @@ import {
 } from "@/lib/ratelimit";
 import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import {
+  WOCHENBONUS_PUNKTE,
   berechneComebackBonus,
   berechneStreakUpdate,
   heuteISO,
@@ -18,8 +19,11 @@ import {
   mitFrischemBenutzer,
   streakVorschau,
   wochenSchluessel,
+  wochenStand,
+  wochentagIndex,
   zitatZaehlerHeute,
   PunkteFehler,
+  type WochenStand,
 } from "@/lib/punkte";
 import {
   BESTELLUNG_EMAIL,
@@ -92,6 +96,8 @@ export async function GET(req: Request) {
     ...streakVorschau(meta, today),
     // Sammelalbum ("Mein Glas") + kumulierte Werbungspunkte (null = Fallback).
     sammlung: leseZitatSammlung(meta),
+    // Wochen-Streak (Mo–So) für die Anzeige oben.
+    woche: wochenStand(meta, today),
     werbungPunkte:
       typeof meta.werbungPunkte === "number" &&
       Number.isFinite(meta.werbungPunkte) &&
@@ -243,8 +249,20 @@ export async function POST(req: Request) {
         action === "daily" ? berechneStreakUpdate(frischeMeta, today) : null;
       const comebackFuerClaim =
         action === "daily" ? berechneComebackBonus(frischeMeta, today) : 0;
+      // Wochen-Streak (Mo–So): Tag abhaken, bei 7/7 einmalig +100.
+      let wochenBonus = 0;
+      let wocheNeu: WochenStand | null = null;
+      if (action === "daily") {
+        wocheNeu = wochenStand(frischeMeta, today);
+        const tagIndex = wochentagIndex(today);
+        if (tagIndex >= 0) wocheNeu.tage[tagIndex] = true;
+        if (wocheNeu.tage.every(Boolean) && !wocheNeu.bonusGeholt) {
+          wochenBonus = WOCHENBONUS_PUNKTE;
+          wocheNeu.bonusGeholt = true;
+        }
+      }
       const delta = streakFuerClaim
-        ? streakFuerClaim.bonus + comebackFuerClaim
+        ? streakFuerClaim.bonus + comebackFuerClaim + wochenBonus
         : POINTS[action];
       const newPoints = stand + delta;
       // Gesammelte Punkte (XP) fallen nie – erst beim allerersten Claim eines
@@ -278,13 +296,16 @@ export async function POST(req: Request) {
         if (streakFuerClaim.freezeVerbraucht) {
           update.streakFreezeWoche = wochenSchluessel(today);
         }
+        if (wocheNeu) update.streakWoche = wocheNeu;
         // Merker fürs Dashboard: was gab es extra (sonst null)?
         update.letzterDailyExtra =
-          comebackFuerClaim > 0
-            ? "comeback"
-            : streakFuerClaim.freezeVerbraucht
-              ? "freeze"
-              : null;
+          wochenBonus > 0
+            ? "wochenbonus"
+            : comebackFuerClaim > 0
+              ? "comeback"
+              : streakFuerClaim.freezeVerbraucht
+                ? "freeze"
+                : null;
       }
       if (action === "starter") {
         update.starterBonusGeholt = true;
@@ -326,6 +347,7 @@ export async function POST(req: Request) {
               streakBest: streakFuerClaim.bestNeu,
               comeback: comebackFuerClaim > 0,
               freezeVerbraucht: streakFuerClaim.freezeVerbraucht,
+              wochenBonus: wochenBonus > 0,
             }
           : {}),
       });

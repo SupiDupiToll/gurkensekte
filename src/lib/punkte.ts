@@ -28,6 +28,8 @@ export const STREAK_MEILENSTEIN_ABSTAND = 7;
 /** Comeback-Segen: Wer so viele Tage pausiert hat, kriegt einmalig extra. */
 export const COMEBACK_PAUSE_TAGE = 7;
 export const COMEBACK_BONUS = 50;
+/** Wochenbonus: alle 7 Wochentage (Mo–So) abgeholt → extra. */
+export const WOCHENBONUS_PUNKTE = 100;
 /** Verzeih-Tag: so viele verpasste Tage pro Kalenderwoche überbrückt der Freeze. */
 export const STREAK_FREEZE_MAX_LUECKE_TAGE = 2;
 /** Max. gespeicherte eigene Zitate im Sammelalbum ("Mein Glas"). */
@@ -206,7 +208,7 @@ export type StreakVorschau = {
   comebackMoeglich: boolean;
   freezeVerfuegbar: boolean;
   /** Was der heutige (bereits abgeholte) Claim extra brachte – sonst null. */
-  letzterExtra: "comeback" | "freeze" | null;
+  letzterExtra: "comeback" | "freeze" | "wochenbonus" | null;
 };
 
 /** Vorschau fürs Dashboard: was ein Claim heute bringt bzw. brachte. */
@@ -218,7 +220,9 @@ export function streakVorschau(
     typeof meta.letzterDailyBonus === "string" ? meta.letzterDailyBonus : null;
   const extraRaw = meta.letzterDailyExtra;
   const letzterExtra: StreakVorschau["letzterExtra"] =
-    extraRaw === "comeback" || extraRaw === "freeze" ? extraRaw : null;
+    extraRaw === "comeback" || extraRaw === "freeze" || extraRaw === "wochenbonus"
+      ? extraRaw
+      : null;
   if (letzter === heute) {
     const aktuell = leseStreakTage(meta);
     return {
@@ -240,6 +244,48 @@ export function streakVorschau(
     freezeVerfuegbar: istFreezeVerfuegbar(meta, heute),
     letzterExtra: null,
   };
+}
+
+export type WochenStand = {
+  woche: string;
+  /** Mo=0 … So=6, true = Daily abgeholt (nur echte Claims, kein Freeze). */
+  tage: boolean[];
+  bonusGeholt: boolean;
+};
+
+/** Wochentag-Index Mo=0 … So=6 (UTC) – ungültig → -1. */
+export function wochentagIndex(heute: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(heute);
+  if (!m) return -1;
+  const tag = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  if (!Number.isFinite(tag.getTime())) return -1;
+  return (tag.getUTCDay() + 6) % 7;
+}
+
+/**
+ * Wochenstand (Mo–So): alte Woche → frisch starten. Guarded gegen korrupte
+ * Werte (falsche Länge, keine Booleans).
+ */
+export function wochenStand(
+  meta: Record<string, unknown>,
+  heute: string,
+): WochenStand {
+  const woche = wochenSchluessel(heute);
+  const gespeichert = meta.streakWoche;
+  if (
+    typeof gespeichert === "object" &&
+    gespeichert !== null &&
+    (gespeichert as Record<string, unknown>).woche === woche &&
+    woche !== ""
+  ) {
+    const daten = gespeichert as Record<string, unknown>;
+    const tageRaw = daten.tage;
+    const tage = Array.from({ length: 7 }, (_, i) =>
+      Array.isArray(tageRaw) ? tageRaw[i] === true : false,
+    );
+    return { woche, tage, bonusGeholt: daten.bonusGeholt === true };
+  }
+  return { woche, tage: Array.from({ length: 7 }, () => false), bonusGeholt: false };
 }
 
 /** Guarded Read: eigene Zitat-Sammlung ("Mein Glas", neueste zuerst). */

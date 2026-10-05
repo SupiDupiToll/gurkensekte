@@ -14,6 +14,7 @@ const FIKTIONE: LeaderboardEintrag[] = [
     benutzername: "gurkenpapst",
     punkte: 1180,
     seit: Date.UTC(2023, 10, 3),
+    streak: 12,
   },
   {
     id: "demo-bot-2",
@@ -21,6 +22,7 @@ const FIKTIONE: LeaderboardEintrag[] = [
     benutzername: null,
     punkte: 640,
     seit: Date.UTC(2023, 11, 17),
+    streak: 5,
   },
   {
     id: "demo-bot-3",
@@ -28,6 +30,7 @@ const FIKTIONE: LeaderboardEintrag[] = [
     benutzername: "gurkenherz",
     punkte: 990,
     seit: Date.UTC(2024, 1, 8),
+    streak: 0,
   },
   {
     id: "demo-bot-4",
@@ -35,6 +38,7 @@ const FIKTIONE: LeaderboardEintrag[] = [
     benutzername: null,
     punkte: 410,
     seit: Date.UTC(2024, 2, 21),
+    streak: 3,
   },
   {
     id: "demo-bot-5",
@@ -42,6 +46,7 @@ const FIKTIONE: LeaderboardEintrag[] = [
     benutzername: "emma",
     punkte: 1020,
     seit: Date.UTC(2024, 4, 2),
+    streak: 0,
   },
   {
     id: "demo-bot-6",
@@ -49,6 +54,7 @@ const FIKTIONE: LeaderboardEintrag[] = [
     benutzername: null,
     punkte: 260,
     seit: Date.UTC(2024, 5, 14),
+    streak: 0,
   },
   {
     id: "demo-bot-7",
@@ -56,6 +62,7 @@ const FIKTIONE: LeaderboardEintrag[] = [
     benutzername: "guruguru",
     punkte: 130,
     seit: Date.UTC(2024, 7, 30),
+    streak: 2,
   },
   {
     id: "demo-bot-8",
@@ -63,6 +70,7 @@ const FIKTIONE: LeaderboardEintrag[] = [
     benutzername: null,
     punkte: 90,
     seit: Date.UTC(2024, 9, 12),
+    streak: 0,
   },
 ];
 
@@ -78,6 +86,7 @@ export async function GET(req: Request) {
     benutzername: null,
     punkte: profile.punkteGesamt ?? profile.punkte,
     seit: Date.UTC(2024, 5, 1),
+    streak: 0,
   };
 
   const eintraege = [...FIKTIONE, meinEintrag].sort(vergleicheEintraege);

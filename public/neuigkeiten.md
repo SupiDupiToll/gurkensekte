@@ -1,9 +1,17 @@
-<!-- changelog-version: 2026-10-05-06 -->
+<!-- changelog-version: 2026-10-05-07 -->
 <!-- ANLEITUNG (wird im Popup ausgeblendet): Neuen Eintrag IMMER oben unter dieser Zeile einfügen, Version oben hochzählen (Datum-Folge, z.B. 2026-10-12-01). Nur eingeloggte Mitglieder im Mitgliederbereich sehen die Tour, einmal pro Version (localStorage). Jede ##-Rubrik wird ein eigener Schritt mit Weiter/Zurück – bitte max. 3 kurze Bullets + max. 1 Link pro Schritt, sonst läuft die Karte über. Links [Text](/pfad) werden automatisch als Buttons gerendert. -->
 
 # Neu im Glas
 
 ## Neu als Tour
+
+- **Neuigkeiten kommen jetzt als Tour** – Weiter tippen statt Wand lesen.
+- **Korrektur:** Doppelwochen entfallen, Werben gibt **+150**.
+- **Wochen-Streak:** 7 Tage oben im Blick, bei 7/7 **+100** – Serie brennt als Flamme in der Rangliste.
+
+- [Bonus abholen](/mitglieder)
+
+## Verlosung von allein
 
 - **Neuigkeiten kommen jetzt als Tour** – Weiter tippen statt Wand lesen.
 - **Korrektur:** Doppelwochen entfallen, Werben gibt **+150**.

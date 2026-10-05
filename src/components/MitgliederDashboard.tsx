@@ -61,6 +61,66 @@ export type MitgliedInfo = {
   signedUpAt?: string | Date | null;
 };
 
+const WOCHENTAGE_KURZ = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+
+/** Wochen-Streak oben: 7 Tage (Mo–So) im Blick, bei 7/7 +100 Bonus. */
+function WochenStreak() {
+  const { wochenTage, wochenBonusGeholt, loading } = usePunkte();
+  const [heuteIndex, setHeuteIndex] = useState(-1);
+  useEffect(() => {
+    setHeuteIndex((new Date().getDay() + 6) % 7);
+  }, []);
+  if (loading) return null;
+
+  const geholt = wochenTage.filter(Boolean).length;
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold text-[#ede8d6]">
+          Wochen-Streak
+        </h3>
+        <span className="tabular text-[11px] font-semibold text-[#6b7565]">
+          {geholt}/7{wochenBonusGeholt ? " · +100 gesichert!" : " · 7/7 = +100"}
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-7 gap-1.5" role="list" aria-label="Tage dieser Woche">
+        {WOCHENTAGE_KURZ.map((tag, i) => {
+          const done = wochenTage[i] === true;
+          const istHeute = i === heuteIndex;
+          const verpasst = !done && heuteIndex >= 0 && i < heuteIndex;
+          return (
+            <div
+              key={tag}
+              role="listitem"
+              aria-label={`${tag}: ${done ? "abgeholt" : verpasst ? "verpasst" : istHeute ? "heute offen" : "offen"}`}
+              className={`flex flex-col items-center gap-1 rounded-xl border px-1 py-2 ${
+                done
+                  ? "border-[#8fa96d]/40 bg-[#8fa96d]/[0.1]"
+                  : istHeute
+                    ? "animate-pulse border-[#c9a86a]/50 bg-[#c9a86a]/[0.06]"
+                    : "border-white/[0.07]"
+              }`}
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b7565]">
+                {tag}
+              </span>
+              {done ? (
+                <Check size={15} weight="bold" className="text-[#8fa96d]" />
+              ) : (
+                <span
+                  className={`h-[15px] w-[15px] rounded-full border ${
+                    verpasst ? "border-red-300/40" : "border-white/15"
+                  }`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /** Streak angeben: WhatsApp + Kopieren, mit Werbe-Link wenn bekannt. */
 function StreakTeilen({
   streak,
@@ -533,7 +593,9 @@ function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
                       ? " · Willkommen zurück im Glas!"
                       : letzterExtra === "freeze"
                         ? " · Verzeih-Tag hat die Serie gerettet!"
-                        : " · morgen weiter"}
+                        : letzterExtra === "wochenbonus"
+                          ? " · Wochenbonus +100 – 7/7!"
+                          : " · morgen weiter"}
                 </>
               ) : (
                 <>
@@ -573,6 +635,7 @@ function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
             <li>GurkenMail versenden: +10</li>
             <li>GurkenMail empfangen: +5 (max. 2/Stunde)</li>
             <li>Täglicher Bonus: +20, alle 7 Tage in Folge +50</li>
+            <li>Wochenbonus (7/7 Tage): +100</li>
             <li>
               Freund werben: +150
             </li>
@@ -1378,6 +1441,11 @@ export function MitgliederDashboard({  user,
             </p>
           )}
         </Reveal>
+
+        {/* Wochen-Streak oben: 7 Tage (Mo–So) im Blick. */}
+        <div className="mt-5">
+          <WochenStreak />
+        </div>
 
         {/* Tagesliturgie: kleine Rituale aus Bestand statt neuer Features. */}
         <div className="mt-5 space-y-3">
