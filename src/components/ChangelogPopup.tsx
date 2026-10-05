@@ -13,6 +13,7 @@ import {
   type ChangelogBlock,
   type ChangelogSchritt,
 } from "@/lib/changelog";
+import "./ChangelogTour.css";
 
 function Inline({ text }: { text: string }) {
   const teile = parseInline(text);
@@ -39,10 +40,14 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-function Block({ block }: { block: ChangelogBlock }) {
+function Block({ block, index = 0 }: { block: ChangelogBlock; index?: number }) {
+  const stil = { animationDelay: `${Math.min(index, 8) * 55}ms` };
   if (block.kind === "h3") {
     return (
-      <h4 className="mt-3 text-sm font-semibold text-[#ede8d6]">
+      <h4
+        className="changelog-item mt-3 text-sm font-semibold text-[#ede8d6]"
+        style={stil}
+      >
         <Inline text={block.text} />
       </h4>
     );
@@ -51,13 +56,16 @@ function Block({ block }: { block: ChangelogBlock }) {
     const istLinkZeile = /^\[.+?\]\(.+?\)\s*$/.test(block.text);
     if (istLinkZeile) {
       return (
-        <p className="mt-2 flex flex-wrap gap-2">
+        <p className="changelog-item mt-2 flex flex-wrap gap-2" style={stil}>
           <Inline text={block.text} />
         </p>
       );
     }
     return (
-      <li className="mt-1.5 flex gap-2 text-sm leading-relaxed text-[#a3ad9a]">
+      <li
+        className="changelog-item mt-1.5 flex gap-2 text-sm leading-relaxed text-[#a3ad9a]"
+        style={stil}
+      >
         <span aria-hidden="true" className="mt-0.5 shrink-0 text-[#8fa96d]">
           •
         </span>
@@ -68,7 +76,10 @@ function Block({ block }: { block: ChangelogBlock }) {
     );
   }
   return (
-    <p className="mt-2 text-sm leading-relaxed text-[#a3ad9a]">
+    <p
+      className="changelog-item mt-2 text-sm leading-relaxed text-[#a3ad9a]"
+      style={stil}
+    >
       <Inline text={block.text} />
     </p>
   );
@@ -196,33 +207,35 @@ export function ChangelogPopup() {
         aria-modal="true"
         aria-label={schritt.titel || ueberschrift}
       >
-        <div className="rounded-2xl border border-white/10 bg-[#101b14] px-5 py-5 text-center shadow-2xl md:px-6">
+        <div className="changelog-karte rounded-2xl border border-white/10 bg-[#101b14] px-5 py-4 shadow-2xl md:px-6">
           <Fortschritt aktiv={index} anzahl={schritte.length} />
-          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6b7565]">
-            {ueberschrift}
-            {schritte.length > 1
-              ? ` · Schritt ${index + 1} von ${schritte.length}`
-              : ""}
-          </p>
+          <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5">
+            <span className="changelog-pille">{ueberschrift}</span>
+            {schritte.length > 1 && (
+              <span className="changelog-pille neutral">
+                {index + 1} / {schritte.length}
+              </span>
+            )}
+          </div>
           <div key={`${version}-${index}`} className="tour-balance mt-2">
-            <div className="mb-2 flex justify-center" aria-hidden="true">
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#8fa96d]/15">
-                <Megaphone size={24} weight="fill" className="text-[#8fa96d]" />
+            <div className="mb-1 flex justify-center" aria-hidden="true">
+              <span className="changelog-icon">
+                <Megaphone size={22} weight="fill" className="text-[#8fa96d]" />
               </span>
             </div>
             {schritt.titel && (
-              <h2 className="font-display mt-1 text-2xl font-semibold text-[#faf8f1]">
+              <h2 className="font-display mt-1 text-xl font-semibold text-[#faf8f1]">
                 {schritt.titel}
               </h2>
             )}
             <div className="text-left">
               {rest.map((b, i) => (
-                <Block key={i} block={b} />
+                <Block key={i} block={b} index={i} />
               ))}
               {listenEintraege.length > 0 && (
                 <ul className="mt-1">
                   {listenEintraege.map((b, i) => (
-                    <Block key={i} block={b} />
+                    <Block key={i} block={b} index={rest.length + i} />
                   ))}
                 </ul>
               )}
@@ -246,13 +259,6 @@ export function ChangelogPopup() {
               {letzter ? "Fertig" : "Weiter →"}
             </button>
           </div>
-          <button
-            type="button"
-            onClick={schliessen}
-            className="mt-3 min-h-[40px] w-full rounded-lg text-[13px] font-semibold text-[#6b7565] transition-colors hover:text-[#a3ad9a]"
-          >
-            Überspringen
-          </button>
         </div>
       </div>
     </>
