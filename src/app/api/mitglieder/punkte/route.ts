@@ -7,12 +7,17 @@ import {
 } from "@/lib/ratelimit";
 import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
 import {
+  berechneComebackBonus,
+  berechneStreakUpdate,
   heuteISO,
   istPunkteFehler,
   lesePunkte,
   lesePunkteGesamt,
   leseVerlauf,
+  leseZitatSammlung,
   mitFrischemBenutzer,
+  streakVorschau,
+  wochenSchluessel,
   zitatZaehlerHeute,
   PunkteFehler,
 } from "@/lib/punkte";
@@ -22,6 +27,7 @@ import {
   adresseLesen,
   adressePruefen,
 } from "@/lib/bestellung";
+import { erhoeheLose } from "@/lib/verlosungStore";
 
 const POINTS = {
   zitat: 5,
@@ -82,6 +88,16 @@ export async function GET(req: Request) {
     werbungenOffen: getPendingReferrals(meta).length,
     // Lieferadresse der (letzten) Gurken-Bestellung – für die Wiederverwendung.
     gurkenAdresse: adresseLesen(meta.gurkenAdresse),
+    // Streak-Vorschau: aktuelle Serie, Rekord und Bonus bei Claim heute.
+    ...streakVorschau(meta, today),
+    // Sammelalbum ("Mein Glas") + kumulierte Werbungspunkte (null = Fallback).
+    sammlung: leseZitatSammlung(meta),
+    werbungPunkte:
+      typeof meta.werbungPunkte === "number" &&
+      Number.isFinite(meta.werbungPunkte) &&
+      meta.werbungPunkte >= 0
+        ? Math.floor(meta.werbungPunkte)
+        : null,
   });
 }
 
@@ -223,7 +239,13 @@ export async function POST(req: Request) {
         }
       }
 
-      const delta = POINTS[action];
+      const streakFuerClaim =
+        action === "daily" ? berechneStreakUpdate(frischeMeta, today) : null;
+      const comebackFuerClaim =
+        action === "daily" ? berechneComebackBonus(frischeMeta, today) : 0;
+      const delta = streakFuerClaim
+        ? streakFuerClaim.bonus + comebackFuerClaim
+        : POINTS[action];
       const newPoints = stand + delta;
       // Gesammelte Punkte (XP) fallen nie – erst beim allerersten Claim eines
       // Bestandskontos auf den aktuellen Stand initialisiert.
@@ -249,8 +271,20 @@ export async function POST(req: Request) {
         update.gurkenAdresse = lieferadresse;
       }
 
-      if (action === "daily") {
+      if (action === "daily" && streakFuerClaim) {
         update.letzterDailyBonus = today;
+        update.streakTage = streakFuerClaim.streakNeu;
+        update.streakBest = streakFuerClaim.bestNeu;
+        if (streakFuerClaim.freezeVerbraucht) {
+          update.streakFreezeWoche = wochenSchluessel(today);
+        }
+        // Merker fürs Dashboard: was gab es extra (sonst null)?
+        update.letzterDailyExtra =
+          comebackFuerClaim > 0
+            ? "comeback"
+            : streakFuerClaim.freezeVerbraucht
+              ? "freeze"
+              : null;
       }
       if (action === "starter") {
         update.starterBonusGeholt = true;
@@ -261,6 +295,16 @@ export async function POST(req: Request) {
       }
 
       await frisch.setClientReadOnlyMetadata({ ...frischeMeta, ...update });
+
+      // Verlosungs-Los: exakter Monats-Zähler in Upstash (1× pro Daily-Tag).
+      // Fail-open: Zählfehler kostet nie den Bonus – Rückfall ist der Verlauf.
+      if (action === "daily") {
+        try {
+          await erhoeheLose(today.slice(0, 7), user.id);
+        } catch {
+          // Ignore – Verlauf springt bei der Ziehung ein.
+        }
+      }
 
       const nextDailyBonusDate =
         action === "daily"
@@ -276,6 +320,14 @@ export async function POST(req: Request) {
         dailyAvailable: nextDailyBonusDate !== today,
         quoteAvailable: nextQuoteCountToday < 3,
         quoteRemaining: Math.max(0, 3 - nextQuoteCountToday),
+        ...(streakFuerClaim
+          ? {
+              streakAktuell: streakFuerClaim.streakNeu,
+              streakBest: streakFuerClaim.bestNeu,
+              comeback: comebackFuerClaim > 0,
+              freezeVerbraucht: streakFuerClaim.freezeVerbraucht,
+            }
+          : {}),
       });
     });
   } catch (error) {

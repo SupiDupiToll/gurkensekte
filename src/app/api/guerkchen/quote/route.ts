@@ -11,6 +11,7 @@ import {
   zitatZaehlerHeute,
 } from "@/lib/punkte";
 import { hatKiAnbieter, holeChatAntwort } from "@/lib/ki-anbieter";
+import { tagesStimmungsSuffix } from "@/lib/guerkchenStimmung";
 
 const QUOTE_SYSTEM_PROMPT =
   "Du bist Gürkchen, der selbsternannte Anführer der 'Gurken Sekte'. " +
@@ -91,7 +92,12 @@ export async function GET(req: Request) {
   }
 
   const quote = await holeChatAntwort(
-    [{ role: "user", content: QUOTE_SYSTEM_PROMPT }],
+    [
+      {
+        role: "user",
+        content: `${QUOTE_SYSTEM_PROMPT} ${tagesStimmungsSuffix()}`,
+      },
+    ],
     MAX_ANTOWORT_TOKENS,
   );
 
@@ -102,7 +108,7 @@ export async function GET(req: Request) {
 
   if (mitglied) {
     try {
-      await bucheBonus(req, mitglied.id, "zitat");
+      await bucheBonus(req, mitglied.id, "zitat", quote);
     } catch (error) {
       if (istPunkteFehler(error)) {
         return Response.json({ error: error.message }, { status: error.status });

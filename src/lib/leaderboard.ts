@@ -1,9 +1,8 @@
 /**
  * Gemeinsame Typen und Sortierregeln der Gurken-Rangliste.
  *
- * Gerechnet wird ausschließlich mit den normalen Punkten (Guthaben) – es gibt
- * kein XP. Wer seine echte Gurke einlöst (-1000), verliert entsprechend Punkte
- * und kann dadurch auch rutschen.
+ * Gerechnet wird ausschließlich mit je gesammelten XP (fällt nie): Wer seine
+ * echte Gurke einlöst (-1000 Guthaben), behält seinen Rang.
  */
 export type LeaderboardEintrag = {
   id: string;

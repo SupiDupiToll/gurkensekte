@@ -14,7 +14,11 @@ import { Popup } from "@/components/Popup";
 import { AppKachel } from "@/components/AppKachel";
 import { usePunkte } from "@/components/PunkteContext";
 import { ReferralQrCode } from "@/components/ReferralQrCode";
-import { REFERRAL_POINTS, buildReferralLink, hasReferralCookie } from "@/lib/referral";
+import {
+  REFERRAL_POINTS,
+  buildReferralLink,
+  hasReferralCookie,
+} from "@/lib/referral";
 
 const noopSubscribe = () => () => {};
 
@@ -34,10 +38,11 @@ export function ReferralBox({
   code?: string | null;
   isDemo?: boolean;
 }) {
-  const { geworben, werbungenOffen } = usePunkte();
+  const { geworben, werbungenOffen, werbungPunkte } = usePunkte();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const hydrated = useIsHydrated();
+  const werbungSumme = werbungPunkte ?? geworben * REFERRAL_POINTS;
 
   // Der Origin steht erst im Browser zur Verfügung – wie bei `HomeCta` bleibt
   // der Link vor der Hydration leer, damit Server- und Client-Markup passen.
@@ -165,7 +170,7 @@ export function ReferralBox({
           <div className="tabular text-sm">
             <span className="text-[#6b7565]">Punkte durch Werbung: </span>
             <span className="font-semibold text-[#e2d9bf]">
-              +{geworben * REFERRAL_POINTS}
+              +{werbungSumme}
             </span>
           </div>
         </div>

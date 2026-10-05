@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { PunkteProvider, usePunkte } from "@/components/PunkteContext";
 import { GurkenDuell } from "@/components/GurkenDuell";
 import { Reveal } from "@/components/Reveal";
 import { SpinningCucumber } from "@/components/SpinningCucumber";
+import { markiereSozialErledigt } from "@/components/TagesLiturgie";
 
 function zahl(n: number) {
   return n.toLocaleString("de-DE");
@@ -19,6 +21,11 @@ function DuellInhalt({
   backHref: string;
 }) {
   const { punkte, loading } = usePunkte();
+
+  // Besuch zählt als Sozial-Tat für die Tagesliturgie (Erscheinen = Ritual).
+  useEffect(() => {
+    markiereSozialErledigt();
+  }, []);
 
   return (
     <div className="mx-auto w-full max-w-3xl overflow-x-hidden px-4 pb-24 pt-12 md:pt-20">

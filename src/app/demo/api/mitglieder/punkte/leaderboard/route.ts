@@ -76,7 +76,7 @@ export async function GET(req: Request) {
     id: "demo",
     name: "Demo-Mitglied",
     benutzername: null,
-    punkte: profile.punkte,
+    punkte: profile.punkteGesamt ?? profile.punkte,
     seit: Date.UTC(2024, 5, 1),
   };
 

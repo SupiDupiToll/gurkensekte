@@ -110,8 +110,8 @@ export function Leaderboard() {
         )}
       </div>
       <p className="mb-4 text-xs leading-relaxed text-[#6b7565]">
-        Nach Punkten sortiert, bei Gleichstand gewinnt das ältere Mitglied. Wer eine echte
-        Gurke einlöst, verliert 1.000 Punkte und kann rutschen.
+        Nach je gesammelten XP sortiert, bei Gleichstand gewinnt das ältere
+        Mitglied. Wer eine echte Gurke einlöst, behält seinen Rang.
       </p>
 
       {!geladen && (

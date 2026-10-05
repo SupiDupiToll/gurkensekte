@@ -3,6 +3,7 @@ import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnst
 import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 import { bucheBonus, istPunkteFehler } from "@/lib/punkte";
 import { hatKiAnbieter, holeChatStream } from "@/lib/ki-anbieter";
+import { tagesStimmungsSuffix } from "@/lib/guerkchenStimmung";
 
 const GUERKCHEN_SYSTEM_PROMPT =
   "Du bist Gürkchen, der selbsternannte, größenwahnsinnige und leicht absurde " +
@@ -108,7 +109,10 @@ export async function POST(req: Request) {
 
     const streamAntwort = await holeChatStream(
       [
-        { role: "system", content: GUERKCHEN_SYSTEM_PROMPT },
+        {
+          role: "system",
+          content: `${GUERKCHEN_SYSTEM_PROMPT} ${tagesStimmungsSuffix()}`,
+        },
         ...verlauf,
       ],
       MAX_ANTOWORT_TOKENS,

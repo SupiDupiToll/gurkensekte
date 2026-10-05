@@ -21,6 +21,18 @@ export type BuchungsUser = ServerUser & {
 /** Punkte pro Chat-Nachricht bzw. Zitat – jede Buchung kostet ein frisches Captcha. */
 export const PUNKTE_CHAT = 5;
 export const PUNKTE_ZITAT = 5;
+/** Täglicher Bonus: Basis pro Tag, Meilenstein alle 7 Tage in Folge. */
+export const STREAK_BONUS_BASIS = 20;
+export const STREAK_BONUS_MEILENSTEIN = 50;
+export const STREAK_MEILENSTEIN_ABSTAND = 7;
+/** Comeback-Segen: Wer so viele Tage pausiert hat, kriegt einmalig extra. */
+export const COMEBACK_PAUSE_TAGE = 7;
+export const COMEBACK_BONUS = 50;
+/** Verzeih-Tag: so viele verpasste Tage pro Kalenderwoche überbrückt der Freeze. */
+export const STREAK_FREEZE_MAX_LUECKE_TAGE = 2;
+/** Max. gespeicherte eigene Zitate im Sammelalbum ("Mein Glas"). */
+export const ZITAT_SAMMLUNG_MAX = 10;
+export const ZITAT_SAMMLUNG_TEXT_MAX = 140;
 /** Max. Zitat-Boni pro Konto und Tag. */
 export const ZITAT_MAX_PRO_TAG = 3;
 /**
@@ -51,6 +63,206 @@ export function istPunkteFehler(error: unknown): error is PunkteFehler {
 /** Tagesdatum (UTC) für Tagesquoten. */
 export function heuteISO(): string {
   return new Date().toISOString().split("T")[0];
+}
+
+/** Vortag zu einem Tagesdatum (UTC, YYYY-MM-DD) – ungültig → "". */
+export function gesternISO(heute: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(heute);
+  if (!m) return "";
+  const zeit = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (!Number.isFinite(zeit)) return "";
+  return new Date(zeit - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+}
+
+/** Guarded Read: aktuelle Streak (aufeinanderfolgende Daily-Tage). */
+export function leseStreakTage(meta: Record<string, unknown>): number {
+  const wert = meta.streakTage;
+  return typeof wert === "number" && Number.isFinite(wert) && wert > 0
+    ? Math.floor(wert)
+    : 0;
+}
+
+/** Guarded Read: längste je erreichte Streak (Rekord, fällt nie). */
+export function leseStreakBest(meta: Record<string, unknown>): number {
+  const wert = meta.streakBest;
+  return typeof wert === "number" && Number.isFinite(wert) && wert > 0
+    ? Math.floor(wert)
+    : 0;
+}
+
+/** Bonus für den n-ten Streak-Tag: alle 7 Tage Meilenstein, sonst Basis. */
+export function streakBonusFuer(streakNeu: number): number {
+  return streakNeu > 0 && streakNeu % STREAK_MEILENSTEIN_ABSTAND === 0
+    ? STREAK_BONUS_MEILENSTEIN
+    : STREAK_BONUS_BASIS;
+}
+
+/**
+ * Streak-Fortschreibung für den Daily-Claim:
+ * - gestern abgeholt → +1,
+ * - genau 1 Tag Lücke + Freeze frei → +1 (Verzeih-Tag, 1× pro Kalenderwoche),
+ * - sonst Neustart bei 1.
+ * Heute schon abgeholt → Bonus 0 (Vorab-Check schlägt an).
+ */
+export type StreakErgebnis = {
+  streakNeu: number;
+  bestNeu: number;
+  bonus: number;
+  freezeVerbraucht: boolean;
+};
+
+export function berechneStreakUpdate(
+  meta: Record<string, unknown>,
+  heute: string,
+): StreakErgebnis {
+  const letzter =
+    typeof meta.letzterDailyBonus === "string" ? meta.letzterDailyBonus : null;
+  if (letzter === heute) {
+    const aktuell = leseStreakTage(meta);
+    return {
+      streakNeu: aktuell,
+      bestNeu: leseStreakBest(meta),
+      bonus: 0,
+      freezeVerbraucht: false,
+    };
+  }
+  const aktuell = leseStreakTage(meta);
+  const luecke = tageSeit(letzter, heute);
+  let streakNeu = 1;
+  let freezeVerbraucht = false;
+  if (letzter !== null && luecke === 1 && aktuell > 0) {
+    streakNeu = aktuell + 1;
+  } else if (
+    letzter !== null &&
+    luecke === STREAK_FREEZE_MAX_LUECKE_TAGE &&
+    aktuell > 0 &&
+    istFreezeVerfuegbar(meta, heute)
+  ) {
+    streakNeu = aktuell + 1;
+    freezeVerbraucht = true;
+  }
+  const bestNeu = Math.max(leseStreakBest(meta), streakNeu);
+  return { streakNeu, bestNeu, bonus: streakBonusFuer(streakNeu), freezeVerbraucht };
+}
+
+/** Tagesdifferenz (UTC) zwischen Tagesdatum und heute – ungültig → null. */
+export function tageSeit(
+  datum: string | null,
+  heute: string,
+): number | null {
+  if (typeof datum !== "string") return null;
+  const mDatum = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datum);
+  const mHeute = /^(\d{4})-(\d{2})-(\d{2})$/.exec(heute);
+  if (!mDatum || !mHeute) return null;
+  const von = Date.UTC(Number(mDatum[1]), Number(mDatum[2]) - 1, Number(mDatum[3]));
+  const bis = Date.UTC(Number(mHeute[1]), Number(mHeute[2]) - 1, Number(mHeute[3]));
+  if (!Number.isFinite(von) || !Number.isFinite(bis)) return null;
+  const diff = Math.round((bis - von) / (24 * 60 * 60 * 1000));
+  return diff >= 0 ? diff : null;
+}
+
+/** Comeback-Bonus für den heutigen Claim: Pause lang genug (kein Neukonto). */
+export function berechneComebackBonus(
+  meta: Record<string, unknown>,
+  heute: string,
+): number {
+  const letzter =
+    typeof meta.letzterDailyBonus === "string" ? meta.letzterDailyBonus : null;
+  if (letzter === null || letzter === heute) return 0;
+  const luecke = tageSeit(letzter, heute);
+  return luecke !== null && luecke >= COMEBACK_PAUSE_TAGE ? COMEBACK_BONUS : 0;
+}
+
+/** ISO-Kalenderwochen-Schlüssel (UTC) für den wöchentlichen Verzeih-Tag. */
+export function wochenSchluessel(heute: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(heute);
+  if (!m) return "";
+  const tag = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  // ISO-Woche: Montag = 1 … Sonntag = 7 (Donnerstag bestimmt das Wochenjahr).
+  const wochentag = (tag.getUTCDay() + 6) % 7;
+  tag.setUTCDate(tag.getUTCDate() - wochentag + 3);
+  const jahr = tag.getUTCFullYear();
+  const donnerstagJahrStart = Date.UTC(jahr, 0, 4);
+  const woche =
+    1 + Math.round((tag.getTime() - donnerstagJahrStart) / (7 * 24 * 60 * 60 * 1000));
+  return `${jahr}-W${String(woche).padStart(2, "0")}`;
+}
+
+/** Ob der wöchentliche Verzeih-Tag noch ungenutzt ist. */
+export function istFreezeVerfuegbar(
+  meta: Record<string, unknown>,
+  heute: string,
+): boolean {
+  const woche = wochenSchluessel(heute);
+  if (!woche) return false;
+  return meta.streakFreezeWoche !== woche;
+}
+
+export type StreakVorschau = {
+  streakAktuell: number;
+  streakBest: number;
+  /** Heute auszahlbar: Streak-Bonus + ggf. Comeback (nach Claim: erhalten). */
+  bonusHeute: number;
+  comebackMoeglich: boolean;
+  freezeVerfuegbar: boolean;
+  /** Was der heutige (bereits abgeholte) Claim extra brachte – sonst null. */
+  letzterExtra: "comeback" | "freeze" | null;
+};
+
+/** Vorschau fürs Dashboard: was ein Claim heute bringt bzw. brachte. */
+export function streakVorschau(
+  meta: Record<string, unknown>,
+  heute: string,
+): StreakVorschau {
+  const letzter =
+    typeof meta.letzterDailyBonus === "string" ? meta.letzterDailyBonus : null;
+  const extraRaw = meta.letzterDailyExtra;
+  const letzterExtra: StreakVorschau["letzterExtra"] =
+    extraRaw === "comeback" || extraRaw === "freeze" ? extraRaw : null;
+  if (letzter === heute) {
+    const aktuell = leseStreakTage(meta);
+    return {
+      streakAktuell: aktuell,
+      streakBest: leseStreakBest(meta),
+      bonusHeute: aktuell > 0 ? streakBonusFuer(aktuell) : STREAK_BONUS_BASIS,
+      comebackMoeglich: false,
+      freezeVerfuegbar: istFreezeVerfuegbar(meta, heute),
+      letzterExtra,
+    };
+  }
+  const { bonus } = berechneStreakUpdate(meta, heute);
+  const comeback = berechneComebackBonus(meta, heute);
+  return {
+    streakAktuell: leseStreakTage(meta),
+    streakBest: leseStreakBest(meta),
+    bonusHeute: bonus + comeback,
+    comebackMoeglich: comeback > 0,
+    freezeVerfuegbar: istFreezeVerfuegbar(meta, heute),
+    letzterExtra: null,
+  };
+}
+
+/** Guarded Read: eigene Zitat-Sammlung ("Mein Glas", neueste zuerst). */
+export function leseZitatSammlung(meta: Record<string, unknown>): string[] {
+  const wert = meta.zitatSammlung;
+  if (!Array.isArray(wert)) return [];
+  return wert
+    .filter(
+      (e): e is string =>
+        typeof e === "string" && e.trim().length > 0 && e.length <= 500,
+    )
+    .slice(0, ZITAT_SAMMLUNG_MAX);
+}
+
+/** Legt ein Zitat oben auf die Sammlung (gedeckelt, Duplikate rutschen vor). */
+export function sammlungMitZitat(
+  meta: Record<string, unknown>,
+  zitat: string,
+): string[] {
+  const text = zitat.trim().slice(0, ZITAT_SAMMLUNG_TEXT_MAX);
+  if (!text) return leseZitatSammlung(meta);
+  const rest = leseZitatSammlung(meta).filter((e) => e !== text);
+  return [text, ...rest].slice(0, ZITAT_SAMMLUNG_MAX);
 }
 
 /**
@@ -201,12 +413,14 @@ export type BonusErgebnis = {
  * Gutschrift für Chat (unbegrenzt – jede Buchung kostet ein frisches
  * Captcha) oder Zitat (max. 3/Tag). Wirft PunkteFehler bei Quota-Verstößen.
  * Aufrufer: Gürkchen-Chat, Zitat-Route. Die Punkte-Route bucht direkt (sie
- * hat zusätzlich Daily/Einlösen-Flows).
+ * hat zusätzlich Daily/Einlösen-Flows). `detail` legt bei Zitaten den Text
+ * oben auf die Sammlung ("Mein Glas").
  */
 export async function bucheBonus(
   req: Request,
   userId: string,
   aktion: "chat" | "zitat",
+  detail?: string,
 ): Promise<BonusErgebnis> {
   const delta = aktion === "chat" ? PUNKTE_CHAT : PUNKTE_ZITAT;
   return mitFrischemBenutzer(req, userId, async (frisch, meta) => {
@@ -235,6 +449,9 @@ export async function bucheBonus(
       update.letzterZitatBonus = heute;
       update.zitatBonusCount = zitatBisher + 1;
       quoteRemaining = Math.max(0, ZITAT_MAX_PRO_TAG - (zitatBisher + 1));
+      if (detail && detail.trim()) {
+        update.zitatSammlung = sammlungMitZitat(meta, detail);
+      }
     }
     await frisch.setClientReadOnlyMetadata({ ...meta, ...update });
     return { punkte: newPoints, punkteGesamt: newTotal, delta, quoteRemaining };

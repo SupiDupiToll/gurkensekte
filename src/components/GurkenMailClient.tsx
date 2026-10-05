@@ -11,6 +11,7 @@ import type {
   GurkenmailGesendet,
   GurkenmailGesendetDetail,
 } from "@/lib/gurkenmail";
+import { markiereSozialErledigt } from "@/components/TagesLiturgie";
 import { absenderMail, absenderName, absenderVorname, normalisiereLocalpart, vorschlagsBasis } from "@/lib/gurkenmail";
 
 type Mailbox = { localpart: string; address: string; displayName: string };
@@ -604,6 +605,7 @@ export function GurkenMailClient() {
       }
       setSendeOk(true);
       setSendeIntern(Boolean(data.intern));
+      markiereSozialErledigt();
       setAn("");
       setBetreff("");
       setText("");

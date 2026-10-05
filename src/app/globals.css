@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Taste-Regel 4.1: Sans als Default. Serif (Fraunces) nur für Zitate via font-serif. */
-  --font-display: var(--font-outfit), system-ui, sans-serif;
+  /* Taste-Regel 4.1: Serif-Display (Fraunces) als Markenzeichen, Body in Sans. */
+  --font-display: var(--font-fraunces), Georgia, serif;
   --font-sans: var(--font-outfit), system-ui, sans-serif;
   --font-serif: var(--font-fraunces), Georgia, serif;
 
@@ -132,13 +132,13 @@ body {
 }
 
 h1, h2, h3, .font-display {
-  /* Taste-Regel 4.1: Headlines in Sans (Outfit). Serif nur für Zitate. */
-  font-family: var(--font-outfit), system-ui, sans-serif;
+  /* Markenzeichen: Headlines in Fraunces-Serif, Fließtext in Sans. */
+  font-family: var(--font-fraunces), Georgia, serif;
   text-wrap: balance;
   letter-spacing: -0.015em;
 }
 .font-heading {
-  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-family: var(--font-fraunces), Georgia, serif;
   letter-spacing: -0.015em;
 }
 

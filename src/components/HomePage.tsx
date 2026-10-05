@@ -2,6 +2,7 @@ import Link from "next/link";
 import { HomeCta } from "@/components/HomeCta";
 import { Reveal } from "@/components/Reveal";
 import { SpinningCucumber } from "@/components/SpinningCucumber";
+import { Tageslosung } from "@/components/Tageslosung";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -198,6 +199,9 @@ export function HomePage({ base = "" }: { base?: string }) {
           </Reveal>
         </div>
       </section>
+
+      {/* ── Losung des Tages: jeden Tag neu, auch ohne Login ── */}
+      <Tageslosung base={base} />
 
       {/* ── Weisheiten: Editorial-Liste statt Kartenraster ── */}
       <section className="mx-auto max-w-6xl px-4 pb-20 md:pb-32">

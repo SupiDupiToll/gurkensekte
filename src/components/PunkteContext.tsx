@@ -35,6 +35,17 @@ type PunkteContextType = {
   geworben: number;
   werbungenOffen: number;
   verlauf: VerlaufEintrag[];
+  /** Aufeinanderfolgende Daily-Tage (Streak) + Rekord + Bonus bei Claim heute. */
+  streakAktuell: number;
+  streakBest: number;
+  bonusHeute: number;
+  /** Comeback möglich (Pause lang) / Freeze frei / Extra des heutigen Claims. */
+  comebackMoeglich: boolean;
+  freezeVerfuegbar: boolean;
+  letzterExtra: "comeback" | "freeze" | null;
+  /** Sammelalbum ("Mein Glas", neueste zuerst) + kumulierte Werbungspunkte. */
+  sammlung: string[];
+  werbungPunkte: number | null;
   /** Endpunkt der Gurken-Rangliste (gehört zur gewählten Punkte-API). */
   leaderboardApiBase: string;
   /** Lieferadresse der letzten Bestellung – beim Einlösen Pflicht. */
@@ -56,6 +67,14 @@ const PunkteContext = createContext<PunkteContextType>({
   geworben: 0,
   werbungenOffen: 0,
   verlauf: [],
+  streakAktuell: 0,
+  streakBest: 0,
+  bonusHeute: 20,
+  comebackMoeglich: false,
+  freezeVerfuegbar: true,
+  letzterExtra: null,
+  sammlung: [],
+  werbungPunkte: null,
   leaderboardApiBase: "/api/mitglieder/punkte/leaderboard",
   gurkenAdresse: null,
   refresh: async () => {},
@@ -79,6 +98,16 @@ export function PunkteProvider({
   const [geworben, setGeworben] = useState(0);
   const [werbungenOffen, setWerbungenOffen] = useState(0);
   const [verlauf, setVerlauf] = useState<VerlaufEintrag[]>([]);
+  const [streakAktuell, setStreakAktuell] = useState(0);
+  const [streakBest, setStreakBest] = useState(0);
+  const [bonusHeute, setBonusHeute] = useState(20);
+  const [comebackMoeglich, setComebackMoeglich] = useState(false);
+  const [freezeVerfuegbar, setFreezeVerfuegbar] = useState(true);
+  const [letzterExtra, setLetzterExtra] = useState<
+    "comeback" | "freeze" | null
+  >(null);
+  const [sammlung, setSammlung] = useState<string[]>([]);
+  const [werbungPunkte, setWerbungPunkte] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -94,6 +123,24 @@ export function PunkteProvider({
       setGeworben(data.geworben ?? 0);
       setWerbungenOffen(data.werbungenOffen ?? 0);
       setVerlauf(data.verlauf ?? []);
+      setStreakAktuell(
+        typeof data.streakAktuell === "number" ? data.streakAktuell : 0,
+      );
+      setStreakBest(typeof data.streakBest === "number" ? data.streakBest : 0);
+      setBonusHeute(
+        typeof data.bonusHeute === "number" ? data.bonusHeute : 20,
+      );
+      setComebackMoeglich(data.comebackMoeglich === true);
+      setFreezeVerfuegbar(data.freezeVerfuegbar !== false);
+      setLetzterExtra(
+        data.letzterExtra === "comeback" || data.letzterExtra === "freeze"
+          ? data.letzterExtra
+          : null,
+      );
+      setSammlung(Array.isArray(data.sammlung) ? data.sammlung : []);
+      setWerbungPunkte(
+        typeof data.werbungPunkte === "number" ? data.werbungPunkte : null,
+      );
     } catch {
       // ignore
     } finally {
@@ -151,6 +198,14 @@ export function PunkteProvider({
         geworben,
         werbungenOffen,
         verlauf,
+        streakAktuell,
+        streakBest,
+        bonusHeute,
+        comebackMoeglich,
+        freezeVerfuegbar,
+        letzterExtra,
+        sammlung,
+        werbungPunkte,
         leaderboardApiBase: `${apiBase}/leaderboard`,
         gurkenAdresse,
         refresh,

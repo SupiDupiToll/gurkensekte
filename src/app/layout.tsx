@@ -9,8 +9,8 @@ import { ReferralCapture } from "@/components/ReferralCapture";
 import "./globals.css";
 
 // Taste-Regel 3.A: Fonts immer via next/font (self-hosted, display:swap),
-// nie via <link> oder @import. Sans (Outfit) ist der Default für alles;
-// Fraunces-Serif nur für Zitate (font-serif) – siehe Fix 4.
+// nie via <link> oder @import. Fraunces-Serif für Headlines/Zitate,
+// Outfit-Sans für Fließtext und UI.
 const outfit = Outfit({
   subsets: ["latin"],
   display: "swap",

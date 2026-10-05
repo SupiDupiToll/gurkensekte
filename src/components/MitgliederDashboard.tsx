@@ -31,9 +31,18 @@ import {
   Sword,
   EnvelopeSimple,
   GearSix,
+  Check,
+  Lock,
 } from "@phosphor-icons/react";
 import { demoPath } from "@/lib/demo";
 import { adresseFormatieren } from "@/lib/bestellung";
+import { tagesBegruessung } from "@/lib/guerkchenStimmung";
+import { TagesLiturgie } from "@/components/TagesLiturgie";
+import {
+  ChangelogButton,
+  ChangelogPopup,
+} from "@/components/ChangelogPopup";
+import { GewinnPopup } from "@/components/GewinnPopup";
 import {
   EinfuehrungsTour,
   TOUR_CHAT_ANTWORT,
@@ -52,7 +61,154 @@ export type MitgliedInfo = {
   signedUpAt?: string | Date | null;
 };
 
-function PunkteInhalt() {
+/** Streak angeben: WhatsApp + Kopieren, mit Werbe-Link wenn bekannt. */
+function StreakTeilen({
+  streak,
+  code = null,
+}: {
+  streak: number;
+  code?: string | null;
+}) {
+  const [kopiert, setKopiert] = useState(false);
+  if (streak < 2) return null;
+
+  function link(): string {
+    const origin = window.location.origin;
+    return code ? `${origin}/?ref=${encodeURIComponent(code)}` : `${origin}/`;
+  }
+  function text(): string {
+    return `Ich bin Tag ${streak} im Glas der Gurken Sekte – schaffst du das auch? ${link()}`;
+  }
+  function kopieren() {
+    const t = text();
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.clipboard?.writeText
+    ) {
+      navigator.clipboard.writeText(t).catch(() => {});
+    }
+    setKopiert(true);
+    window.setTimeout(() => setKopiert(false), 2000);
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <span className="text-xs text-[#6b7565]">
+        Serie {streak} – gib an:
+      </span>
+      <button
+        type="button"
+        onClick={() =>
+          window.open(
+            `https://wa.me/?text=${encodeURIComponent(text())}`,
+            "_blank",
+            "noopener,noreferrer",
+          )
+        }
+        className="flex min-h-[40px] items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
+      >
+        Per WhatsApp angeben
+      </button>
+      <button
+        type="button"
+        onClick={kopieren}
+        className="flex min-h-[40px] items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
+      >
+        {kopiert ? "Kopiert!" : "Text kopieren"}
+      </button>
+    </div>
+  );
+}
+
+/** Monats-Verlosung: jeder Daily-Tag ist 1 Los (Ziehung manuell, 1. des Folgemonats). */
+function VerlosungsBanner() {
+  const [monat, setMonat] = useState("");
+  const [ziehung, setZiehung] = useState("");
+  useEffect(() => {
+    const jetzt = new Date();
+    setMonat(
+      jetzt.toLocaleDateString("de-DE", { month: "long" }),
+    );
+    setZiehung(
+      new Date(jetzt.getFullYear(), jetzt.getMonth() + 1, 1).toLocaleDateString(
+        "de-DE",
+        { day: "numeric", month: "long" },
+      ),
+    );
+  }, []);
+  if (!monat) return null;
+  return (
+    <div className="mt-3 rounded-2xl border border-[#c9a86a]/25 bg-[#c9a86a]/[0.05] px-5 py-3.5 text-center">
+      <p className="text-[13px] leading-relaxed text-[#a3ad9a]">
+        <strong className="text-[#e2d9bf]">
+          {monat}-Verlosung:
+        </strong>{" "}
+        Jeder abgeholte Tages-Bonus ist 1 Los – zu gewinnen gibt es eine{" "}
+        <strong className="text-[#ede8d6]">echte Gurke</strong>. Der Gewinner
+        wird automatisch gezogen, per Popup benachrichtigt und wählt: Gurke
+        gratis oder +1.000 Punkte. Ziehung am {ziehung}.
+      </p>
+    </div>
+  );
+}
+
+const GLAS_MEILENSTEINE = [100, 250, 500, 1000];
+
+/** Mein Glas: Meilensteine + gesammelte Zitate (Sunk Cost zum Wiederkommen). */
+function MeinGlas({
+  sammlung,
+  punkteGesamt,
+}: {
+  sammlung: string[];
+  punkteGesamt: number;
+}) {
+  return (
+    <div className="mt-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold text-[#ede8d6]">Mein Glas</h3>
+        <span className="tabular text-[11px] font-semibold text-[#6b7565]">
+          {sammlung.length}/10 Zitate
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {GLAS_MEILENSTEINE.map((m) => {
+          const erreicht = punkteGesamt >= m;
+          return (
+            <span
+              key={m}
+              className={`tabular inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold ${
+                erreicht
+                  ? "border-[#8fa96d]/30 bg-[#8fa96d]/[0.07] text-[#abc189]"
+                  : "border-white/10 text-[#6b7565]"
+              }`}
+            >
+              {erreicht ? <Check size={12} weight="bold" /> : <Lock size={11} weight="bold" />}
+              {m === 1000 ? "Gurke" : m}
+            </span>
+          );
+        })}
+      </div>
+      {sammlung.length === 0 ? (
+        <p className="mt-3 text-[13px] leading-relaxed text-[#6b7565]">
+          Noch leer – generiere dein erstes Zitat und es landet hier im Glas.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-1.5">
+          {sammlung.map((zitat, i) => (
+            <li
+              key={`${i}-${zitat.slice(0, 12)}`}
+              className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[13px] italic leading-relaxed text-[#cfc8b0]"
+            >
+              „{zitat}“
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
   const {
     punkte,
     punkteGesamt,
@@ -62,6 +218,13 @@ function PunkteInhalt() {
     refresh,
     claim,
     gurkenAdresse,
+    streakAktuell,
+    streakBest,
+    bonusHeute,
+    comebackMoeglich,
+    freezeVerfuegbar,
+    letzterExtra,
+    sammlung,
   } = usePunkte();
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [claimingRedeem, setClaimingRedeem] = useState(false);
@@ -354,7 +517,41 @@ function PunkteInhalt() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7565]">
               Täglicher Bonus
             </p>
-            <p className="tabular mt-1 text-xl font-semibold text-[#ede8d6]">+20</p>
+            <p className="tabular mt-1 text-xl font-semibold text-[#ede8d6]">
+              +{bonusHeute}
+            </p>
+            <p className="tabular mt-0.5 text-xs text-[#6b7565]">
+              {streakAktuell > 0 ? (
+                <>
+                  Serie {streakAktuell} {streakAktuell === 1 ? "Tag" : "Tage"}
+                  {streakBest > 0 ? ` · Rekord ${streakBest}` : ""}
+                  {dailyAvailable
+                    ? comebackMoeglich
+                      ? " · Comeback +50 inklusive!"
+                      : ` · heute abholen, morgen weiter`
+                    : letzterExtra === "comeback"
+                      ? " · Willkommen zurück im Glas!"
+                      : letzterExtra === "freeze"
+                        ? " · Verzeih-Tag hat die Serie gerettet!"
+                        : " · morgen weiter"}
+                </>
+              ) : (
+                <>
+                  {dailyAvailable
+                    ? comebackMoeglich
+                      ? "Comeback: +50 extra für deine Rückkehr!"
+                      : "Täglich abholen, alle 7 Tage +50"
+                    : "Morgen geht die Serie los"}
+                </>
+              )}
+            </p>
+            {dailyAvailable && (
+              <p className="mt-1 text-[11px] text-[#6b7565]">
+                {freezeVerfuegbar
+                  ? "Verzeih-Tag bereit: 1 verpasster Tag pro Woche bricht die Serie nicht."
+                  : "Verzeih-Tag verbraucht – nächste Woche gibt es einen neuen."}
+              </p>
+            )}
           </div>
           <button
             onClick={handleDaily}
@@ -375,11 +572,17 @@ function PunkteInhalt() {
             <li>Chat-Nachricht: +5</li>
             <li>GurkenMail versenden: +10</li>
             <li>GurkenMail empfangen: +5 (max. 2/Stunde)</li>
-            <li>Täglicher Bonus: +20</li>
-            <li>Freund werben: +100</li>
+            <li>Täglicher Bonus: +20, alle 7 Tage in Folge +50</li>
+            <li>
+              Freund werben: +150
+            </li>
           </ul>
         </div>
       </div>
+
+      <StreakTeilen streak={streakAktuell} code={code} />
+      <VerlosungsBanner />
+      <MeinGlas sammlung={sammlung} punkteGesamt={punkteGesamt} />
 
       {captchaPflicht && (
         <div className="mt-4">
@@ -442,9 +645,11 @@ function PunkteInhalt() {
 function PunkteAnzeige({
   externOffen = null,
   onExternOffenChange,
+  code = null,
 }: {
   externOffen?: boolean | null;
   onExternOffenChange?: (offen: boolean) => void;
+  code?: string | null;
 } = {}) {
   const [innenOffen, setInnenOffen] = useState(false);
   const open = externOffen ?? innenOffen;
@@ -475,7 +680,7 @@ function PunkteAnzeige({
       icon={<Coins size={22} weight="fill" className="text-[#c9a86a]" />}
       onClose={() => setOpen(false)}
     >
-      <PunkteInhalt />
+      <PunkteInhalt code={code} />
     </Popup>
   );
 }
@@ -565,6 +770,32 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
           {quote ? `„${quote}“` : "Löse das Captcha und tippe auf „Neues Zitat“."}
         </blockquote>
       )}
+      {quote && !loading && (
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(`„${quote}“ – Gürkchen (Gurken Sekte ${typeof window !== "undefined" ? window.location.origin : "https://gurkensekte.de"}/)`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-[40px] items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
+          >
+            Per WhatsApp teilen
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              const text = `„${quote}“ – Gürkchen (Gurken Sekte)`;
+              if (navigator.share) {
+                navigator.share({ text }).catch(() => {});
+              } else {
+                navigator.clipboard?.writeText(text).catch(() => {});
+              }
+            }}
+            className="flex min-h-[40px] items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
+          >
+            Kopieren / Teilen
+          </button>
+        </div>
+      )}
       {captchaPflicht && (
         <div className="mx-auto mb-3 mt-4 max-w-md text-left">
           <TurnstileWidget
@@ -622,11 +853,10 @@ function GurkchenChat({
   /** Wird aufgerufen, sobald die Tour-Demo-Antwort fertig getippt ist. */
   onTourDemoFertig?: () => void;
 }) {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<Message[]>(() => [
     {
       role: "assistant",
-      content:
-        "Sei gegrüßt, mein Gurken-Kind. Ich bin Gürkchen, Stimme des einen wahren Einlegeglases. Was bedrückt deine eingelegte Seele?",
+      content: tagesBegruessung(),
     },
   ]);
   const [input, setInput] = useState("");
@@ -1149,6 +1379,11 @@ export function MitgliederDashboard({  user,
           )}
         </Reveal>
 
+        {/* Tagesliturgie: kleine Rituale aus Bestand statt neuer Features. */}
+        <div className="mt-5 space-y-3">
+          <TagesLiturgie />
+        </div>
+
         {/* App-Raster: zwei Kacheln pro Zeile wie auf einem Handy-Screen. */}
         <div className="mt-5 grid grid-cols-2 gap-3">
           <div data-tour-ziel="chat" className="contents">
@@ -1169,6 +1404,7 @@ export function MitgliederDashboard({  user,
             <PunkteAnzeige
               externOffen={tourPunkteOffen}
               onExternOffenChange={(offen) => setTourPunkteOffen(offen ? true : null)}
+              code={isDemo ? null : (user.id ?? null)}
             />
           </div>
           <Rangstufen />
@@ -1210,7 +1446,7 @@ export function MitgliederDashboard({  user,
           )}
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-2 text-center">
           {isDemo ? (
             <Link
               href="/"
@@ -1220,13 +1456,16 @@ export function MitgliederDashboard({  user,
               Zur echten Gurken Sekte
             </Link>
           ) : (
-            <button
-              onClick={onSignOut}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-white/12 px-5 py-2.5 text-sm font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
-            >
-              <SignOut size={16} />
-              Ausloggen
-            </button>
+            <>
+              <ChangelogButton />
+              <button
+                onClick={onSignOut}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-white/12 px-5 py-2.5 text-sm font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
+              >
+                <SignOut size={16} />
+                Ausloggen
+              </button>
+            </>
           )}
         </div>
 
@@ -1245,6 +1484,12 @@ export function MitgliederDashboard({  user,
             onPunkteOffen={setTourPunkteOffen}
           />
         )}
+
+        {/* Neuigkeiten nur für eingeloggte Mitglieder (kein Demo, keine Landing). */}
+        {!isDemo && <ChangelogPopup />}
+
+        {/* Gewinn-Popup der Monats-Verlosung (nur echt, kein Demo). */}
+        {!isDemo && <GewinnPopup />}
       </div>
     </PunkteProvider>
   );

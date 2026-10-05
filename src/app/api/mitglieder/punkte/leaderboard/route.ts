@@ -7,6 +7,7 @@ import {
   vergleicheEintraege,
 } from "@/lib/leaderboard";
 import { leseBenutzername } from "@/lib/benutzername";
+import { lesePunkte, lesePunkteGesamt } from "@/lib/punkte";
 
 export const runtime = "nodejs";
 
@@ -29,19 +30,19 @@ const NAME_MAX = 48;
 
 function zuEintrag(user: ServerUser): LeaderboardEintrag {
   const meta = (user.clientReadOnlyMetadata ?? {}) as Record<string, unknown>;
-  const punkteRaw = meta.punkte;
-  const punkte =
-    typeof punkteRaw === "number" && Number.isFinite(punkteRaw)
-      ? punkteRaw
-      : 0;
+  // Rang nach je gesammelten XP (fällt nie): Wer eine echte Gurke einlöst,
+  // verliert Guthaben, aber keinen Rang. Fallback für Altbestand ohne XP-Feld.
+  const guthaben = lesePunkte(meta);
+  const punkte = lesePunkteGesamt(meta, guthaben);
   const name = (user.displayName ?? "").trim().slice(0, NAME_MAX) || "Anonymes Gurkenkind";
   const seit = user.signedUpAt ? new Date(user.signedUpAt).getTime() : null;
   return { id: user.id, name, benutzername: leseBenutzername(meta), punkte, seit };
 }
 
 /**
- * Gurken-Rangliste: sortiert alle Mitglieder ausschließlich nach den normalen
- * Punkten (Guthaben), bei Gleichstand gewinnt das ältere Mitglied.
+ * Gurken-Rangliste: sortiert alle Mitglieder ausschließlich nach je
+ * gesammelten XP (fällt nie, auch nicht beim Einlösen), bei Gleichstand
+ * gewinnt das ältere Mitglied.
  * E-Mails werden bewusst nicht herausgegeben, nur Anzeigename und Punkte.
  */
 export async function GET(req: Request) {

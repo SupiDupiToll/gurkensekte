@@ -199,14 +199,15 @@ export async function POST(req: Request) {
         }
 
         const currentPoints = lesePunkte(meta);
-        const newPoints = currentPoints + REFERRAL_POINTS;
+        const punkte = REFERRAL_POINTS;
+        const newPoints = currentPoints + punkte;
         // XP-Bestand: nie fallend, wird nur nach oben geschrieben.
         const currentTotal = lesePunkteGesamt(meta, currentPoints);
         const verlauf = leseVerlauf(meta).slice(-9);
         verlauf.push({
           datum: new Date().toISOString(),
           aktion: REFERRAL_ACTIVITY,
-          punkte: REFERRAL_POINTS,
+          punkte,
           saldo: newPoints,
         });
         const werbungen = meta.werbungen;
@@ -214,13 +215,19 @@ export async function POST(req: Request) {
           typeof werbungen === "number" && Number.isFinite(werbungen)
             ? werbungen
             : 0;
+        const werbungSumme = meta.werbungPunkte;
+        const bisherSumme =
+          typeof werbungSumme === "number" && Number.isFinite(werbungSumme)
+            ? werbungSumme
+            : 0;
 
         await referrer.setClientReadOnlyMetadata({
           ...meta,
           punkte: newPoints,
-          punkteGesamt: currentTotal + REFERRAL_POINTS,
+          punkteGesamt: currentTotal + punkte,
           punkteVerlauf: verlauf,
           werbungen: bisher + 1,
+          werbungPunkte: bisherSumme + punkte,
           [REFERRAL_PENDING_KEY]: pending.filter(
             (item) => item.token !== params.token,
           ),
@@ -241,7 +248,7 @@ export async function POST(req: Request) {
 
         return seite(
           "Werbung bestätigt",
-          `+${REFERRAL_POINTS} Punkte für <strong>${escapeHtml(
+          `+${punkte} Punkte für <strong>${escapeHtml(
             referrer.primaryEmail ?? referrer.id,
           )}</strong> wurden gutgeschrieben.`,
           true,
