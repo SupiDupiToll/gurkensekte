@@ -5,22 +5,15 @@
 
 ## Neu als Tour
 
-- **Neuigkeiten kommen jetzt als Tour** – Weiter tippen statt Wand lesen.
+- **Neuigkeiten kommen jetzt als Tour.** Weiter tippen statt Wand lesen.
 - **Korrektur:** Doppelwochen entfallen, Werben gibt **+150**.
-- **Wochen-Streak:** 7 Tage oben im Blick, bei 7/7 **+100** – Serie brennt als Flamme in der Rangliste.
+- **Wochen-Streak:** 7 Tage oben im Blick, bei 7/7 **+100**. Serie brennt als Flamme in der Rangliste.
 
 - [Bonus abholen](/mitglieder)
 
 ## Verlosung von allein
 
-- **Neuigkeiten kommen jetzt als Tour** – Weiter tippen statt Wand lesen.
-- **Korrektur:** Doppelwochen entfallen, Werben gibt **+150**.
-
-- [Bonus abholen](/mitglieder)
-
-## Verlosung von allein
-
-- **Gewinner wird automatisch gezogen** – jeden Monat neu.
+- **Gewinner wird automatisch gezogen.** Jeden Monat neu.
 - **Gewinn-Popup:** Gurke gratis oder **+1.000 Punkte**.
 
 - [Mitgliederbereich](/mitglieder)
@@ -43,7 +36,7 @@
 
 ## Für alle
 
-- **Losung des Tages** auf der Startseite – ohne Login.
+- **Losung des Tages** auf der Startseite. Auch ohne Login.
 - **Rangliste nach XP:** Einlösen kostet keinen Rang.
 - **Gürkchen** hat je Wochentag neue Laune.
 

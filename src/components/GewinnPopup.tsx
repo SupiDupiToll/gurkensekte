@@ -190,7 +190,7 @@ export function GewinnPopup() {
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#a3ad9a]">
                 {fertigArt === "gurke"
                   ? "Gürkchen schickt sie dir persönlich per Post."
-                  : "Gürkchen gratuliert – weiter so im Glas."}
+                  : "Gürkchen gratuliert. Weiter so im Glas."}
               </p>
               <button
                 type="button"
@@ -206,7 +206,7 @@ export function GewinnPopup() {
                 Wohin mit der Gurke?
               </h2>
               <p className="mt-1 text-center text-xs text-[#6b7565]">
-                Gratis als Gewinn – es werden keine Punkte abgezogen.
+                Gratis als Gewinn. Es werden keine Punkte abgezogen.
               </p>
               <form onSubmit={gurkeBestellen} className="mt-3 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -289,7 +289,7 @@ export function GewinnPopup() {
                   className="btn-cta btn-cta-primary min-h-[52px] w-full !text-base disabled:opacity-50"
                 >
                   <Basket size={18} weight="fill" />
-                  {arbeitet ? "Wird bestellt …" : "Gurke bestellen · gratis"}
+                  {arbeitet ? "Wird bestellt …" : "Gurke gratis bestellen"}
                 </button>
                 <button
                   type="button"
@@ -312,11 +312,11 @@ export function GewinnPopup() {
                 Du hast gewonnen!
               </h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#a3ad9a]">
-                Das Los hat dich getroffen – mit{" "}
+                Das Los hat dich getroffen. Du hattest{" "}
                 <strong className="text-[#e2d9bf]">
-                  {treffer.meineLose} {treffer.meineLose === 1 ? "Los" : "Losen"}
-                </strong>
-                . Wähle deinen Gewinn:
+                  {treffer.meineLose} {treffer.meineLose === 1 ? "Los" : "Lose"}
+                </strong>{" "}
+                im Topf. Wähle deinen Gewinn:
               </p>
               <div className="mt-4 space-y-2">
                 <button
@@ -328,7 +328,7 @@ export function GewinnPopup() {
                   className="btn-cta btn-cta-primary min-h-[52px] w-full !text-base"
                 >
                   <Basket size={18} weight="fill" />
-                  Echte Gurke · gratis
+                  Echte Gurke gratis
                 </button>
                 <button
                   type="button"
@@ -359,7 +359,7 @@ export function GewinnPopup() {
 
           <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-[#4a5548]">
             <Gift size={13} />
-            Täglich Bonus holen = Lose sammeln
+            Bonus holen heißt Lose sammeln
           </p>
         </div>
       </div>

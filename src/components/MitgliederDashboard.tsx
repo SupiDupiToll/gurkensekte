@@ -97,7 +97,7 @@ function WochenStreak() {
                 done
                   ? "border-[#8fa96d]/40 bg-[#8fa96d]/[0.1]"
                   : istHeute
-                    ? "animate-pulse border-[#c9a86a]/50 bg-[#c9a86a]/[0.06]"
+                    ? "motion-safe:animate-pulse border-[#c9a86a]/50 bg-[#c9a86a]/[0.06]"
                     : "border-white/[0.07]"
               }`}
             >
@@ -137,7 +137,7 @@ function StreakTeilen({
     return code ? `${origin}/?ref=${encodeURIComponent(code)}` : `${origin}/`;
   }
   function text(): string {
-    return `Ich bin Tag ${streak} im Glas der Gurken Sekte – schaffst du das auch? ${link()}`;
+    return `Ich bin Tag ${streak} im Glas der Gurken Sekte. Schaffst du das auch? ${link()}`;
   }
   function kopieren() {
     const t = text();
@@ -154,7 +154,7 @@ function StreakTeilen({
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
       <span className="text-xs text-[#6b7565]">
-        Serie {streak} – gib an:
+        Serie {streak} teilen:
       </span>
       <button
         type="button"
@@ -203,7 +203,7 @@ function VerlosungsBanner() {
         <strong className="text-[#e2d9bf]">
           {monat}-Verlosung:
         </strong>{" "}
-        Jeder abgeholte Tages-Bonus ist 1 Los – zu gewinnen gibt es eine{" "}
+        Jeder abgeholte Tages-Bonus ist 1 Los. Zu gewinnen gibt es eine{" "}
         <strong className="text-[#ede8d6]">echte Gurke</strong>. Der Gewinner
         wird automatisch gezogen, per Popup benachrichtigt und wählt: Gurke
         gratis oder +1.000 Punkte. Ziehung am {ziehung}.
@@ -250,7 +250,7 @@ function MeinGlas({
       </div>
       {sammlung.length === 0 ? (
         <p className="mt-3 text-[13px] leading-relaxed text-[#6b7565]">
-          Noch leer – generiere dein erstes Zitat und es landet hier im Glas.
+          Noch leer. Generiere dein erstes Zitat, es landet hier im Glas.
         </p>
       ) : (
         <ul className="mt-3 space-y-1.5">
@@ -584,26 +584,26 @@ function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
               {streakAktuell > 0 ? (
                 <>
                   Serie {streakAktuell} {streakAktuell === 1 ? "Tag" : "Tage"}
-                  {streakBest > 0 ? ` · Rekord ${streakBest}` : ""}
+                  {streakBest > 0 ? `, Rekord ${streakBest}` : ""}.{" "}
                   {dailyAvailable
                     ? comebackMoeglich
-                      ? " · Comeback +50 inklusive!"
-                      : ` · heute abholen, morgen weiter`
+                      ? "Comeback +50 inklusive, heute abholen."
+                      : "Heute abholen, morgen weiter."
                     : letzterExtra === "comeback"
-                      ? " · Willkommen zurück im Glas!"
+                      ? "Willkommen zurück im Glas!"
                       : letzterExtra === "freeze"
-                        ? " · Verzeih-Tag hat die Serie gerettet!"
+                        ? "Verzeih-Tag hat die Serie gerettet."
                         : letzterExtra === "wochenbonus"
-                          ? " · Wochenbonus +100 – 7/7!"
-                          : " · morgen weiter"}
+                          ? "Wochenbonus +100. Starke Woche!"
+                          : "Morgen weiter."}
                 </>
               ) : (
                 <>
                   {dailyAvailable
                     ? comebackMoeglich
                       ? "Comeback: +50 extra für deine Rückkehr!"
-                      : "Täglich abholen, alle 7 Tage +50"
-                    : "Morgen geht die Serie los"}
+                      : "Täglich abholen, alle 7 Tage +50."
+                    : "Morgen geht die Serie los."}
                 </>
               )}
             </p>
@@ -611,7 +611,7 @@ function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
               <p className="mt-1 text-[11px] text-[#6b7565]">
                 {freezeVerfuegbar
                   ? "Verzeih-Tag bereit: 1 verpasster Tag pro Woche bricht die Serie nicht."
-                  : "Verzeih-Tag verbraucht – nächste Woche gibt es einen neuen."}
+                  : "Verzeih-Tag verbraucht. Nächste Woche gibt es einen neuen."}
               </p>
             )}
           </div>
@@ -836,7 +836,7 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
       {quote && !loading && (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(`„${quote}“ – Gürkchen (Gurken Sekte ${typeof window !== "undefined" ? window.location.origin : "https://gurkensekte.de"}/)`)}`}
+            href={`https://wa.me/?text=${encodeURIComponent(`„${quote}“ - Gürkchen (Gurken Sekte ${typeof window !== "undefined" ? window.location.origin : "https://gurkensekte.de"}/)`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex min-h-[40px] items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-[#a3ad9a] transition-colors hover:border-white/25 hover:text-[#ede8d6]"
@@ -846,7 +846,7 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
           <button
             type="button"
             onClick={() => {
-              const text = `„${quote}“ – Gürkchen (Gurken Sekte)`;
+              const text = `„${quote}“ - Gürkchen (Gurken Sekte)`;
               if (navigator.share) {
                 navigator.share({ text }).catch(() => {});
               } else {

@@ -168,7 +168,7 @@ export function TagesLiturgie() {
       </ul>
       {fertig === 3 && (
         <p className="mt-2 text-center text-xs font-semibold text-[#8fa96d]">
-          Glas voll – Gürkchen ist stolz auf dich.
+          Glas voll. Gürkchen ist stolz auf dich.
         </p>
       )}
     </div>

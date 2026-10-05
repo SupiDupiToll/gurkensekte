@@ -80,3 +80,17 @@
 .tour-fortschritt span.aktiv {
   transform: scale(1.15);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .changelog-item,
+  .changelog-icon,
+  .tour-gurke {
+    animation: none;
+  }
+  .tour-fortschritt span {
+    transition: none;
+  }
+  .tour-fortschritt span.aktiv {
+    transform: none;
+  }
+}
