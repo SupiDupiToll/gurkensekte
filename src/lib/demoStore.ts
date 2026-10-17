@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import type { GurkenAdresse } from "@/lib/bestellung";
 
 /**
@@ -52,7 +51,7 @@ export function parseDemoCookies(req: Request): Record<string, string> {
 export function getDemoProfile(req: Request, res: Response): DemoProfile {
   let id = parseDemoCookies(req)[DEMO_COOKIE_NAME];
   if (!id) {
-    id = randomUUID();
+    id = globalThis.crypto.randomUUID();
     // Secure nur in Production: Lokal läuft die Demo auch über http.
     const secure =
       process.env.NODE_ENV === "production" ? "; Secure" : "";

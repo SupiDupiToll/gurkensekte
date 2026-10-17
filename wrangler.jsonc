@@ -1,0 +1,56 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gurkensekte",
+  "main": ".open-next/worker.js",
+  // Muss <= dem Release-Datum der installierten workerd-Version sein.
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": [
+    // Node.js-APIs (node:crypto, Buffer, AsyncLocalStorage, …) für die
+    // Next.js-Runtime. Ab compatibility_date 2026-08-04 ohnehin Standard.
+    "nodejs_compat",
+    // Erlaubt ausgehende fetch()-Calls (KI-Anbieter, Mangoe, Resend, Worker).
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    // Statische Assets (public/ + .next/static) werden direkt vom Edge
+    // ausgeliefert; der Worker läuft nur für dynamische Routen.
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // Selbstreferenz – von OpenNext u. a. für interne Requests gebraucht.
+      // Der Name muss dem "name" dieses Workers entsprechen.
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "gurkensekte"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+  // R2-Bucket als Incremental Cache: nur nötig, sobald ISR bzw.
+  // revalidatePath/revalidateTag genutzt wird (siehe open-next.config.ts).
+  // Dann hier einkommentieren und den Bucket vorher anlegen:
+  //   npx wrangler r2 bucket create gurkensekte-opennext-cache
+  //
+  // "r2_buckets": [
+  //   {
+  //     "binding": "NEXT_INC_CACHE_R2_BUCKET",
+  //     "bucket_name": "gurkensekte-opennext-cache"
+  //   }
+  // ]
+  //
+  // Bilder-Optimierung über Cloudflare Images (next/image) – aktuell nicht
+  // genutzt, daher deaktiviert. Zum Aktivieren einkommentieren:
+  //
+  // "images": { "binding": "IMAGES" }
+  //
+  // Nicht-geheime Runtime-Variablen (Secrets gehören NICHT hierher, sondern
+  // via `npx wrangler secret put <NAME>` bzw. ins Dashboard):
+  //
+  // "vars": {
+  //   "SITE_URL": "https://gurkensekte.de",
+  //   "MANGOE_URL": "https://payments.mangoe.de",
+  //   "GURKENMAIL_DOMAIN": "gurkensekte.de"
+  // }
+}

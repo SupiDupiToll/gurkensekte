@@ -8,9 +8,13 @@ Next.js 16 (App Router) + TypeScript + Tailwind v4. Package manager is **pnpm** 
 pnpm install
 pnpm dev                  # plain dev; Turnstile/Upstash missing = dev fallbacks active
 pnpm dev:hexclave         # dev with Hexclave auth proxy (needed for /mitglieder)
-pnpm build && pnpm start  # only real verification (no tests)
+pnpm build && pnpm start  # plain Next build (Node) — fastest sanity check
+pnpm preview              # OpenNext build + real Workers runtime locally (workerd)
+pnpm deploy               # OpenNext build + deploy to Cloudflare Workers
 pnpm lint                 # eslint (next core-web-vitals + typescript)
 ```
+
+Deployment target is **Cloudflare Workers** via `@opennextjs/cloudflare` (see `wrangler.jsonc`, `open-next.config.ts`). `pnpm preview` is the only check that exercises the real runtime — Node-only APIs that work under `pnpm build` can still fail in workerd.
 
 `workers/gurkenmail-inbound` is a separate package (own `package.json`, excluded from root `tsconfig.json`):
 ```bash
@@ -23,6 +27,10 @@ cd workers/gurkenmail-inbound && npm run db:migrate && npm run deploy  # wrangle
 - `SITE_URL` is the canonical origin for email links and Mangoe `successUrl`/`cancelUrl`. Never build these from the request host (host-header poisoning).
 - Upstash Redis envs have aliases — read via the mapping in `src/lib/ratelimit.ts` (`UPSTASH_REDIS_REST_*`, `*_KV_REST_API_*`, `KV_REST_API_*`). Local dev without them uses in-memory fallback (per-instance only).
 - Mangoe/GurkenMail secrets (`MANGOE_API_KEY`, `GURKENMAIL_INBOUND_SECRET`, `RESEND_API_KEY`) are server-only — never import `src/lib/mangoe.ts` secrets into client code.
+- On Workers, runtime vars/secrets live in the Worker (dashboard or `npx wrangler secret put <NAME>`), not in `.env.local`. `NEXT_PUBLIC_*` values are inlined at **build** time, so they must be present when `pnpm deploy` runs (locally via `.env*`, in Workers Builds via build variables).
+- `HEXCLAVE_PROJECT_ID` + `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID` are required at **build** time too — the SDK client is constructed at module scope and Next collects page data during the build. Without them `pnpm build`/`pnpm deploy` aborts.
+- `opennextjs-cloudflare build` bakes the project's `.env*` files into the worker as a *fallback* (`process.env[key] ??= …`, worker env wins). Never put real secrets in a committed `.env.production`.
+- Local-only vars for `pnpm preview` go into `.dev.vars` (committed, contains only `NEXTJS_ENV`); `.env*` files are not loaded by `wrangler dev`.
 
 ## Architecture
 
@@ -30,7 +38,10 @@ cd workers/gurkenmail-inbound && npm run db:migrate && npm run deploy  # wrangle
 - `src/lib/` — `punkte.ts` (booking), `ratelimit.ts` (limits + distributed lock), `turnstile.ts` (captcha), `mangoe.ts` (browser SDK types only), `gurkenmailServer.ts` (worker calls, fail-open).
 - `src/hexclave/client.ts|server.ts` — auth config. Login/signup URLs are `/mitglieder/login|signup`; server user fetch pattern is `hexclaveServerApp.getUser({ tokenStore: req, or: "return-null" })`.
 - `workers/gurkenmail-inbound` — Cloudflare Worker (D1) receiving mail; Next.js talks to it via `GURKENMAIL_INBOUND_URL/SECRET` (`/sync-mailbox`, `/sent`).
-- Path alias `@/*` → `./src/*`. Security headers live in `next.config.ts`. Tailwind v4 via `@tailwindcss/postcss`.
+- Path alias `@/*` → `./src/*`. Security headers live in `next.config.ts` **and** `public/_headers` (static assets bypass the Worker, so both must stay in sync). Tailwind v4 via `@tailwindcss/postcss`.
+- Cloudflare wiring: `wrangler.jsonc` (worker name, `nodejs_compat`, assets binding, self-reference service binding), `open-next.config.ts` (incremental cache), `public/_headers`, `.dev.vars` (`NEXTJS_ENV`). `next.config.ts` calls `initOpenNextCloudflareForDev()`.
+- No ISR / `revalidatePath` / `revalidateTag` is used, so `open-next.config.ts` uses the read-only static-assets incremental cache. Adding revalidation requires switching to R2 + DO queue (instructions in that file) — otherwise revalidated pages silently keep serving stale build output.
+- Worker runtime is workerd: no filesystem, no `process.cwd()` assets, 3 MiB (free) / 10 MiB (paid) compressed bundle limit. Prefer `globalThis.crypto` over `node:crypto` in new code; `node:crypto`/`Buffer` work via `nodejs_compat` (used by the Mangoe webhook HMAC).
 
 ## Gotchas agents get wrong
 
@@ -39,3 +50,13 @@ cd workers/gurkenmail-inbound && npm run db:migrate && npm run deploy  # wrangle
 - **Turnstile**: `pruefeTurnstile(req, { token, userId, frischesToken })`. Chat, casino, roulette require `frischesToken: true` — tokens are single-use, one solution must never cover 30 min of farming and a token must never be verified at two routes. Logged-in users key on `user:<id>` only, never IP fallback (NAT/spoofing).
 - **Rate limits**: `rateLimit(key, limit, windowMs, { failClosed: true })` for LLM-cost routes (chat/quote); fail-open default elsewhere. GurkenMail address allocation **requires Upstash in production** (global `SET NX`) — without it the route returns 503 by design.
 - **Mangoe donations**: embed via `window.MangoePay.embed(...)`, success arrives as `postMessage { type: "mangoe:payment.succeeded" }`. For integration details load the `mangoe-setup` skill; for auth/mail the `hexclave` skill; for captcha the `turnstile-spin` skill.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

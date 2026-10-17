@@ -1,0 +1,14 @@
+# Statische Assets werden von Cloudflare ausgeliefert, ohne den Worker zu
+# starten – die Header aus next.config.ts greifen dort also nicht. Deshalb
+# stehen die Security-Header hier gespiegelt (nur für statische Dateien);
+# für die gerenderten Routen setzt sie weiterhin next.config.ts.
+
+/_next/static/*
+  Cache-Control: public,max-age=31536000,immutable
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload

@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
+// Stellt während `next dev` Cloudflare-Bindings (ASSETS, vars aus
+// wrangler.jsonc) bereit. In Build/Production ein No-Op.
+initOpenNextCloudflareForDev();
 
 const securityHeaders = [
   // Kein MIME-Sniffing – erschwert Drive-by via hochgeladene Inhalte.

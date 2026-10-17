@@ -7,7 +7,6 @@
  * Echtgeld-Töpfe nie vermischt werden.
  */
 
-import { randomUUID } from "crypto";
 import {
   DEMO_COOKIE_NAME,
   getDemoProfile,
@@ -62,7 +61,7 @@ function mitDemoSitzung(
   let userId = parseDemoCookies(req)[DEMO_COOKIE_NAME];
   let effReq = req;
   if (!userId) {
-    userId = randomUUID();
+    userId = globalThis.crypto.randomUUID();
     const headers = new Headers(req.headers);
     const bisher = headers.get("cookie");
     headers.set(
