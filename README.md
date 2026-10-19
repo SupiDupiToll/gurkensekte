@@ -100,6 +100,21 @@ pnpm upload             # nur eine neue Version hochladen (ohne Traffic-Umstellu
 `pnpm deploy` baut die App und lädt sie hoch. Die Konfiguration liegt in
 `wrangler.jsonc` (Worker-Name, Bindings) und `open-next.config.ts` (Caching).
 
+#### Cloudflare Workers Builds (Git-Deploy)
+
+Im Dashboard unter Workers → `gurkensekte` → Settings → Build:
+
+| Feld | Wert |
+| --- | --- |
+| Build command | `pnpm exec opennextjs-cloudflare build` |
+| Deploy command | `npx wrangler deploy` |
+
+Der Build-Schritt ist Pflicht: `wrangler.jsonc` verweist auf
+`.open-next/worker.js`, das erst durch `opennextjs-cloudflare build` entsteht.
+Zusätzlich müssen die Build-Variablen aus `.env.local.example` hinterlegt sein
+(mindestens `HEXCLAVE_PROJECT_ID` und `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID`,
+sonst bricht der Build ab, sowie alle `NEXT_PUBLIC_*`-Werte).
+
 ### Umgebungsvariablen in Production
 
 `.env.local` gilt **nur lokal**. Auf dem Worker werden die Variablen im
