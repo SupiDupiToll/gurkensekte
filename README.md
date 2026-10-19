@@ -162,6 +162,6 @@ Diese Pfade hängen von Diensten ab, die lokal nicht vollständig testbar sind:
 - **GurkenMail**: Adressvergabe (braucht Upstash, sonst 503) und Empfang
   über `GURKENMAIL_INBOUND_URL`.
 
-## License
+## Lizenz
 
 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/legalcode.en)
