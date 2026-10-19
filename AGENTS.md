@@ -50,6 +50,7 @@ cd workers/gurkenmail-inbound && npm run db:migrate && npm run deploy  # wrangle
 - **Turnstile**: `pruefeTurnstile(req, { token, userId, frischesToken })`. Chat, casino, roulette require `frischesToken: true` — tokens are single-use, one solution must never cover 30 min of farming and a token must never be verified at two routes. Logged-in users key on `user:<id>` only, never IP fallback (NAT/spoofing).
 - **Rate limits**: `rateLimit(key, limit, windowMs, { failClosed: true })` for LLM-cost routes (chat/quote); fail-open default elsewhere. GurkenMail address allocation **requires Upstash in production** (global `SET NX`) — without it the route returns 503 by design.
 - **Mangoe donations**: embed via `window.MangoePay.embed(...)`, success arrives as `postMessage { type: "mangoe:payment.succeeded" }`. For integration details load the `mangoe-setup` skill; for auth/mail the `hexclave` skill; for captcha the `turnstile-spin` skill.
+- **pnpm-Version**: `packageManager`/`devEngines` in `package.json` pinnen pnpm auf 12.14.0. Ohne das nutzt Workers Builds eine alte pnpm-Version (9.x), die mit `ERROR packages field missing or empty` abbricht, weil `pnpm-workspace.yaml` kein `packages`-Feld hat (ab pnpm 10 optional). Deshalb enthält `pnpm-lock.yaml` ein zweites Lockfile-Dokument (`packageManagerDependencies`) — pnpm ≤ 9 kann die Datei nicht mehr lesen (`ERR_PNPM_BROKEN_LOCKFILE`). Version nie ändern, ohne den Lockfile mit `pnpm install` neu zu schreiben. Fallback ohne Commit: Build-Variable `PNPM_VERSION=12.14.0`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
