@@ -111,9 +111,10 @@ Im Dashboard unter Workers → `gurkensekte` → Settings → Build:
 
 Der Build-Schritt ist Pflicht: `wrangler.jsonc` verweist auf
 `.open-next/worker.js`, das erst durch `opennextjs-cloudflare build` entsteht.
-Zusätzlich müssen die Build-Variablen aus `.env.local.example` hinterlegt sein
-(mindestens `HEXCLAVE_PROJECT_ID` und `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID`,
-sonst bricht der Build ab, sowie alle `NEXT_PUBLIC_*`-Werte).
+Zusätzlich müssen die Build-Variablen aus `.env.local.example` hinterlegt sein:
+mindestens `HEXCLAVE_PROJECT_ID`, `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID` und
+`HEXCLAVE_SECRET_SERVER_KEY` (die SDK-Clients werden beim Build instanziiert),
+sonst bricht der Build ab — dazu alle `NEXT_PUBLIC_*`-Werte.
 
 ### Umgebungsvariablen in Production
 
@@ -132,12 +133,21 @@ npx wrangler secret put RESEND_API_KEY
 # … usw. – alle Werte aus .env.local.example
 ```
 
+`wrangler deploy` überschreibt die Worker-Konfiguration mit `wrangler.jsonc`:
+Nicht-geheime Variablen (Projekt-IDs, Public Keys, URLs, Slugs) gehören deshalb
+in den `vars`-Block in `wrangler.jsonc` – was nur im Dashboard steht, wird beim
+nächsten Deploy **gelöscht**. `--keep-vars` hilft dabei nicht, weil die
+OpenNext-Delegation das Flag nicht an das interne `wrangler deploy` weitergibt.
+Secrets (`wrangler secret put …`) bleiben bei Deploys erhalten.
+
 Drei Besonderheiten:
 
 - `NEXT_PUBLIC_*`-Werte (z. B. `NEXT_PUBLIC_TURNSTILE_SITE_KEY`) werden beim
   **Build** in den Code eingebettet. Sie müssen also zur Build-Zeit gesetzt
   sein – lokal über `.env.local`, bei Cloudflare Workers Builds über
-  „Build variables and secrets“.
+  „Build variables and secrets“. Fehlt der Turnstile-Site-Key beim Build,
+  bleibt das Widget deaktiviert, während der Server mit gesetztem
+  `TURNSTILE_SECRET_KEY` fail-closed ablehnt (Chat/Casino/Roulette blockiert).
 - `HEXCLAVE_PROJECT_ID` (und `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID`) werden
   ebenfalls schon beim Build gebraucht: Der SDK-Client wird beim Laden der
   Module instanziiert und Next sammelt beim Build Seitendaten ein. Ohne die
@@ -145,7 +155,13 @@ Drei Besonderheiten:
   oder eine `.env.local` anlegen.
 - `opennextjs-cloudflare build` bettet die lokalen `.env*`-Dateien als
   Fallback in den Worker ein (`process.env[key] ??= …`, Worker-Variablen
-  gewinnen). Committe daher niemals echte Secrets in eine `.env.production`.
+  gewinnen). Das betrifft **jede** `.env*` – auch `.env.local` und alle Modi:
+  Die Werte stehen im Klartext in `.open-next/cloudflare/next-env.mjs` und
+  werden bei einem lokalen `pnpm deploy`/`pnpm upload` mit hochgeladen.
+  Workers Builds klont dagegen ohne `.env*` und bettet nichts ein
+  (Build-Variablen bleiben `process.env`; nur `NEXT_PUBLIC_*` wird von Next
+  bewusst inlined). Echte Secrets gehören als Worker-Secret ins Dashboard,
+  niemals in eine committete `.env*`-Datei.
 
 ### Eigene Domain
 

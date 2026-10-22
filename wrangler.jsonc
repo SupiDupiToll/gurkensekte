@@ -27,7 +27,7 @@
   ],
   "observability": {
     "enabled": true
-  }
+  },
   // R2-Bucket als Incremental Cache: nur nötig, sobald ISR bzw.
   // revalidatePath/revalidateTag genutzt wird (siehe open-next.config.ts).
   // Dann hier einkommentieren und den Bucket vorher anlegen:
@@ -46,11 +46,17 @@
   // "images": { "binding": "IMAGES" }
   //
   // Nicht-geheime Runtime-Variablen (Secrets gehören NICHT hierher, sondern
-  // via `npx wrangler secret put <NAME>` bzw. ins Dashboard):
-  //
-  // "vars": {
-  //   "SITE_URL": "https://gurkensekte.de",
-  //   "MANGOE_URL": "https://payments.mangoe.de",
-  //   "GURKENMAIL_DOMAIN": "gurkensekte.de"
-  // }
+  // via `npx wrangler secret put <NAME>` bzw. ins Dashboard).
+  // Wichtig: Ein Deploy überschreibt die Worker-Konfiguration mit dieser
+  // Datei – alles, was nur im Dashboard steht, wird dabei gelöscht.
+  "vars": {
+    "HEXCLAVE_PROJECT_ID": "3c0b2ba0-5d41-4738-83a5-5c819c16807b",
+    "NEXT_PUBLIC_HEXCLAVE_PROJECT_ID": "3c0b2ba0-5d41-4738-83a5-5c819c16807b",
+    "MANGOE_URL": "https://payments.mangoe.de",
+    "NEXT_PUBLIC_MANGOE_URL": "https://payments.mangoe.de",
+    "MANGOE_PAYMENT_LINK_SLUG": "gurkenglas-spende-0vrd1",
+    "GURKENMAIL_INBOUND_URL": "https://gurkenmail-inbound.sdtoll.workers.dev",
+    "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFCmLsBloezlXcr2",
+    "NEXT_PUBLIC_IDLEN_API_KEY": "idl_pk_a8dac95f149c75923106145544193bb0c0a06e09e04d9d248f9ea980a28ee7be"
+  }
 }
