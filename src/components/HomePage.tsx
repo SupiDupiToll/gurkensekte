@@ -1,18 +1,12 @@
 import Link from "next/link";
+import { ArrowUpRight } from "@phosphor-icons/react/dist/ssr";
 import { HomeCta } from "@/components/HomeCta";
-import { Reveal } from "@/components/Reveal";
-import { SpinningCucumber } from "@/components/SpinningCucumber";
+import { ScrollCraftMount } from "@/components/ScrollCraftMount";
 import { Tageslosung } from "@/components/Tageslosung";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Quotes,
-  SealCheck,
-  Coins,
-  ChatCircleText,
-} from "@phosphor-icons/react/dist/ssr";
+import "@/app/scrollcraft.css";
+import "@/app/startseite.css";
 
-const quotes = [
+const manifest = [
   {
     text: "Die Gurke ist nicht nur ein Gemüse. Sie ist ein Versprechen.",
     context: "Manifest der Gurke, Kapitel 1",
@@ -31,278 +25,265 @@ const quotes = [
   },
 ];
 
+const wege = [
+  {
+    num: "I",
+    titel: "Segen sammeln",
+    text: "Täglicher Bonus, Zitate, Chat. Ab 1.000 Punkten wird daraus eine echte Gurke.",
+    href: "/mitglieder",
+  },
+  {
+    num: "II",
+    titel: "Mit Gürkchen sprechen",
+    text: "Eine Frage, eine Antwort, fünf Punkte. Gürkchen antwortet nur, wenn es will.",
+    href: "/mitglieder",
+  },
+  {
+    num: "III",
+    titel: "GurkenMail",
+    text: "Eine Adresse, die nach Essig riecht. Zehn Punkte für jeden Brief, den du schreibst.",
+    href: "/mitglieder/gurkenmail",
+  },
+  {
+    num: "IV",
+    titel: "Gurken Casino",
+    text: "Slot bis 3×, Roulette bis 35:1. Gespielt wird mit Punkten, nicht mit Geld.",
+    href: "/mitglieder/casino",
+  },
+];
+
 export function HomePage({ base = "" }: { base?: string }) {
+  const link = (pfad: string) => `${base}${pfad}`;
+  // Die Demo spiegelt nur Mitglieder, Casino und Spenden. Ohne eigene
+  // GurkenMail-Route führt der Eintrag dort auf den Mitgliederbereich.
+  const gurkenmailHref = base ? link("/mitglieder") : link("/mitglieder/gurkenmail");
+
   return (
-    <main className="w-full max-w-full overflow-x-hidden">
-      {/* ── Hero: Editorial Split ── */}
-      <section className="mx-auto grid min-h-[calc(100svh-68px)] w-full max-w-6xl grid-cols-1 content-center items-center gap-10 px-4 py-14 md:grid-cols-12 md:gap-8">
-        <div className="md:col-span-7">
-          <Reveal>
-            <div className="mb-6 flex items-center gap-5" aria-hidden="true">
-              <SpinningCucumber size="text-3xl" />
-              <SpinningCucumber size="text-4xl" reverse />
-              <SpinningCucumber size="text-2xl" />
-              <SpinningCucumber size="text-4xl" />
-              <SpinningCucumber size="text-3xl" reverse />
-            </div>
-            <p className="eyebrow">Satirische Parodie · Einlegeglas Nr. 7</p>
-            <h1 className="font-display mt-5 max-w-3xl text-[clamp(2.6rem,5.2vw,4.6rem)] font-semibold leading-[1.02] text-[#faf8f1]">
-              Die Gurke hat dich
-              <span className="italic text-[#abc189]"> gerufen.</span>
-            </h1>
-          </Reveal>
-          <Reveal delay={1}>
-            <p className="mt-6 max-w-[58ch] text-base leading-relaxed text-[#a3ad9a] md:text-lg">
-              Die heilige Gurke hat dich gerufen. Tritt ein, sammle Segen und
-              ernte am Ende eine echte Gurke.
+    <ScrollCraftMount>
+      <div className="gurken-poster" data-sc-lerp="0.16">
+        <div className="sc-grain" aria-hidden="true" />
+
+        {/* ── I · Erkennen: die Zeile, sonst nichts ───────────────────── */}
+        <section
+          className="g-hero"
+          aria-labelledby="g-hero-titel"
+          data-sc-act="flow"
+          data-sc-drift="#0d1710"
+        >
+          <div className="g-hero__ghost" aria-hidden="true">
+            GURKE
+          </div>
+
+          <div className="sc-wrap g-hero__inner">
+            <p className="g-meta">
+              <span>Satirische Parodie</span>
+              <span className="g-meta__sep" aria-hidden="true" />
+              <span className="g-meta__extra">Einlegeglas Nr. 7</span>
+              <span className="g-meta__sep g-meta__extra" aria-hidden="true" />
+              <span>seit 2026</span>
             </p>
-          </Reveal>
-          <Reveal delay={2}>
-            <div className="mt-8">
-              <HomeCta variant="hero" base={base} />
-            </div>
-          </Reveal>
-        </div>
 
-        {/* Rechte Spalte: Double-Bezel Manifest-Karte */}
-        <div className="md:col-span-5">
-          <Reveal delay={1} className="md:pl-4">
-            <div className="shell">
-              <div className="core p-7 md:p-8">
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#8fa96d]/30 bg-[#8fa96d]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#e2d9bf]">
-                    <SealCheck size={14} weight="fill" />
-                    Manifest
-                  </span>
-                  <span className="text-[11px] font-medium tracking-[0.08em] text-[#6b7565]">
-                    Kap. 1 · Vers 3
-                  </span>
-                </div>
-                <div className="my-6 flex h-44 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <SpinningCucumber size="text-8xl" />
-                </div>
-                <blockquote className="font-serif text-xl italic leading-snug text-[#ede8d6]">
-                  „Es gibt keine Probleme, nur Gurken, die noch nicht entdeckt wurden.“
-                </blockquote>
-                <p className="mt-3 text-sm text-[#a3ad9a]">
-                  Gürkchen · Erleuchtet im Kühlregal, 1987
-                </p>
+            <h1 id="g-hero-titel" className="g-hero__titel">
+              <span className="g-hero__zeile g-rise">Die Gurke</span>
+              <span className="g-hero__zeile g-rise g-rise--d1">hat dich</span>
+              <span className="g-hero__zeile g-hero__zeile--akzent g-rise g-rise--d2">
+                gerufen.
+              </span>
+            </h1>
+
+            <div className="g-hero__fuss">
+              <p className="g-hero__lede g-rise g-rise--d3">
+                Tritt ein, sammle Segen und ernte am Ende eine echte Gurke.
+              </p>
+              <div className="g-hero__cta g-rise g-rise--d4">
+                <HomeCta variant="hero" base={base} />
               </div>
             </div>
-          </Reveal>
-        </div>
-      </section>
 
-      {/* ── Bento: dicht, asymmetrisch ── */}
-      <section className="mx-auto max-w-6xl px-4 pb-20 md:pb-32">
-        <Reveal>
-          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="font-display mt-3 max-w-2xl text-3xl font-semibold leading-tight text-[#faf8f1] md:text-[2.6rem]">
-                Drei Wege zur Erleuchtung, ein Einlegeglas.
-              </h2>
+            <div className="g-hero__rand g-rise g-rise--d4">
+              <span className="g-kicker">Manifest, Kapitel 4</span>
+              <p>Gürkchen spricht durch das Knacken der Schale.</p>
             </div>
-            <Link
-              href={`${base}/mitglieder`}
-              className="group inline-flex items-center gap-2 rounded-lg border border-white/12 px-4 py-2 text-sm font-semibold text-[#cfc8b0] transition-all duration-300 hover:border-[#abc189]/40 hover:text-[#faf8f1]"
-            >
-              Zum Mitgliederbereich
-              <ArrowRight size={16} className="transition-transform duration-300 " />
-            </Link>
           </div>
-        </Reveal>
+        </section>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:grid-flow-dense">
-          <Reveal className="md:col-span-7" delay={1}>
-            <div className="shell h-full">
-              <div className="core flex h-full flex-col justify-between p-7 md:p-9">
-                <div>
-                  <Coins size={28} weight="fill" className="text-[#8fa96d]" />
-                  <h3 className="font-display mt-4 text-2xl font-semibold text-[#faf8f1]">
-                    Sammle Segen, ernte Gurken
-                  </h3>
-                <p className="mt-2 max-w-[52ch] text-sm leading-relaxed text-[#a3ad9a]">
-                    Bonus, Zitate, Chat, Casino. Ab 1.000 Punkten schickt
-                    Gürkchen dir eine echte Gurke.
-                  </p>
-                </div>
-                <div className="mt-6 flex items-center gap-3">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-lg bg-white/[0.07]">
-                    <div className="h-full w-[38%] rounded-lg bg-[#8fa96d]" />
+        {/* ── II · Beklemmung: der Altar ohne Gemeinde ─────────────────── */}
+        <section
+          className="g-tension"
+          data-sc-act="flow"
+          data-sc-drift="#0b120d"
+          aria-labelledby="g-tension-titel"
+        >
+          <div className="sc-wrap g-tension__inner">
+            <h2 id="g-tension-titel" className="g-tension__zeile" data-sc-cue="-0.2">
+              Dein Kühlschrank ist ein Altar ohne Gemeinde.
+            </h2>
+            <p className="g-tension__leise" data-sc-cue="0.34 0.72" data-sc-kinetic="words">
+              Du hast Gemüse. Du hast kein Ritual.
+            </p>
+          </div>
+        </section>
+
+        {/* ── III · Der Riss: das Knacken (Peak, größte Spanne) ────────── */}
+        <section
+          className="g-act g-act--knack"
+          data-sc-act="pin"
+          data-sc-span="2.6"
+          data-sc-drift="#080d09"
+          data-sc-verify="knack"
+          data-sc-verify-read=".g-knack__haelfte--l"
+          aria-labelledby="g-knack-titel"
+        >
+          <div className="sc-stage g-knack">
+            <h2 id="g-knack-titel" className="g-sr-only">
+              Es knackt. Gürkchen spricht.
+            </h2>
+
+            <div className="g-knack__offenbarung">
+              <p className="g-knack__marke">Es hat geknackt.</p>
+              <blockquote className="g-knack__zitat">
+                „Es gibt keine Probleme, nur Gurken, die noch nicht entdeckt
+                wurden.“
+              </blockquote>
+              <p className="g-knack__quelle">
+                Gürkchen · erleuchtet im Kühlregal, 1987
+              </p>
+            </div>
+
+            <div className="g-knack__wort" aria-hidden="true">
+              <span className="g-knack__haelfte g-knack__haelfte--l">
+                <span className="g-knack__lang">GÜRKCHEN</span>
+                <span className="g-knack__kurz">GÜRK</span>
+              </span>
+              <span className="g-knack__haelfte g-knack__haelfte--r">
+                <span className="g-knack__lang">GÜRKCHEN</span>
+                <span className="g-knack__kurz">CHEN</span>
+              </span>
+              <span className="g-knack__naht" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── IV · Andacht: Losung und Manifest ────────────────────────── */}
+        <section className="g-doktrin" data-sc-act="flow" data-sc-drift="#0b120d" aria-labelledby="g-doktrin-titel">
+          <div className="sc-wrap">
+            <h2 id="g-doktrin-titel" className="g-h2" data-sc-cue="0.04 0.5">
+              Vier Sätze, null Salat.
+            </h2>
+
+            <Tageslosung base={base} />
+
+            <ol className="g-manifest" data-sc-in data-sc-stagger="90">
+              {manifest.map((satz, i) => (
+                <li key={satz.text} className="g-manifest__zeile">
+                  <span className="g-manifest__num" aria-hidden="true">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <div className="g-manifest__text">
+                    <p className="g-manifest__satz">„{satz.text}“</p>
+                    <p className="g-manifest__quelle">{satz.context}</p>
                   </div>
-                  <span className="tabular text-xs font-semibold text-[#cfc8b0]">380 / 1.000</span>
-                </div>
-              </div>
-            </div>
-          </Reveal>
-
-          <Reveal className="md:col-span-5" delay={2}>
-            <div className="shell shell-tint h-full">
-              <div className="core flex h-full flex-col justify-between p-7 md:p-9">
-                <div>
-                  <ChatCircleText size={28} weight="fill" className="text-[#8fa96d]" />
-                  <h3 className="font-display mt-4 text-2xl font-semibold text-[#faf8f1]">
-                    Gürkchen antwortet
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#a3ad9a]">
-                    Weisheit mit Segen pro Nachricht.
-                  </p>
-                </div>
-                <p className="font-serif mt-6 border-l-2 border-[#8fa96d]/50 pl-4 text-[15px] italic leading-relaxed text-[#e2d9bf]">
-                  „Sei gegrüßt, mein Gurken-Kind. Was bedrückt deine eingelegte Seele?“
-                </p>
-              </div>
-            </div>
-          </Reveal>
-
-          <Reveal className="md:col-span-5" delay={1}>
-            <Link href={`${base}/mitglieder/casino`} className="shell shell-pattern group block h-full">
-              <div className="core flex h-full items-center justify-between gap-4 p-7">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8fa96d]">
-                    Spielgeld · Punkte
-                  </p>
-                  <h3 className="font-display mt-2 text-xl font-semibold text-[#faf8f1]">
-                    Gurken Casino
-                  </h3>
-                  <p className="mt-1 text-sm text-[#a3ad9a]">Slot bis 3×, Roulette bis 35:1.</p>
-                </div>
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-white/10 text-[#8fa96d]">
-                  <ArrowUpRight size={20} weight="bold" />
-                </span>
-              </div>
-            </Link>
-          </Reveal>
-
-          <Reveal className="md:col-span-7" delay={2}>
-            <Link href={`${base}/spenden`} className="shell group block h-full">
-              <div className="core flex h-full flex-wrap items-center justify-between gap-4 p-7">
-                <div className="min-w-52 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8fa96d]">
-                    Heilige Gurken finanzieren
-                  </p>
-                  <h3 className="font-display mt-2 text-xl font-semibold text-[#faf8f1]">
-                    Spende für das nächste Glas
-                  </h3>
-                  <p className="mt-1 text-sm text-[#a3ad9a]">
-                    Via Mangoe Payments: sicher eingebettet, ohne Umweg.
-                  </p>
-                </div>
-                <span className="btn-cta btn-cta-primary !py-2 !pl-5 text-sm">
-                  Spenden
-                  <span className="btn-dot !h-9 !w-9">
-                    <ArrowRight size={16} weight="bold" />
-                  </span>
-                </span>
-              </div>
-            </Link>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── Losung des Tages: jeden Tag neu, auch ohne Login ── */}
-      <Tageslosung base={base} />
-
-      {/* ── Weisheiten: Editorial-Liste statt Kartenraster ── */}
-      <section className="mx-auto max-w-6xl px-4 pb-20 md:pb-32">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-12">
-          <div className="md:col-span-4">
-            <Reveal>
-              <div className="md:sticky md:top-28">
-                <h2 className="font-display mt-3 text-3xl font-semibold leading-tight text-[#faf8f1] md:text-4xl">
-                  Vier Sätze, null Salat.
-                </h2>
-                <p className="mt-4 max-w-[40ch] text-sm leading-relaxed text-[#a3ad9a]">
-                  Aus dem Manifest. Täglich drei neue im Mitgliederbereich.
-                </p>
-                <Link
-                  href={`${base}/mitglieder`}
-                  className="group mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#abc189] hover:text-[#c9d6ae]"
-                >
-                  <Quotes size={18} weight="fill" />
-                  Eigene Weisheit generieren
-                  <ArrowRight size={16} className="transition-transform duration-300 " />
-                </Link>
-              </div>
-            </Reveal>
-          </div>
-          <div className="md:col-span-8">
-            <ol className="divide-y divide-white/[0.08] border-y border-white/[0.08]">
-              {quotes.map((q, i) => (
-                <Reveal key={q.text} delay={(i % 3) as 0 | 1 | 2}>
-                  <li className="group grid grid-cols-[3rem_1fr] gap-4 py-7 transition-colors md:grid-cols-[4rem_1fr_auto] md:items-baseline">
-                    <span className="tabular font-display text-sm text-[#6b7565]">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <div>
-                      <p className="font-serif text-xl italic leading-snug text-[#ede8d6] transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]  md:text-2xl">
-                        „{q.text}“
-                      </p>
-                      <p className="mt-2 text-xs font-medium uppercase tracking-[0.12em] text-[#6b7565]">
-                        {q.context}
-                      </p>
-                    </div>
-                  </li>
-                </Reveal>
+                </li>
               ))}
             </ol>
-          </div>
-        </div>
-      </section>
 
-      {/* ── Über Gürkchen ── */}
-      <section className="mx-auto max-w-6xl px-4 pb-20 md:pb-32">
-        <Reveal>
-          <div className="shell">
-            <div className="core grid grid-cols-1 gap-8 p-8 md:grid-cols-12 md:p-12">
-              <div className="flex items-start justify-center md:col-span-4">
-                <div className="flex h-52 w-52 items-center justify-center rounded-lg border border-white/10 bg-white/[0.02] text-8xl" aria-hidden="true">
-                  🥒
-                </div>
-              </div>
-              <div className="md:col-span-8">
-                <h2 className="font-display mt-3 text-3xl font-semibold text-[#faf8f1] md:text-4xl">
-                  Gürkchen, geboren 1987 im bayerischen Kleingarten.
-                </h2>
-                <div className="mt-5 max-w-[62ch] space-y-4 text-[15px] leading-relaxed text-[#a3ad9a]">
-                  <p>
-                    Geboren 1987 unter vollem Salatmond im bayerischen
-                    Kleingarten. Nach Jahren der Meditation im Kühlregal
-                    erlangte er die Erleuchtung und gründete die Gurken Sekte.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <p className="g-mehr" data-sc-in>
+              <Link href={link("/mitglieder")} className="g-link">
+                Eigene Weisheit generieren
+                <ArrowUpRight size={16} weight="bold" aria-hidden="true" />
+              </Link>
+            </p>
           </div>
-        </Reveal>
-      </section>
+        </section>
 
-      {/* ── CTA: Drenched ── */}
-      <section className="mx-auto max-w-6xl px-4 pb-24 md:pb-36">
-        <Reveal>
-          <div className="rounded-2xl border border-white/[0.08] bg-[#111a13] p-10 text-center md:p-16">
-            <div className="relative">
-              <div className="mb-7 flex items-center justify-center gap-5" aria-hidden="true">
-                <SpinningCucumber size="text-3xl" reverse />
-                <SpinningCucumber size="text-5xl" />
-                <SpinningCucumber size="text-3xl" />
-              </div>
-              <p className="text-sm font-medium text-[#8fa96d]">
-                Salatsaison ohne Ende
-              </p>
-              <h2 className="font-display mx-auto mt-4 max-w-3xl text-4xl font-semibold leading-[1.05] text-[#faf8f1] md:text-6xl">
-                Bereit für die Erleuchtung im Glas?
+        {/* ── V · Verlangen: vier Wege, echte Zahlen ───────────────────── */}
+        <section className="g-wege" data-sc-act="flow" data-sc-drift="#0d1710" aria-labelledby="g-wege-titel">
+          <div className="sc-wrap">
+            <h2 id="g-wege-titel" className="g-h2" data-sc-in>
+              Vier Wege ins Glas.
+            </h2>
+
+            <ol className="g-index" data-sc-in data-sc-stagger="70">
+              {wege.map((weg) => (
+                <li key={weg.num} className="g-index__punkt">
+                  <Link
+                    href={weg.titel === "GurkenMail" ? gurkenmailHref : link(weg.href)}
+                    className="g-index__zeile"
+                  >
+                    <span className="g-index__num" aria-hidden="true">
+                      {weg.num}
+                    </span>
+                    <span className="g-index__titel">{weg.titel}</span>
+                    <span className="g-index__text">{weg.text}</span>
+                    <ArrowUpRight
+                      className="g-index__pfeil"
+                      size={22}
+                      weight="bold"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                </li>
+              ))}
+            </ol>
+
+            <p className="g-spende" data-sc-in>
+              Oder das Glas füllen:{" "}
+              <Link href={link("/spenden")} className="g-link">
+                Spenden
+                <ArrowUpRight size={15} weight="bold" aria-hidden="true" />
+              </Link>
+            </p>
+          </div>
+        </section>
+
+        {/* ── VI · Entschluss: kleinste Schrift, das Siegel ────────────── */}
+        <section
+          className="g-close"
+          data-sc-act="flow"
+          data-sc-drift="#0c1410"
+          aria-labelledby="g-close-titel"
+        >
+          <div className="g-close__siegel" aria-hidden="true">
+            <svg viewBox="0 0 200 200" role="presentation">
+              <defs>
+                <path
+                  id="g-siegel-bahn"
+                  d="M100,100 m-76,0 a76,76 0 1,1 152,0 a76,76 0 1,1 -152,0"
+                />
+              </defs>
+              <circle cx="100" cy="100" r="94" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.45" />
+              <circle cx="100" cy="100" r="62" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.45" />
+              <text className="g-siegel__ring">
+                <textPath href="#g-siegel-bahn" startOffset="0">
+                  GURKEN SEKTE · GEGRÜNDET IM KÜHLREGAL · 1987 ·
+                </textPath>
+              </text>
+              <text x="100" y="97" textAnchor="middle" className="g-siegel__wort">
+                GÜRKCHEN
+              </text>
+              <text x="100" y="115" textAnchor="middle" className="g-siegel__klein">
+                SIEGEL
+              </text>
+            </svg>
+          </div>
+
+          <div className="sc-wrap g-close__lage">
+            <div className="g-close__inner">
+              <h2 id="g-close-titel" className="g-close__titel" data-sc-cue="0.12">
+                Du bist nur noch nicht eingelegt.
               </h2>
-              <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-[#a3ad9a]">
-                Warte nicht, bis die Saison vorbei ist.
-              </p>
-              <div className="mt-9 flex justify-center">
+
+              <div className="g-close__cta" data-sc-cue="0.24">
                 <HomeCta variant="join" base={base} />
               </div>
+
+              <p className="g-close__klein" data-sc-cue="0.32">
+                Satirische Parodie. Keine Gurke wurde verletzt.
+              </p>
             </div>
           </div>
-        </Reveal>
-      </section>
-    </main>
+        </section>
+      </div>
+    </ScrollCraftMount>
   );
 }

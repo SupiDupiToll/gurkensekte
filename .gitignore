@@ -49,3 +49,7 @@ next-env.d.ts
 .opencode
 
 workers
+
+# scroll-craft build workspace (generated pages, screenshots, lab)
+/scrollcraft/
+.agents
