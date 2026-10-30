@@ -121,10 +121,13 @@ Im Dashboard unter Workers → `gurkensekte` → Settings → Build:
 
 Der Build-Schritt ist Pflicht: `wrangler.jsonc` verweist auf
 `.open-next/worker.js`, das erst durch `opennextjs-cloudflare build` entsteht.
-Zusätzlich müssen die Build-Variablen aus `.env.local.example` hinterlegt sein:
-mindestens `HEXCLAVE_PROJECT_ID`, `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID` und
-`HEXCLAVE_SECRET_SERVER_KEY` (die SDK-Clients werden beim Build instanziiert),
-sonst bricht der Build ab — dazu alle `NEXT_PUBLIC_*`-Werte.
+Die beim Build benötigten **öffentlichen** Werte (`HEXCLAVE_PROJECT_ID`,
+`NEXT_PUBLIC_HEXCLAVE_PROJECT_ID`, alle `NEXT_PUBLIC_*`) stehen in der
+versionierten `.env.production` – ein frischer Clone baut damit ohne weitere
+Build-Variablen. Der Server-Key wird nur zur Laufzeit gebraucht und ist als
+Worker-Secret hinterlegt; im Build setzt `src/hexclave/server.ts` einen
+Platzhalter. Eigene Build-Variablen im Dashboard überschreiben `.env.production`
+weiterhin.
 
 ### Umgebungsvariablen in Production
 
@@ -155,29 +158,29 @@ Drei Besonderheiten:
 
 - `NEXT_PUBLIC_*`-Werte (z. B. `NEXT_PUBLIC_CAP_SITE_KEY`,
   `NEXT_PUBLIC_CAP_SERVER_URL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`) werden beim
-  **Build** in den Code eingebettet. Sie müssen also zur Build-Zeit gesetzt
-  sein – lokal über `.env.local`, bei Cloudflare Workers Builds über
-  „Build variables and secrets“. Fehlt der Cap-Site-Key, bleibt Cap
-  deaktiviert und Turnstile übernimmt; fehlen beide Site-Keys, bleibt das
-  Widget deaktiviert, während der Server mit gesetztem Secret fail-closed
-  ablehnt. `CAP_SITE_KEY`/`CAP_SECRET_KEY` müssen zusätzlich als Worker-Var
-  bzw. Secret vorhanden sein (Site-Key ist öffentlich, Secret nicht).
+  **Build** in den Code eingebettet. Die öffentlichen Werte stehen deshalb in
+  der versionierten `.env.production`; eigene Build-Variablen im Dashboard
+  überschreiben sie. Fehlt der Cap-Site-Key, bleibt Cap deaktiviert und
+  Turnstile übernimmt; fehlen beide Site-Keys, bleibt das Widget deaktiviert,
+  während der Server mit gesetztem Secret fail-closed ablehnt.
+  `CAP_SITE_KEY`/`CAP_SECRET_KEY` müssen zusätzlich als Worker-Var bzw. Secret
+  vorhanden sein (Site-Key ist öffentlich, Secret nicht).
 - Der Cap-Standalone-Server muss den Origin der Seite per `CORS_ORIGIN`
   erlauben, sonst kann der Browser keine Challenges anfordern.
-- `HEXCLAVE_PROJECT_ID` (und `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID`) werden
-  ebenfalls schon beim Build gebraucht: Der SDK-Client wird beim Laden der
-  Module instanziiert und Next sammelt beim Build Seitendaten ein. Ohne die
-  Variablen bricht `pnpm build` ab – lokal also `pnpm dev:hexclave` nutzen
-  oder eine `.env.local` anlegen.
+- `HEXCLAVE_PROJECT_ID` (und `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID`) werden schon
+  beim Build gebraucht, weil der SDK-Client beim Laden der Module instanziiert
+  wird und Next beim Build Seitendaten sammelt. Beide stehen in
+  `.env.production`. `HEXCLAVE_SECRET_SERVER_KEY` ist dagegen nur zur Laufzeit
+  nötig (Worker-Secret); im Build setzt `src/hexclave/server.ts` einen
+  Platzhalter.
 - `opennextjs-cloudflare build` bettet die lokalen `.env*`-Dateien als
   Fallback in den Worker ein (`process.env[key] ??= …`, Worker-Variablen
-  gewinnen). Das betrifft **jede** `.env*` – auch `.env.local` und alle Modi:
-  Die Werte stehen im Klartext in `.open-next/cloudflare/next-env.mjs` und
-  werden bei einem lokalen `pnpm deploy`/`pnpm upload` mit hochgeladen.
-  Workers Builds klont dagegen ohne `.env*` und bettet nichts ein
-  (Build-Variablen bleiben `process.env`; nur `NEXT_PUBLIC_*` wird von Next
-  bewusst inlined). Echte Secrets gehören als Worker-Secret ins Dashboard,
-  niemals in eine committete `.env*`-Datei.
+  gewinnen). Das betrifft **jede** `.env*` – auch `.env.local`, `.env.production`
+  und alle Modi: Die Werte stehen im Klartext in
+  `.open-next/cloudflare/next-env.mjs` und werden bei einem lokalen
+  `pnpm deploy`/`pnpm upload` mit hochgeladen. Deshalb enthält die committete
+  `.env.production` ausschließlich öffentliche Werte. Echte Secrets gehören als
+  Worker-Secret ins Dashboard, niemals in eine `.env*`-Datei.
 
 ### Eigene Domain
 

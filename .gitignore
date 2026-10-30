@@ -34,6 +34,8 @@ yarn-error.log*
 .env*
 # Platzhalter-Beispiel bewusst versionieren (keine echten Secrets):
 !.env.local.example
+# Öffentliche Build-Werte (Projekt-ID, NEXT_PUBLIC_*) – keine Secrets:
+!.env.production
 
 # vercel
 .vercel
