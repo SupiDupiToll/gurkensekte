@@ -5,7 +5,7 @@ import {
   casinoWurf,
   istGueltigerEinsatz,
 } from "@/lib/casino";
-import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 
 export const runtime = "nodejs";
 
@@ -14,22 +14,27 @@ export async function POST(req: Request) {
   const res = new Response();
   const profile = getDemoProfile(req, res);
 
-  let body: { einsatz?: unknown; turnstileToken?: unknown } = {};
+  let body: { einsatz?: unknown; capToken?: unknown; turnstileToken?: unknown } = {};
   try {
-    body = (await req.json()) as { einsatz?: unknown; turnstileToken?: unknown };
+    body = (await req.json()) as {
+      einsatz?: unknown;
+      capToken?: unknown;
+      turnstileToken?: unknown;
+    };
   } catch {
     // leerer Body – unten abgefangen
   }
 
   // Gleicher Bot-Schutz wie im echten Mitgliederbereich: jeder Dreh
   // braucht ein frisch gelöstes Captcha.
-  const captcha = await pruefeTurnstile(req, {
-    token: body.turnstileToken,
+  const captcha = await pruefeCaptcha(req, {
+    capToken: body.capToken,
+    turnstileToken: body.turnstileToken,
     frischesToken: true,
   });
   if (!captcha.ok) {
     return mitDemoCookie(
-      Response.json(turnstileFehltFehler(captcha.grund), { status: 403 }),
+      Response.json(captchaFehltFehler(captcha.grund), { status: 403 }),
       res,
     );
   }

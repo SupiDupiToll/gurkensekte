@@ -4,9 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner, Target } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
 import {
-  TurnstileWidget,
-  turnstileKonfiguriert,
-} from "@/components/TurnstileWidget";
+  CaptchaWidget,
+  captchaKonfiguriert,
+} from "@/components/CaptchaWidget";
+import {
+  captchaPayload,
+  type CaptchaLoesung,
+} from "@/lib/captchaClient";
 import {
   ROULETTE_CHANCEN,
   ROULETTE_CHIPS,
@@ -464,10 +468,10 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
   const [auszahlung, setAuszahlung] = useState<number | null>(null);
   const [delta, setDelta] = useState<number | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
-  const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [captchaPflicht, setCaptchaPflicht] = useState(captchaKonfiguriert());
+  const [captchaToken, setCaptchaToken] = useState<CaptchaLoesung | null>(null);
   const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
-    turnstileKonfiguriert()
+    captchaKonfiguriert()
       ? "Bitte löse kurz das Captcha, dann rollt die Kugel."
       : null,
   );
@@ -505,7 +509,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
 
   async function drehen() {
     if (dreht || loading || einsaetze.length === 0) return;
-    if (captchaPflicht && !turnstileToken) {
+    if (captchaPflicht && !captchaToken) {
       setCaptchaHinweis("Bitte zuerst das Captcha lösen, dann rollt die Kugel.");
       return;
     }
@@ -524,7 +528,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
       const res = await fetch(`${apiBase}/roulette`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ einsaetze, turnstileToken }),
+        body: JSON.stringify({ einsaetze, ...captchaPayload(captchaToken) }),
         signal: controller.signal,
       });
 
@@ -534,7 +538,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
         };
         if (data.requiresTurnstile) {
           setCaptchaPflicht(true);
-          setTurnstileToken(null);
+          setCaptchaToken(null);
           setCaptchaReset((n) => n + 1);
           setCaptchaHinweis(
             "Captcha erforderlich – bitte erneut bestätigen, dann nochmal drehen.",
@@ -565,7 +569,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
       setDreht(true);
       // Jede Kugel kostet ein frisches Captcha: Widget für die nächste
       // Runde zurücksetzen (der Server akzeptiert keine Sitzung).
-      setTurnstileToken(null);
+      setCaptchaToken(null);
       setCaptchaReset((n) => n + 1);
       setCaptchaHinweis("Für jede Runde bitte kurz das Captcha lösen.");
     } catch {
@@ -601,7 +605,7 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
     !loading &&
     einsaetze.length > 0 &&
     punkte >= gesamtEinsatz &&
-    (!captchaPflicht || turnstileToken);
+    (!captchaPflicht || captchaToken);
 
   return (
     <div className="card p-6 md:p-8 mb-8">
@@ -713,18 +717,18 @@ export function GurkenRoulette({ apiBase }: { apiBase: string }) {
       {/* Bot-Schutz */}
       {captchaPflicht && (
         <div className="mb-4">
-          <TurnstileWidget
+          <CaptchaWidget
             resetKey={captchaReset}
             onVerify={(token) => {
-              setTurnstileToken(token);
+              setCaptchaToken(token);
               setCaptchaHinweis(null);
             }}
             onExpire={() => {
-              setTurnstileToken(null);
+              setCaptchaToken(null);
               setCaptchaHinweis("Captcha abgelaufen. Bitte erneut bestätigen.");
             }}
             onError={() => {
-              setTurnstileToken(null);
+              setCaptchaToken(null);
               setCaptchaHinweis(
                 "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
               );

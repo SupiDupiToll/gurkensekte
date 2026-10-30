@@ -4,9 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { Coins, Spinner } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
 import {
-  TurnstileWidget,
-  turnstileKonfiguriert,
-} from "@/components/TurnstileWidget";
+  CaptchaWidget,
+  captchaKonfiguriert,
+} from "@/components/CaptchaWidget";
+import {
+  captchaPayload,
+  type CaptchaLoesung,
+} from "@/lib/captchaClient";
 import { CASINO_EINSAETZE, CASINO_MAX_VERLUST_FAKTOR } from "@/lib/casino";
 
 type SpinErgebnis = {
@@ -40,10 +44,10 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
   const [dreht, setDreht] = useState(false);
   const [ergebnis, setErgebnis] = useState<SpinErgebnis | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
-  const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [captchaPflicht, setCaptchaPflicht] = useState(captchaKonfiguriert());
+  const [captchaToken, setCaptchaToken] = useState<CaptchaLoesung | null>(null);
   const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
-    turnstileKonfiguriert() ? "Bitte löse kurz das Captcha, dann dreht der Automat." : null,
+    captchaKonfiguriert() ? "Bitte löse kurz das Captcha, dann dreht der Automat." : null,
   );
   const [captchaReset, setCaptchaReset] = useState(0);
   const intervallRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -66,7 +70,7 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       );
       return;
     }
-    if (captchaPflicht && !turnstileToken) {
+    if (captchaPflicht && !captchaToken) {
       setCaptchaHinweis("Bitte zuerst das Captcha lösen, dann darfst du drehen.");
       return;
     }
@@ -91,7 +95,7 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
         fetch(`${apiBase}/casino`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ einsatz, turnstileToken }),
+          body: JSON.stringify({ einsatz, ...captchaPayload(captchaToken) }),
           signal: controller.signal,
         }),
         // Mindestdauer, damit die Drehung auch wirklich sichtbar ist.
@@ -105,7 +109,7 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
         };
         if (data.requiresTurnstile) {
           setCaptchaPflicht(true);
-          setTurnstileToken(null);
+          setCaptchaToken(null);
           setCaptchaReset((n) => n + 1);
           setCaptchaHinweis(
             "Captcha erforderlich – bitte erneut bestätigen, dann nochmal drehen.",
@@ -131,7 +135,7 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       setErgebnis(data);
       // Jeder Dreh kostet ein frisches Captcha: Widget für den nächsten
       // Dreh zurücksetzen (der Server akzeptiert keine Sitzung).
-      setTurnstileToken(null);
+      setCaptchaToken(null);
       setCaptchaReset((n) => n + 1);
       setCaptchaHinweis("Für jeden Dreh bitte kurz das Captcha lösen.");
       await refresh();
@@ -152,7 +156,7 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
   }
 
   const kannDrehen =
-    !dreht && !loading && !pufferFehlt && (!captchaPflicht || turnstileToken);
+    !dreht && !loading && !pufferFehlt && (!captchaPflicht || captchaToken);
 
   return (
     <div className="card p-6 md:p-8 mb-8">
@@ -266,18 +270,18 @@ export function Slotmaschine({ apiBase }: { apiBase: string }) {
       {/* Bot-Schutz */}
       {captchaPflicht && (
         <div className="mb-4">
-          <TurnstileWidget
+          <CaptchaWidget
             resetKey={captchaReset}
             onVerify={(token) => {
-              setTurnstileToken(token);
+              setCaptchaToken(token);
               setCaptchaHinweis(null);
             }}
             onExpire={() => {
-              setTurnstileToken(null);
+              setCaptchaToken(null);
               setCaptchaHinweis("Captcha abgelaufen. Bitte erneut bestätigen.");
             }}
             onError={() => {
-              setTurnstileToken(null);
+              setCaptchaToken(null);
               setCaptchaHinweis(
                 "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
               );

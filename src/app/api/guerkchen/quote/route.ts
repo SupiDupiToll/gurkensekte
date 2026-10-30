@@ -1,5 +1,5 @@
 import { hexclaveServerApp } from "@/hexclave/server";
-import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { getClientIp, pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 import {
   bucheBonus,
@@ -46,18 +46,26 @@ export async function GET(req: Request) {
 
   // Bot-Schutz: Jedes Zitat braucht ein frisch gelöstes Captcha (Single-Use:
   // Das Token wird hier verbraucht und darf nicht zusätzlich an die
-  // Punkte-Route weitergereicht werden). Das Token kommt per Query
-  // (`?turnstileToken=…`) oder Header, eine frische Lösung ist Pflicht –
-  // Sitzungen gelten hier nicht. Hinweis: Query-Token landen in Access-Logs,
-  // sind aber nach der Prüfung sofort verbraucht und damit wertlos.
+  // Punkte-Route weitergereicht werden). Cap-Token kommen per
+  // `?capToken=…` / `x-cap-token`, der Turnstile-Fallback per
+  // `?turnstileToken=…` / `x-turnstile-token`. Eine frische Lösung ist
+  // Pflicht – Sitzungen gelten hier nicht. Hinweis: Query-Token landen in
+  // Access-Logs, sind aber nach der Prüfung sofort verbraucht und damit
+  // wertlos.
   const url = new URL(req.url);
-  const token =
+  const capToken =
+    url.searchParams.get("capToken") ?? req.headers.get("x-cap-token");
+  const turnstileToken =
     url.searchParams.get("turnstileToken") ??
     req.headers.get("x-turnstile-token");
 
-  const captcha = await pruefeTurnstile(req, { token, frischesToken: true });
+  const captcha = await pruefeCaptcha(req, {
+    capToken,
+    turnstileToken,
+    frischesToken: true,
+  });
   if (!captcha.ok) {
-    return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+    return Response.json(captchaFehltFehler(captcha.grund), { status: 403 });
   }
 
   // Eingeloggte Mitglieder erhalten +5 Zitat-Punkte (max. 3/Tag) – aber

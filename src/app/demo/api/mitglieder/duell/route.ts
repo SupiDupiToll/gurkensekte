@@ -14,7 +14,7 @@ import {
   parseDemoCookies,
   type DemoProfile,
 } from "@/lib/demoStore";
-import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 import {
   challengeAnspruch,
   claimAnspruch,
@@ -195,11 +195,12 @@ export async function POST(req: Request) {
   }
 
   async function captcha(): Promise<Response | null> {
-    const pruefung = await pruefeTurnstile(req, {
-      token: body.turnstileToken,
+    const pruefung = await pruefeCaptcha(req, {
+      capToken: body.capToken,
+      turnstileToken: body.turnstileToken,
     });
     if (!pruefung.ok) {
-      return antwort(res, turnstileFehltFehler(pruefung.grund), 403);
+      return antwort(res, captchaFehltFehler(pruefung.grund), 403);
     }
     return null;
   }

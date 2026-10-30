@@ -4,7 +4,7 @@ import {
   rouletteGewinnzahlGezinkt,
   validiereRouletteEinsaetze,
 } from "@/lib/roulette";
-import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 
 export const runtime = "nodejs";
 
@@ -13,10 +13,11 @@ export async function POST(req: Request) {
   const res = new Response();
   const profile = getDemoProfile(req, res);
 
-  let body: { einsaetze?: unknown; turnstileToken?: unknown } = {};
+  let body: { einsaetze?: unknown; capToken?: unknown; turnstileToken?: unknown } = {};
   try {
     body = (await req.json()) as {
       einsaetze?: unknown;
+      capToken?: unknown;
       turnstileToken?: unknown;
     };
   } catch {
@@ -25,13 +26,14 @@ export async function POST(req: Request) {
 
   // Gleicher Bot-Schutz wie im echten Mitgliederbereich: jede Kugel
   // braucht ein frisch gelöstes Captcha.
-  const captcha = await pruefeTurnstile(req, {
-    token: body.turnstileToken,
+  const captcha = await pruefeCaptcha(req, {
+    capToken: body.capToken,
+    turnstileToken: body.turnstileToken,
     frischesToken: true,
   });
   if (!captcha.ok) {
     return mitDemoCookie(
-      Response.json(turnstileFehltFehler(captcha.grund), { status: 403 }),
+      Response.json(captchaFehltFehler(captcha.grund), { status: 403 }),
       res,
     );
   }

@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import { Gift, Basket, Coins } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
 import {
-  TurnstileWidget,
-  turnstileKonfiguriert,
-} from "@/components/TurnstileWidget";
+  CaptchaWidget,
+  captchaKonfiguriert,
+} from "@/components/CaptchaWidget";
+import {
+  captchaPayload,
+  type CaptchaLoesung,
+} from "@/lib/captchaClient";
 import { VERLOSUNG_PUNKTE_ALTERNATIVE } from "@/lib/verlosung";
 
 type Treffer = {
@@ -41,7 +45,7 @@ export function GewinnPopup() {
   const [fertigArt, setFertigArt] = useState<"gurke" | "punkte" | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<CaptchaLoesung | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
   const [adresseForm, setAdresseForm] = useState({
     name: "",
@@ -127,7 +131,7 @@ export function GewinnPopup() {
       setFehler("Bitte fülle Name, Straße, PLZ und Ort aus.");
       return;
     }
-    if (turnstileKonfiguriert() && !turnstileToken) {
+    if (captchaKonfiguriert() && !captchaToken) {
       setFehler("Bitte löse zuerst das Captcha.");
       return;
     }
@@ -140,13 +144,13 @@ export function GewinnPopup() {
         body: JSON.stringify({
           art: "gurke",
           adresse: adresseForm,
-          turnstileToken,
+          ...captchaPayload(captchaToken),
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (data.requiresTurnstile) {
-          setTurnstileToken(null);
+          setCaptchaToken(null);
           setCaptchaReset((n) => n + 1);
         }
         throw new Error(data.error ?? "Bestellung fehlgeschlagen");
@@ -267,15 +271,15 @@ export function GewinnPopup() {
                     />
                   </label>
                 </div>
-                {turnstileKonfiguriert() && (
-                  <TurnstileWidget
+                {captchaKonfiguriert() && (
+                  <CaptchaWidget
                     resetKey={captchaReset}
                     onVerify={(t) => {
-                      setTurnstileToken(t);
+                      setCaptchaToken(t);
                       setFehler(null);
                     }}
-                    onExpire={() => setTurnstileToken(null)}
-                    onError={() => setTurnstileToken(null)}
+                    onExpire={() => setCaptchaToken(null)}
+                    onError={() => setCaptchaToken(null)}
                   />
                 )}
                 {fehler && (

@@ -138,8 +138,8 @@ export default function AgbPage() {
             Casino)
           </li>
           <li>
-            die Umgehung oder Manipulation des Bot-Schutzes (Cloudflare
-            Turnstile / Captcha)
+            die Umgehung oder Manipulation des Bot-Schutzes (Cap,
+            Cloudflare Turnstile oder sonstiger Captcha-Schutz)
           </li>
           <li>
             das Ausnutzen von Bugs oder Schwachstellen (z. B. doppelte

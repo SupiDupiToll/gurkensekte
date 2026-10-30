@@ -19,7 +19,7 @@ import {
   leseVerlauf,
 } from "@/lib/punkte";
 import { istSperreBelegtFehler, mitBenutzerSperre, rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
-import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { getClientIp, pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 
 export const runtime = "nodejs";
 
@@ -57,12 +57,16 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: "Ungültiger Request" }, { status: 400 });
   }
-  const { an, betreff, text, turnstileToken } = (body ?? {}) as Record<string, unknown>;
+  const { an, betreff, text, capToken, turnstileToken } = (body ?? {}) as Record<string, unknown>;
 
   // Bot-Schutz wie bei Punkte-Aktionen (Sitzung genügt – Quoten deckeln eh).
-  const captcha = await pruefeTurnstile(req, { token: turnstileToken, userId: user.id });
+  const captcha = await pruefeCaptcha(req, {
+    capToken,
+    turnstileToken,
+    userId: user.id,
+  });
   if (!captcha.ok) {
-    return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+    return Response.json(captchaFehltFehler(captcha.grund), { status: 403 });
   }
 
   const empfaenger =

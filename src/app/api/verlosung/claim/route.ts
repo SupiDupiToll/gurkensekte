@@ -5,7 +5,7 @@ import {
   rateLimit,
   rateLimitAntwort,
 } from "@/lib/ratelimit";
-import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 import {
   lesePunkte,
   lesePunkteGesamt,
@@ -51,11 +51,17 @@ export async function POST(req: Request) {
     return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
   }
 
-  let body: { art?: string; adresse?: unknown; turnstileToken?: unknown };
+  let body: {
+    art?: string;
+    adresse?: unknown;
+    capToken?: unknown;
+    turnstileToken?: unknown;
+  };
   try {
     body = (await req.json()) as {
       art?: string;
       adresse?: unknown;
+      capToken?: unknown;
       turnstileToken?: unknown;
     };
   } catch {
@@ -75,12 +81,13 @@ export async function POST(req: Request) {
   // Bot-Schutz für die Gratis-Gurke (Mail-Versand): wie beim Einlösen reicht
   // die Sitzung – die Einmaligkeit sichert der Topf-Datensatz.
   if (art === "gurke") {
-    const captcha = await pruefeTurnstile(req, {
-      token: body.turnstileToken,
+    const captcha = await pruefeCaptcha(req, {
+      capToken: body.capToken,
+      turnstileToken: body.turnstileToken,
       userId: user.id,
     });
     if (!captcha.ok) {
-      return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+      return Response.json(captchaFehltFehler(captcha.grund), { status: 403 });
     }
     const pruefung = adressePruefen(body.adresse);
     if (!pruefung.ok) {

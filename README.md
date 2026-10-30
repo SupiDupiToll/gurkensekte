@@ -12,7 +12,7 @@ Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder kön
   - Punktesystem („Gurkensegen“)
   - Täglicher Bonus (+20 Punkte)
   - Bis zu 3 KI-Zitate pro Tag generieren (+5 Punkte je Zitat)
-  - Chat mit „Gürkchen“ (Streaming-KI, +3 Punkte pro Nachricht, Turnstile-geschützt)
+  - Chat mit „Gürkchen“ (Streaming-KI, +3 Punkte pro Nachricht, Cap-/Turnstile-geschützt)
   - 1000 Punkte gegen eine echte Gurke eintauschen (Pflicht-Lieferadresse, Bestell-E-Mail via Hexclave)
   - Punkte-Historie
 
@@ -27,6 +27,8 @@ Eine satirische Parodie-Website über eine fiktive Gurken-Sekte. Mitglieder kön
 | **Hexclave** | Authentifizierung & E-Mails |
 | **OpenRouter** | KI-Chat & Zitate (mit API-Key-Fallback) |
 | **Mangoe Payments** | Spenden-Checkout (Session-API + Iframe-Einbettung) |
+| **Cap** | Self-hosted CAPTCHA (primär, `cap.sdtoll.de`) |
+| **Cloudflare Turnstile** | CAPTCHA-Fallback, falls Cap nicht erreichbar ist |
 | **Phosphor Icons** | Icons |
 | **pnpm** | Package Manager |
 
@@ -54,8 +56,16 @@ cp .env.local.example .env.local
 Benötigte Keys:
 - **Hexclave** – für den Mitgliederbereich
 - **OpenRouter API Key(s)** – für KI-Chat & Zitate (mehrere Keys mit `OPENROUTER_API_KEY_2`, `_3`, … für Fallback)
-- **Cloudflare Turnstile Site Key** – `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (Frontend)
-- **Cloudflare Turnstile Secret Key** – `TURNSTILE_SECRET_KEY` (Backend)
+- **Cap Site Key** – `NEXT_PUBLIC_CAP_SITE_KEY` (Frontend) und `CAP_SITE_KEY` (Backend; öffentlich, aber explizit für die Serverprüfung)
+- **Cap Secret Key** – `CAP_SECRET_KEY` (Backend, niemals ins Frontend)
+- **Cap Server-URL** – `NEXT_PUBLIC_CAP_SERVER_URL` (Default `https://cap.sdtoll.de`)
+- **Cloudflare Turnstile Site Key** – `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (Frontend, Fallback)
+- **Cloudflare Turnstile Secret Key** – `TURNSTILE_SECRET_KEY` (Backend, Fallback)
+
+Cap ist der primäre Schutz. Fehlt der Cap-Site-Key oder ist der Cap-Server
+nicht erreichbar, schaltet das Widget automatisch auf Turnstile um. Sind beide
+Captchas konfiguriert, prüft der Server zuerst Cap und akzeptiert Turnstile nur
+als Fallback (bei fehlendem, abgelehntem oder nicht erreichbarem Cap-Token).
 
 ### Entwicklungsserver starten
 
@@ -126,6 +136,7 @@ oder per CLI gesetzt:
 npx wrangler secret put HEXCLAVE_SECRET_SERVER_KEY
 npx wrangler secret put SAIL_API_KEY
 npx wrangler secret put TURNSTILE_SECRET_KEY
+npx wrangler secret put CAP_SECRET_KEY
 npx wrangler secret put UPSTASH_REDIS_REST_URL
 npx wrangler secret put UPSTASH_REDIS_REST_TOKEN
 npx wrangler secret put MANGOE_API_KEY
@@ -142,12 +153,17 @@ Secrets (`wrangler secret put …`) bleiben bei Deploys erhalten.
 
 Drei Besonderheiten:
 
-- `NEXT_PUBLIC_*`-Werte (z. B. `NEXT_PUBLIC_TURNSTILE_SITE_KEY`) werden beim
+- `NEXT_PUBLIC_*`-Werte (z. B. `NEXT_PUBLIC_CAP_SITE_KEY`,
+  `NEXT_PUBLIC_CAP_SERVER_URL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`) werden beim
   **Build** in den Code eingebettet. Sie müssen also zur Build-Zeit gesetzt
   sein – lokal über `.env.local`, bei Cloudflare Workers Builds über
-  „Build variables and secrets“. Fehlt der Turnstile-Site-Key beim Build,
-  bleibt das Widget deaktiviert, während der Server mit gesetztem
-  `TURNSTILE_SECRET_KEY` fail-closed ablehnt (Chat/Casino/Roulette blockiert).
+  „Build variables and secrets“. Fehlt der Cap-Site-Key, bleibt Cap
+  deaktiviert und Turnstile übernimmt; fehlen beide Site-Keys, bleibt das
+  Widget deaktiviert, während der Server mit gesetztem Secret fail-closed
+  ablehnt. `CAP_SITE_KEY`/`CAP_SECRET_KEY` müssen zusätzlich als Worker-Var
+  bzw. Secret vorhanden sein (Site-Key ist öffentlich, Secret nicht).
+- Der Cap-Standalone-Server muss den Origin der Seite per `CORS_ORIGIN`
+  erlauben, sonst kann der Browser keine Challenges anfordern.
 - `HEXCLAVE_PROJECT_ID` (und `NEXT_PUBLIC_HEXCLAVE_PROJECT_ID`) werden
   ebenfalls schon beim Build gebraucht: Der SDK-Client wird beim Laden der
   Module instanziiert und Next sammelt beim Build Seitendaten ein. Ohne die
@@ -187,8 +203,10 @@ Diese Pfade hängen von Diensten ab, die lokal nicht vollständig testbar sind:
   zurück auf `/mitglieder` (Cookie-Handling des Hexclave-SDK im Worker).
 - **Gürkchen-Chat**: Streaming-Antwort in `api/guerkchen` (KI-Anbieter
   erreichen, `SAIL_API_KEY`/`OPENROUTER_API_KEY` gesetzt).
-- **Turnstile**: Captcha wird auf `/` und im Casino/Roulette akzeptiert
-  (`TURNSTILE_SECRET_KEY` + `NEXT_PUBLIC_TURNSTILE_SITE_KEY`).
+- **Captcha**: Cap wird auf `/` und im Casino/Roulette akzeptiert
+  (`CAP_SITE_KEY`/`CAP_SECRET_KEY` + `NEXT_PUBLIC_CAP_SITE_KEY`); bei
+  Cap-Ausfall greift Turnstile (`TURNSTILE_SECRET_KEY` +
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY`).
 - **Spenden**: Mangoe-Checkout startet und `successUrl` zeigt auf `SITE_URL`.
 - **GurkenMail**: Adressvergabe (braucht Upstash, sonst 503) und Empfang
   über `GURKENMAIL_INBOUND_URL`.

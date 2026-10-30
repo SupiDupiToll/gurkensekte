@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import DOMPurify from "dompurify";
 import { useUser } from "@hexclave/next";
-import { TurnstileWidget, turnstileKonfiguriert } from "@/components/TurnstileWidget";
+import { CaptchaWidget, captchaKonfiguriert } from "@/components/CaptchaWidget";
+import { captchaPayload, type CaptchaLoesung } from "@/lib/captchaClient";
 import type {
   GurkenmailDetail,
   GurkenmailEingang,
@@ -230,7 +231,7 @@ export function GurkenMailClient() {
   const [sendeFehler, setSendeFehler] = useState<string | null>(null);
   const [sendeOk, setSendeOk] = useState(false);
   const [sendeIntern, setSendeIntern] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<CaptchaLoesung | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
   const [versandHinweis, setVersandHinweis] = useState(false);
   const [kopiert, setKopiert] = useState(false);
@@ -593,7 +594,7 @@ export function GurkenMailClient() {
       const res = await fetch("/api/gurkenmail/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ an, betreff, text, turnstileToken: captchaToken }),
+        body: JSON.stringify({ an, betreff, text, ...captchaPayload(captchaToken) }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1055,8 +1056,8 @@ export function GurkenMailClient() {
               Nachricht (max. 10.000 Zeichen)
               <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} placeholder="Sei gegrüßt im Glas …" className={`${inputClass} resize-y`} />
             </label>
-            {turnstileKonfiguriert() && (
-              <TurnstileWidget
+            {captchaKonfiguriert() && (
+              <CaptchaWidget
                 resetKey={captchaReset}
                 onVerify={(t) => setCaptchaToken(t)}
                 onExpire={() => setCaptchaToken(null)}

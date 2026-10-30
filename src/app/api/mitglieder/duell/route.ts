@@ -35,7 +35,7 @@ import {
   rateLimit,
   rateLimitAntwort,
 } from "@/lib/ratelimit";
-import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 import {
   istPunkteFehler,
   lesePunkte,
@@ -299,11 +299,12 @@ export async function POST(req: Request) {
 async function captchaPruefen(
   req: Request,
   userId: string,
-  token: unknown,
+  capToken: unknown,
+  turnstileToken: unknown,
 ): Promise<Response | null> {
-  const captcha = await pruefeTurnstile(req, { token, userId });
+  const captcha = await pruefeCaptcha(req, { capToken, turnstileToken, userId });
   if (!captcha.ok) {
-    return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+    return Response.json(captchaFehltFehler(captcha.grund), { status: 403 });
   }
   return null;
 }
@@ -395,7 +396,12 @@ async function handleHerausfordern(
   user: RouteUser,
   body: Record<string, unknown>,
 ) {
-  const captchaFehler = await captchaPruefen(req, user.id, body.turnstileToken);
+  const captchaFehler = await captchaPruefen(
+    req,
+    user.id,
+    body.capToken,
+    body.turnstileToken,
+  );
   if (captchaFehler) return captchaFehler;
 
   const zielUserId =
@@ -496,7 +502,12 @@ async function handleAntwort(
   user: RouteUser,
   body: Record<string, unknown>,
 ) {
-  const captchaFehler = await captchaPruefen(req, user.id, body.turnstileToken);
+  const captchaFehler = await captchaPruefen(
+    req,
+    user.id,
+    body.capToken,
+    body.turnstileToken,
+  );
   if (captchaFehler) return captchaFehler;
 
   const challengeId =

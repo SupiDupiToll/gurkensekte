@@ -12,9 +12,13 @@ import { ReferralBox } from "@/components/ReferralBox";
 import { Reveal } from "@/components/Reveal";
 import { SpinningCucumber } from "@/components/SpinningCucumber";
 import {
-  TurnstileWidget,
-  turnstileKonfiguriert,
-} from "@/components/TurnstileWidget";
+  CaptchaWidget,
+  captchaKonfiguriert,
+} from "@/components/CaptchaWidget";
+import {
+  captchaPayload,
+  type CaptchaLoesung,
+} from "@/lib/captchaClient";
 import {
   PaperPlaneTilt,
   SignOut,
@@ -68,6 +72,9 @@ function WochenStreak() {
   const { wochenTage, wochenBonusGeholt, loading } = usePunkte();
   const [heuteIndex, setHeuteIndex] = useState(-1);
   useEffect(() => {
+    // Erst im Browser berechnen: Server- und Client-Zeitzone können sich
+    // unterscheiden, ein Render-Time-Wert würde Hydration-Mismatches erzeugen.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHeuteIndex((new Date().getDay() + 6) % 7);
   }, []);
   if (loading) return null;
@@ -186,6 +193,8 @@ function VerlosungsBanner() {
   const [ziehung, setZiehung] = useState("");
   useEffect(() => {
     const jetzt = new Date();
+    // Datum erst im Browser formatieren (Zeitzone/Hydration, siehe oben).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonat(
       jetzt.toLocaleDateString("de-DE", { month: "long" }),
     );
@@ -289,10 +298,10 @@ function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [claimingRedeem, setClaimingRedeem] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
+  const [captchaToken, setCaptchaToken] = useState<CaptchaLoesung | null>(null);
+  const [captchaPflicht, setCaptchaPflicht] = useState(captchaKonfiguriert());
   const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
-    turnstileKonfiguriert() ? "Bitte löse kurz das Captcha für Punkte-Aktionen." : null,
+    captchaKonfiguriert() ? "Bitte löse kurz das Captcha für Punkte-Aktionen." : null,
   );
   const [captchaReset, setCaptchaReset] = useState(0);
   const [showAdresse, setShowAdresse] = useState(false);
@@ -308,18 +317,18 @@ function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
 
   function captchaFehlt() {
     setCaptchaPflicht(true);
-    setTurnstileToken(null);
+    setCaptchaToken(null);
     setCaptchaReset((n) => n + 1);
     setCaptchaHinweis("Bitte zuerst das Captcha lösen, dann gibt es Punkte.");
   }
 
   async function handleDaily() {
-    if (captchaPflicht && !turnstileToken) {
+    if (captchaPflicht && !captchaToken) {
       captchaFehlt();
       return;
     }
     setClaimingDaily(true);
-    const result = await claim("daily", { turnstileToken });
+    const result = await claim("daily", captchaPayload(captchaToken));
     if (result?.ok) {
       await refresh();
       setCaptchaPflicht(false);
@@ -355,7 +364,7 @@ function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
       setAdresseFehler("Bitte fülle Name, Straße, PLZ und Ort aus.");
       return;
     }
-    if (captchaPflicht && !turnstileToken) {
+    if (captchaPflicht && !captchaToken) {
       setAdresseFehler("Bitte löse zuerst das Captcha weiter unten.");
       captchaFehlt();
       return;
@@ -365,7 +374,7 @@ function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
     setClaimingRedeem(true);
     const result = await claim("einloesen", {
       adresse: adresseForm,
-      turnstileToken,
+      ...captchaPayload(captchaToken),
     });
     if (result?.ok) {
       await refresh();
@@ -649,18 +658,18 @@ function PunkteInhalt({ code = null }: { code?: string | null } = {}) {
 
       {captchaPflicht && (
         <div className="mt-4">
-          <TurnstileWidget
+          <CaptchaWidget
             resetKey={captchaReset}
             onVerify={(token) => {
-              setTurnstileToken(token);
+              setCaptchaToken(token);
               setCaptchaHinweis(null);
             }}
             onExpire={() => {
-              setTurnstileToken(null);
+              setCaptchaToken(null);
               setCaptchaHinweis("Captcha abgelaufen. Bitte erneut bestätigen.");
             }}
             onError={() => {
-              setTurnstileToken(null);
+              setCaptchaToken(null);
               setCaptchaHinweis("Captcha konnte nicht geladen werden. Bitte erneut versuchen.");
             }}
           />
@@ -752,20 +761,20 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
   const [quote, setQuote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { refresh, claim, quoteAvailable, quoteRemaining } = usePunkte();
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
+  const [captchaToken, setCaptchaToken] = useState<CaptchaLoesung | null>(null);
+  const [captchaPflicht, setCaptchaPflicht] = useState(captchaKonfiguriert());
   const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
-    turnstileKonfiguriert() ? "Bitte löse kurz das Captcha für dein Zitat." : null,
+    captchaKonfiguriert() ? "Bitte löse kurz das Captcha für dein Zitat." : null,
   );
   const [captchaReset, setCaptchaReset] = useState(0);
 
   const fetchQuote = useCallback(
-    async (tokenOverride?: string | null) => {
+    async (tokenOverride?: CaptchaLoesung | null) => {
       if (!quoteAvailable) {
         setQuote("Heute hast du schon 3 Zitate generiert. Komm morgen wieder.");
         return;
       }
-      const token = tokenOverride !== undefined ? tokenOverride : turnstileToken;
+      const token = tokenOverride !== undefined ? tokenOverride : captchaToken;
       if (captchaPflicht && !token) {
         setCaptchaHinweis("Bitte zuerst das Captcha lösen.");
         return;
@@ -777,12 +786,12 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
         // die +5 im echten Bereich direkt gut (Single-Use-Token – kein
         // separater Claim). Nur die Demo braucht danach ihren Demo-Claim.
         const query = token
-          ? `/api/guerkchen/quote?turnstileToken=${encodeURIComponent(token)}`
+          ? `/api/guerkchen/quote?${token.anbieter === "cap" ? "capToken" : "turnstileToken"}=${encodeURIComponent(token.token)}`
           : "/api/guerkchen/quote";
         const res = await fetch(query);
         if (res.status === 403) {
           setCaptchaPflicht(true);
-          setTurnstileToken(null);
+          setCaptchaToken(null);
           setCaptchaReset((n) => n + 1);
           setCaptchaHinweis("Bitte zuerst das Captcha lösen.");
           await refresh();
@@ -802,7 +811,7 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
           await claim("zitat");
         }
         // Jedes Zitat kostet ein neues Captcha.
-        setTurnstileToken(null);
+        setCaptchaToken(null);
         setCaptchaReset((n) => n + 1);
         setCaptchaHinweis("Für jedes Zitat bitte kurz das Captcha lösen.");
         await refresh();
@@ -812,14 +821,15 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
         setLoading(false);
       }
     },
-    [refresh, claim, quoteAvailable, turnstileToken, captchaPflicht, isDemo],
+    [refresh, claim, quoteAvailable, captchaToken, captchaPflicht, isDemo],
   );
 
   useEffect(() => {
     // Mit Captcha-Pflicht kein Auto-Start: erst Captcha lösen, dann Button
     // klicken – sonst löst ein (ggf. automatisches) Captcha direkt das
     // nächste Zitat aus und man kann es nicht lesen.
-    if (turnstileKonfiguriert()) return;
+    if (captchaKonfiguriert()) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchQuote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -861,18 +871,18 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
       )}
       {captchaPflicht && (
         <div className="mx-auto mb-3 mt-4 max-w-md text-left">
-          <TurnstileWidget
+          <CaptchaWidget
             resetKey={captchaReset}
             onVerify={(token) => {
-              setTurnstileToken(token);
+              setCaptchaToken(token);
               setCaptchaHinweis("Captcha gelöst – tippe jetzt auf „Neues Zitat“.");
             }}
             onExpire={() => {
-              setTurnstileToken(null);
+              setCaptchaToken(null);
               setCaptchaHinweis("Captcha abgelaufen. Bitte erneut bestätigen.");
             }}
             onError={() => {
-              setTurnstileToken(null);
+              setCaptchaToken(null);
               setCaptchaHinweis("Captcha konnte nicht geladen werden. Bitte erneut versuchen.");
             }}
           />
@@ -882,9 +892,9 @@ function GurkchenQuote({ isDemo = false }: { isDemo?: boolean }) {
       <div className="mt-5 flex flex-col items-center gap-2">
         <button
           onClick={() => fetchQuote()}
-          disabled={loading || !quoteAvailable || (captchaPflicht && !turnstileToken)}
+          disabled={loading || !quoteAvailable || (captchaPflicht && !captchaToken)}
           className="flex min-h-[44px] items-center gap-2 rounded-lg bg-[#ede8d6] px-6 py-2.5 text-sm font-semibold text-[#0b120d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 "
-          title={captchaPflicht && !turnstileToken ? "Bitte zuerst das Captcha lösen" : undefined}
+          title={captchaPflicht && !captchaToken ? "Bitte zuerst das Captcha lösen" : undefined}
         >
           <Quotes size={17} weight="fill" />
           {quoteAvailable ? "Neues Zitat" : "Morgen wieder"}
@@ -933,14 +943,14 @@ function GurkchenChat({
       setInnenOffen(offen);
     }
   }
-  const [captchaRequired, setCaptchaRequired] = useState(turnstileKonfiguriert());
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [turnstileStatusText, setTurnstileStatusText] = useState<string | null>(
-    turnstileKonfiguriert() ? "Bitte bestätige kurz das Captcha." : null,
+  const [captchaRequired, setCaptchaRequired] = useState(captchaKonfiguriert());
+  const [captchaToken, setCaptchaToken] = useState<CaptchaLoesung | null>(null);
+  const [captchaStatusText, setCaptchaStatusText] = useState<string | null>(
+    captchaKonfiguriert() ? "Bitte bestätige kurz das Captcha." : null,
   );
   const [captchaReset, setCaptchaReset] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const captchaKonfiguriert = turnstileKonfiguriert();
+  const captchaAktiv = captchaKonfiguriert();
   const { refresh, claim } = usePunkte();
 
   useEffect(() => {
@@ -996,26 +1006,26 @@ function GurkchenChat({
 
   function captchaZuruecksetzen(hinweis: string) {
     setCaptchaRequired(true);
-    setTurnstileToken(null);
+    setCaptchaToken(null);
     setCaptchaReset((n) => n + 1);
-    setTurnstileStatusText(hinweis);
+    setCaptchaStatusText(hinweis);
   }
 
   async function sendMessage() {
     const text = input.trim();
     if (!text || loading) return;
-    if (!captchaKonfiguriert) {
+    if (!captchaAktiv) {
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Turnstile ist noch nicht eingerichtet (NEXT_PUBLIC_TURNSTILE_SITE_KEY fehlt).",
+          content: "Captcha ist noch nicht eingerichtet (Cap- oder Turnstile-Site-Key fehlt).",
         },
       ]);
       return;
     }
-    if (captchaRequired && !turnstileToken) {
-      setTurnstileStatusText("Bitte zuerst das Captcha lösen.");
+    if (captchaRequired && !captchaToken) {
+      setCaptchaStatusText("Bitte zuerst das Captcha lösen.");
       return;
     }
 
@@ -1049,7 +1059,7 @@ function GurkchenChat({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history.map((m) => ({ role: m.role, content: m.content })),
-          turnstileToken,
+          ...captchaPayload(captchaToken),
         }),
       });
 
@@ -1133,7 +1143,7 @@ function GurkchenChat({
         }
         refresh();
       }
-      if (captchaKonfiguriert) {
+      if (captchaKonfiguriert()) {
         captchaZuruecksetzen(
           "Für jede Nachricht bitte kurz das Captcha lösen.",
         );
@@ -1242,28 +1252,28 @@ function GurkchenChat({
           <p className="mx-auto w-full max-w-4xl rounded-xl border border-[#8fa96d]/25 bg-[#8fa96d]/[0.06] px-3 py-2 text-center text-xs text-[#a3ad9a]">
             🥒 Tour-Demo – gleich chattest du echt (mit Captcha & +5 Punkten pro Nachricht).
           </p>
-        ) : captchaKonfiguriert ? (
+        ) : captchaAktiv ? (
           <div className="mx-auto mb-2 w-full max-w-4xl">
             {captchaRequired && (
               <div>
-                <TurnstileWidget
+                <CaptchaWidget
                   resetKey={captchaReset}
                   onVerify={(token) => {
-                    setTurnstileToken(token);
-                    setTurnstileStatusText(null);
+                    setCaptchaToken(token);
+                    setCaptchaStatusText(null);
                   }}
                   onExpire={() => captchaZuruecksetzen("Captcha abgelaufen. Bitte erneut bestätigen.")}
                   onError={() =>
                     captchaZuruecksetzen("Captcha konnte nicht geladen werden. Bitte erneut versuchen.")
                   }
                 />
-                {turnstileStatusText && <p className="mt-2 text-xs text-[#a3ad9a]">{turnstileStatusText}</p>}
+                {captchaStatusText && <p className="mt-2 text-xs text-[#a3ad9a]">{captchaStatusText}</p>}
               </div>
             )}
           </div>
         ) : (
           <div className="mx-auto mb-2 w-full max-w-4xl rounded-xl border border-red-500/30 bg-red-900/20 p-3 text-xs text-red-200">
-            Turnstile ist nicht konfiguriert (NEXT_PUBLIC_TURNSTILE_SITE_KEY fehlt).
+            Captcha ist nicht konfiguriert (Cap- oder Turnstile-Site-Key fehlt).
           </div>
         )}
         <div className="mx-auto flex w-full max-w-4xl items-end gap-2">
@@ -1284,7 +1294,7 @@ function GurkchenChat({
           />
           <button
             onClick={sendMessage}
-            disabled={loading || !!tourDemo || !input.trim() || (captchaRequired && !turnstileToken)}
+            disabled={loading || !!tourDemo || !input.trim() || (captchaRequired && !captchaToken)}
             className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-lg bg-[#ede8d6] text-[#0b120d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 "
             aria-label="Nachricht senden"
           >

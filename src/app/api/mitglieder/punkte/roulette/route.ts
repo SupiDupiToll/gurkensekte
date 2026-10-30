@@ -9,7 +9,7 @@ import {
   rateLimit,
   rateLimitAntwort,
 } from "@/lib/ratelimit";
-import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 import {
   istPunkteFehler,
   lesePunkte,
@@ -36,10 +36,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
   }
 
-  let body: { einsaetze?: unknown; turnstileToken?: unknown } = {};
+  let body: { einsaetze?: unknown; capToken?: unknown; turnstileToken?: unknown } = {};
   try {
     body = (await req.json()) as {
       einsaetze?: unknown;
+      capToken?: unknown;
       turnstileToken?: unknown;
     };
   } catch {
@@ -49,13 +50,14 @@ export async function POST(req: Request) {
   // Bot-Schutz vor der Buchung: Jede Kugel braucht ein frisch gelöstes
   // Captcha – eine 30-Minuten-Sitzung würde unbegrenzte Drehs pro Lösung
   // erlauben (Farming + Schreiblast).
-  const captcha = await pruefeTurnstile(req, {
-    token: body.turnstileToken,
+  const captcha = await pruefeCaptcha(req, {
+    capToken: body.capToken,
+    turnstileToken: body.turnstileToken,
     userId: user.id,
     frischesToken: true,
   });
   if (!captcha.ok) {
-    return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+    return Response.json(captchaFehltFehler(captcha.grund), { status: 403 });
   }
 
   const check = validiereRouletteEinsaetze(body.einsaetze);

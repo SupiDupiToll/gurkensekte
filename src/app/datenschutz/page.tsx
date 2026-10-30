@@ -35,7 +35,30 @@ export default function DatenschutzPage() {
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-6">
             <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
-              Cloudflare Turnstile (Bot-Schutz)
+              Cap (self-hosted Bot-Schutz)
+            </h3>
+            <p className="text-sm text-[#6b7565] mb-2">
+              <strong>Zweck:</strong> Schutz vor automatisierten Bots und
+              Missbrauch – primäres Captcha
+            </p>
+            <ul className="list-disc list-inside text-sm text-[#a3ad9a] space-y-1">
+              <li>
+                Verarbeitung auf unserem eigenen Server unter
+                cap.sdtoll.de (kein Drittanbieter, keine Werbe-Tracker)
+              </li>
+              <li>
+                Proof-of-Work- und Browser-Prüfung beim Lösen des Captchas
+              </li>
+              <li>
+                Verarbeitet werden die für die Prüfung nötigen technischen
+                Daten (IP-Adresse, User-Agent, Zeitstempel)
+              </li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+            <h3 className="mb-2 text-xl font-medium text-[#ede8d6]">
+              Cloudflare Turnstile (Bot-Schutz, Fallback)
             </h3>
             <p className="text-sm text-[#6b7565] mb-2">
               <strong>Zweck:</strong> Schutz vor automatisierten Bots und
@@ -143,7 +166,10 @@ export default function DatenschutzPage() {
                 Mails bleiben bis zur Löschung des Kontos gespeichert und werden
                 auf Anfrage (siehe Kontakt unten) gelöscht
               </li>
-              <li>Bot-Schutz für den Versand per Cloudflare Turnstile</li>
+              <li>
+                Bot-Schutz für den Versand per Cap, bei Ausfall per Cloudflare
+                Turnstile
+              </li>
             </ul>
           </div>
 

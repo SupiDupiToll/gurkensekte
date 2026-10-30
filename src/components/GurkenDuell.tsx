@@ -16,9 +16,13 @@ import {
 } from "@phosphor-icons/react";
 import { usePunkte } from "@/components/PunkteContext";
 import {
-  TurnstileWidget,
-  turnstileKonfiguriert,
-} from "@/components/TurnstileWidget";
+  CaptchaWidget,
+  captchaKonfiguriert,
+} from "@/components/CaptchaWidget";
+import {
+  captchaPayload,
+  type CaptchaLoesung,
+} from "@/lib/captchaClient";
 import {
   DUELL_ACCESSOIRES,
   DUELL_EINSAETZE,
@@ -173,10 +177,10 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
   const [ausgewaehlt, setAusgewaehlt] = useState<OeffentlicherGast | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [captchaPflicht, setCaptchaPflicht] = useState(turnstileKonfiguriert());
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [captchaPflicht, setCaptchaPflicht] = useState(captchaKonfiguriert());
+  const [captchaToken, setCaptchaToken] = useState<CaptchaLoesung | null>(null);
   const [captchaHinweis, setCaptchaHinweis] = useState<string | null>(
-    turnstileKonfiguriert() ? "Bitte löse kurz das Captcha fürs Duell." : null,
+    captchaKonfiguriert() ? "Bitte löse kurz das Captcha fürs Duell." : null,
   );
   const [captchaReset, setCaptchaReset] = useState(0);
   const speicherKey = `gurken-duell:${duellApiBase}`;
@@ -215,7 +219,7 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
       const res = await fetch(duellApiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aktion, turnstileToken, ...extra }),
+        body: JSON.stringify({ aktion, ...captchaPayload(captchaToken), ...extra }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<
         string,
@@ -223,7 +227,7 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
       > & { error?: string; requiresTurnstile?: boolean };
       if (res.status === 403 && data.requiresTurnstile) {
         setCaptchaPflicht(true);
-        setTurnstileToken(null);
+        setCaptchaToken(null);
         setCaptchaReset((n) => n + 1);
         setCaptchaHinweis("Captcha erforderlich – bitte erneut bestätigen.");
         return {
@@ -403,7 +407,7 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
     if (
       (schluessel === "herausfordern" || schluessel.startsWith("antwort")) &&
       captchaPflicht &&
-      !turnstileToken
+      !captchaToken
     ) {
       setFehler("Bitte zuerst das Captcha lösen.");
       return true;
@@ -731,20 +735,20 @@ export function GurkenDuell({ duellApiBase }: { duellApiBase: string }) {
 
               {captchaPflicht && (
                 <div>
-                  <TurnstileWidget
+                  <CaptchaWidget
                     resetKey={captchaReset}
                     onVerify={(token) => {
-                      setTurnstileToken(token);
+                      setCaptchaToken(token);
                       setCaptchaHinweis(null);
                     }}
                     onExpire={() => {
-                      setTurnstileToken(null);
+                      setCaptchaToken(null);
                       setCaptchaHinweis(
                         "Captcha abgelaufen. Bitte erneut bestätigen.",
                       );
                     }}
                     onError={() => {
-                      setTurnstileToken(null);
+                      setCaptchaToken(null);
                       setCaptchaHinweis(
                         "Captcha konnte nicht geladen werden. Bitte erneut versuchen.",
                       );

@@ -5,7 +5,7 @@ import {
   rateLimit,
   rateLimitAntwort,
 } from "@/lib/ratelimit";
-import { pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 import {
   WOCHENBONUS_PUNKTE,
   berechneComebackBonus,
@@ -113,11 +113,12 @@ export async function POST(req: Request) {
     return Response.json({ error: "Nicht eingeloggt" }, { status: 401 });
   }
 
-  let body: { action?: string; adresse?: unknown; turnstileToken?: unknown };
+  let body: { action?: string; adresse?: unknown; capToken?: unknown; turnstileToken?: unknown };
   try {
     body = (await req.json()) as {
       action?: string;
       adresse?: unknown;
+      capToken?: unknown;
       turnstileToken?: unknown;
     };
   } catch {
@@ -137,13 +138,14 @@ export async function POST(req: Request) {
   // Geprüft wird vor allen Kontingent-Checks, damit Fehlversuche kein
   // Tageslimit verbrauchen.
   if (action !== "starter") {
-    const captcha = await pruefeTurnstile(req, {
-      token: body.turnstileToken,
+    const captcha = await pruefeCaptcha(req, {
+      capToken: body.capToken,
+      turnstileToken: body.turnstileToken,
       userId: user.id,
       frischesToken: action === "chat" || action === "zitat",
     });
     if (!captcha.ok) {
-      return Response.json(turnstileFehltFehler(captcha.grund), { status: 403 });
+      return Response.json(captchaFehltFehler(captcha.grund), { status: 403 });
     }
   }
 

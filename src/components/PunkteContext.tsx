@@ -206,6 +206,8 @@ export function PunkteProvider({
   );
 
   useEffect(() => {
+    // Initialer Fetch beim Mount; refresh setzt den State erst asynchron.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
 

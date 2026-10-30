@@ -1,5 +1,5 @@
 import { hexclaveServerApp } from "@/hexclave/server";
-import { getClientIp, pruefeTurnstile, turnstileFehltFehler } from "@/lib/turnstile";
+import { getClientIp, pruefeCaptcha, captchaFehltFehler } from "@/lib/captcha";
 import { rateLimit, rateLimitAntwort } from "@/lib/ratelimit";
 import { bucheBonus, istPunkteFehler } from "@/lib/punkte";
 import { hatKiAnbieter, holeChatStream } from "@/lib/ki-anbieter";
@@ -66,9 +66,10 @@ export async function POST(req: Request) {
       return rateLimitAntwort(CHAT_FENSTER_MS);
     }
 
-    const { messages, turnstileToken } = (await req.json()) as {
+    const { messages, capToken, turnstileToken } = (await req.json()) as {
       messages?: unknown[];
-      turnstileToken?: string;
+      capToken?: unknown;
+      turnstileToken?: unknown;
     };
 
     const verlauf = validiereNachrichten(messages);
@@ -79,12 +80,13 @@ export async function POST(req: Request) {
     // Bot-Schutz: Jede Nachricht braucht ein frisch gelöstes Captcha – eine
     // 30-Minuten-Sitzung würde Bot-Spam pro gelöstem Captcha unbegrenzt
     // erlauben (LLM-Kosten + Chat-Punkte-Farming).
-    const captcha = await pruefeTurnstile(req, {
-      token: turnstileToken,
+    const captcha = await pruefeCaptcha(req, {
+      capToken,
+      turnstileToken,
       frischesToken: true,
     });
     if (!captcha.ok) {
-      return Response.json(turnstileFehltFehler(captcha.grund), {
+      return Response.json(captchaFehltFehler(captcha.grund), {
         status: 403,
       });
     }

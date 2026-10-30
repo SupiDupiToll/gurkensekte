@@ -57,6 +57,11 @@
     "MANGOE_PAYMENT_LINK_SLUG": "gurkenglas-spende-0vrd1",
     "GURKENMAIL_INBOUND_URL": "https://gurkenmail-inbound.sdtoll.workers.dev",
     "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFCmLsBloezlXcr2",
+    "NEXT_PUBLIC_CAP_SERVER_URL": "https://cap.sdtoll.de",
+    // Öffentlicher Site-Key aus dem Cap-Dashboard. Das Secret liegt als
+    // Worker-Secret CAP_SECRET_KEY vor und gehört nicht in diese Datei.
+    "NEXT_PUBLIC_CAP_SITE_KEY": "7aa7d62f32",
+    "CAP_SITE_KEY": "7aa7d62f32",
     "NEXT_PUBLIC_IDLEN_API_KEY": "idl_pk_a8dac95f149c75923106145544193bb0c0a06e09e04d9d248f9ea980a28ee7be"
   }
 }
