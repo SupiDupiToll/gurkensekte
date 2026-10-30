@@ -15,6 +15,10 @@ const eslintConfig = defineConfig([
     // Cloudflare/OpenNext-Artefakte (Worker-Bundle, wrangler-State):
     ".open-next/**",
     ".wrangler/**",
+    // Vendored Agent-Skills (Fremdcode, z. B. scroll-craft):
+    ".agents/**",
+    // Kopie der scroll-craft-Engine als statisches Asset (Fremdcode):
+    "public/scrollcraft/**",
   ]),
 ]);
 
